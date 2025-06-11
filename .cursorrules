@@ -1,0 +1,13 @@
+# Cursor Rules for Baytul Iqra Bookstore
+
+## Development Server Rule
+- DO NOT run `npm run dev` or any development server commands
+- The user will manage the development server themselves
+- When suggesting testing changes, mention that the user should run their dev server if needed
+- Focus on code changes and implementation rather than server management
+
+## General Development Guidelines
+- Prefer editing existing files over creating new ones unless absolutely necessary
+- Always use proper TypeScript types
+- Follow the existing code style and patterns
+- Test API endpoints and functionality through code changes rather than server commands 
