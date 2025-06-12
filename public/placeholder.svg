@@ -1,0 +1,46 @@
+<svg width="300" height="400" viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f0f9ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e0f2fe;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="bookGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#059669;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0d9488;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="300" height="400" fill="url(#bg)" stroke="#e2e8f0" stroke-width="2" rx="8"/>
+  
+  <!-- Book icon -->
+  <g transform="translate(150, 160)">
+    <!-- Book base -->
+    <rect x="-40" y="-30" width="80" height="60" fill="url(#bookGradient)" rx="4"/>
+    <!-- Book spine -->
+    <rect x="-40" y="-30" width="8" height="60" fill="#047857" rx="2"/>
+    <!-- Book pages -->
+    <rect x="-35" y="-25" width="70" height="50" fill="#ffffff" rx="2"/>
+    <!-- Page lines -->
+    <line x1="-25" y1="-15" x2="25" y2="-15" stroke="#e5e7eb" stroke-width="1"/>
+    <line x1="-25" y1="-5" x2="25" y2="-5" stroke="#e5e7eb" stroke-width="1"/>
+    <line x1="-25" y1="5" x2="25" y2="5" stroke="#e5e7eb" stroke-width="1"/>
+    <line x1="-25" y1="15" x2="25" y2="15" stroke="#e5e7eb" stroke-width="1"/>
+  </g>
+  
+  <!-- Islamic geometric pattern (simplified) -->
+  <g transform="translate(150, 280)" opacity="0.3">
+    <circle cx="0" cy="0" r="20" fill="none" stroke="#059669" stroke-width="1"/>
+    <circle cx="0" cy="0" r="12" fill="none" stroke="#059669" stroke-width="1"/>
+    <circle cx="0" cy="0" r="4" fill="#059669"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="150" y="320" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="14" fill="#6b7280" font-weight="500">
+    Book Image
+  </text>
+  <text x="150" y="340" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="12" fill="#9ca3af">
+    Coming Soon
+  </text>
+</svg> 

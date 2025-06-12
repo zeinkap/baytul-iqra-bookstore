@@ -172,7 +172,7 @@ export default function BookGrid({ initialBooks }: BookGridProps) {
                   {/* Book Image */}
                   <div className="relative aspect-[3/4] bg-gradient-to-br from-gray-50 to-gray-100 p-4">
                     <Image
-                      src={book.image || '/placeholder.png'}
+                      src={book.image || '/placeholder.svg'}
                       alt={book.title}
                       fill
                       className="object-contain drop-shadow-lg transition-transform duration-300 group-hover:scale-105"

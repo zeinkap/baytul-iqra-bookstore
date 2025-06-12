@@ -103,7 +103,7 @@ export default function Header() {
           </div>
 
           {/* Right side - cart and mobile menu */}
-          <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4">
             {/* Cart icon */}
             <div className="relative">
               <CartIconClient />
@@ -161,7 +161,7 @@ export default function Header() {
                   className="block px-3 py-2 text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all duration-200 text-sm pl-6"
                 >
                   {category}
-                </Link>
+          </Link>
               ))}
             </div>
           </nav>

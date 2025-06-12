@@ -100,7 +100,7 @@ export default async function HomePage() {
             </div>
             <h3 className="text-xl font-bold text-gray-900 mb-2">Curated Collection</h3>
             <p className="text-gray-600">Carefully selected Islamic books from renowned scholars and authors</p>
-          </div>
+      </div>
           <div className="text-center p-8 bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50">
             <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

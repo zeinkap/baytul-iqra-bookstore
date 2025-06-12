@@ -7,7 +7,13 @@
     "build": "npx prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "npx prisma generate"
+    "postinstall": "npx prisma generate",
+    "db:backup": "npx tsx scripts/backupDatabase.ts",
+    "db:restore": "npx tsx scripts/restoreFromBackup.ts",
+    "db:migrate": "npx prisma migrate dev",
+    "db:reset": "npx prisma migrate reset",
+    "db:seed": "npx tsx scripts/seedDatabase.ts",
+    "books:add": "npx tsx scripts/addSingleBook.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.8.2",

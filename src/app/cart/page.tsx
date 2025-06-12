@@ -80,8 +80,8 @@ export default function CartPage() {
                 Start Shopping
               </Link>
             </div>
-          </div>
-        ) : (
+        </div>
+      ) : (
           /* Cart Items */
           <div className="grid lg:grid-cols-3 gap-8">
             
@@ -114,7 +114,7 @@ export default function CartPage() {
                         <div className="relative w-24 h-32 sm:w-28 sm:h-36 flex-shrink-0 mx-auto sm:mx-0">
                           <div className="relative w-full h-full bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
                             <Image 
-                              src={item.image || '/placeholder.png'} 
+                              src={item.image || '/placeholder.svg'} 
                               alt={item.title} 
                               fill 
                               className="object-contain p-2" 
@@ -152,14 +152,14 @@ export default function CartPage() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                                   </svg>
                                 </button>
-                                <input
-                                  type="number"
-                                  min={1}
-                                  value={item.quantity}
-                                  onChange={e => updateQuantity(item.id, Math.max(1, Number(e.target.value)))}
+                    <input
+                      type="number"
+                      min={1}
+                      value={item.quantity}
+                      onChange={e => updateQuantity(item.id, Math.max(1, Number(e.target.value)))}
                                   className="w-16 px-3 py-2 text-center border-0 focus:ring-0 text-gray-900 bg-white"
-                                />
-                                <button
+                    />
+                    <button
                                   onClick={() => updateQuantity(item.id, item.quantity + 1)}
                                   className="px-3 py-2 text-gray-600 hover:bg-gray-100 transition-colors duration-200"
                                 >
@@ -172,8 +172,8 @@ export default function CartPage() {
                             
                             {/* Remove Button */}
                             <button
-                              onClick={() => {
-                                removeFromCart(item.id);
+                      onClick={() => {
+                        removeFromCart(item.id);
                                 toast.success('Item removed from cart', {
                                   style: {
                                     background: '#ef4444',
@@ -184,15 +184,15 @@ export default function CartPage() {
                                     secondary: '#ef4444',
                                   },
                                 });
-                              }}
+                      }}
                               className="inline-flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                               </svg>
-                              Remove
-                            </button>
-                          </div>
+                      Remove
+                    </button>
+                  </div>
                           
                           {/* Item Subtotal */}
                           <div className="mt-4 pt-4 border-t border-gray-100">
@@ -244,30 +244,30 @@ export default function CartPage() {
                   </div>
                   
                   {/* Checkout Button */}
-                  <button
+            <button
                     className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-6 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none relative overflow-hidden group"
-                    disabled={loading}
-                    onClick={async () => {
-                      setLoading(true);
-                      try {
-                        const res = await fetch('/api/checkout_sessions', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ items: cart }),
-                        });
-                        const data = await res.json();
-                        if (data.url) {
-                          window.location.href = data.url;
-                        } else {
-                          toast.error(data.error || 'Failed to create Stripe session');
-                        }
-                      } catch {
-                        toast.error('Error connecting to payment gateway.');
-                      } finally {
-                        setLoading(false);
-                      }
-                    }}
-                  >
+              disabled={loading}
+              onClick={async () => {
+                setLoading(true);
+                try {
+                  const res = await fetch('/api/checkout_sessions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ items: cart }),
+                  });
+                  const data = await res.json();
+                  if (data.url) {
+                    window.location.href = data.url;
+                  } else {
+                    toast.error(data.error || 'Failed to create Stripe session');
+                  }
+                } catch {
+                  toast.error('Error connecting to payment gateway.');
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            >
                     {/* Shine effect */}
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out"></div>
                     
@@ -289,7 +289,7 @@ export default function CartPage() {
                         </>
                       )}
                     </div>
-                  </button>
+            </button>
                   
                   {/* Security Info */}
                   <div className="text-center text-sm text-gray-500">
@@ -337,7 +337,7 @@ export default function CartPage() {
             </div>
           </div>
         )}
-      </div>
+        </div>
     </main>
   );
 } 
