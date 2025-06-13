@@ -8,7 +8,7 @@ export default function AddToCartButton({
   price,
   image,
 }: {
-  id: number;
+  id: string;
   title: string;
   price: number;
   image: string;

@@ -2,7 +2,7 @@ import BookDetailClient from './BookDetailClient';
 import { notFound } from 'next/navigation';
 
 export type Book = {
-  id: number;
+  id: string;
   title: string;
   author: string;
   description: string;

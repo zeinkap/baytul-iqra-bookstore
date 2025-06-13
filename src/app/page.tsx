@@ -4,7 +4,7 @@ import BookGrid from '@/components/BookGrid';
 
 // Define a Book type matching the Prisma model for use in the app directory
 export type Book = {
-  id: number;
+  id: string;
   title: string;
   author: string;
   description: string;

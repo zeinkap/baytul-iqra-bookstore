@@ -4,7 +4,7 @@ import Select, { MultiValue } from 'react-select';
 
 // Book type
 interface Book {
-  id: number;
+  id: string;
   title: string;
   author: string;
   description: string;

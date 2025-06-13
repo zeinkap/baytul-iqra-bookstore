@@ -8,16 +8,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const numId = Number(id);
-  if (isNaN(numId)) return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
   const book = await prisma.book.findUnique({
-    where: { id: numId },
+    where: { id },
     include: { categories: true }
   });
   if (!book) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   return NextResponse.json({
     ...book,
-    categories: (book.categories as Category[]).map((cat) => cat.name)
+    categories: book.categories.map((cat: Category) => cat.name)
   });
 }
 
@@ -27,13 +25,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const numId = Number(id);
-  if (isNaN(numId)) return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
   const data = await req.json();
   const { title, author, description, price, images, stock, categories } = data;
   // Update book and categories connection
   const book = await prisma.book.update({
-    where: { id: numId },
+    where: { id },
     data: {
       title, author, description, price, images, stock,
       ...(Array.isArray(categories) && {
@@ -46,7 +42,7 @@ export async function PUT(
   });
   return NextResponse.json({
     ...book,
-    categories: (book.categories as Category[]).map((cat) => cat.name)
+    categories: book.categories.map((cat: Category) => cat.name)
   });
 }
 
@@ -56,8 +52,6 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const numId = Number(id);
-  if (isNaN(numId)) return NextResponse.json({ error: 'Invalid ID' }, { status: 400 });
-  await prisma.book.delete({ where: { id: numId } });
+  await prisma.book.delete({ where: { id } });
   return NextResponse.json({ success: true });
 } 

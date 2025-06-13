@@ -6,7 +6,7 @@ import AddToCartButtonClient from '@/components/AddToCartButtonClient';
 import SearchBar from '@/components/SearchBar';
 
 export type Book = {
-  id: number;
+  id: string;
   title: string;
   author: string;
   description: string;
@@ -208,7 +208,7 @@ export default function BookGrid({ initialBooks }: BookGridProps) {
               </div>
             </div>
           )}
-          {displayedBooks.map((book) => (
+          {books.map((book) => (
             <div key={book.id} className="group">
               <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl border border-white/50 overflow-hidden transition-all duration-300 group-hover:scale-[1.02] group-hover:-translate-y-1">
                 <Link href={`/books/${book.id}`} className="block">

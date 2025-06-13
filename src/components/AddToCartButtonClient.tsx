@@ -2,7 +2,7 @@
 import AddToCartButton from './AddToCartButton';
 
 export default function AddToCartButtonClient(props: {
-  id: number;
+  id: string;
   title: string;
   price: number;
   image: string;

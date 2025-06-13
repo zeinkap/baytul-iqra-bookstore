@@ -23,6 +23,7 @@ function askQuestion(question: string): Promise<string> {
 async function restoreFromBackup(backupFilePath?: string) {
   try {
     console.log('🔄 Starting database restore from backup...\n');
+    console.log('Using DATABASE_URL:', process.env.DATABASE_URL);
     
     const backupDir = path.join(process.cwd(), 'backups');
     

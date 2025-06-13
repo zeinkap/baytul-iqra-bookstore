@@ -7,7 +7,7 @@ import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
 
 export type Book = {
-  id: number;
+  id: string;
   title: string;
   author: string;
   description: string;
@@ -46,14 +46,14 @@ export default function BookDetailClient({ book }: { book: Book }) {
                     className="relative w-full aspect-[3/4] max-w-sm mx-auto bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 cursor-zoom-in overflow-hidden border border-gray-100 group-hover:scale-[1.02]" 
                     onClick={() => setLightboxOpen(true)}
                   >
-                    <Image
+          <Image
                       src={book.images && book.images[selectedImageIdx] ? book.images[selectedImageIdx] : '/placeholder.svg'}
-                      alt={book.title}
-                      fill
+            alt={book.title}
+            fill
                       className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"
                       sizes="(max-width: 768px) 100vw, 40vw"
-                      priority={true}
-                    />
+            priority={true}
+          />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300 rounded-2xl" />
                     <span className="absolute bottom-3 right-3 bg-black/70 text-white text-xs px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-sm">
                       🔍 Click to enlarge
