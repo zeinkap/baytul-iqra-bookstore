@@ -14,14 +14,20 @@ datasource db {
 }
 
 model Book {
-  id          Int      @id @default(autoincrement())
+  id          Int        @id @default(autoincrement())
   title       String
   author      String
   description String
   price       Float
-  image       String
+  images      String[]
   stock       Int
-  category    String   @default("Islamic Literature")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  categories  Category[] @relation("BookCategories")
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Category {
+  id    Int    @id @default(autoincrement())
+  name  String @unique
+  books Book[] @relation("BookCategories")
 }

@@ -11,9 +11,9 @@ export type Book = {
   author: string;
   description: string;
   price: number;
-  image: string;
+  images: string[];
   stock: number;
-  category: string;
+  categories: string[];
   createdAt: string;
   updatedAt: string;
 };
@@ -27,6 +27,21 @@ export default function BookGrid({ initialBooks }: BookGridProps) {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
+
+  // Fetch categories for dropdown
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const res = await fetch('/api/books/categories');
+        if (res.ok) {
+          const data = await res.json();
+          setCategories(data);
+        }
+      } catch {}
+    }
+    fetchCategories();
+  }, []);
 
   const handleCategoryFilter = useCallback(async (category: string) => {
     setLoading(true);
@@ -81,6 +96,18 @@ export default function BookGrid({ initialBooks }: BookGridProps) {
     }
   };
 
+  // Combined filter: if both search and category are set, filter client-side
+  const displayedBooks = books.filter((book) => {
+    const matchesSearch =
+      !searchQuery ||
+      book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      book.author.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory =
+      !selectedCategory ||
+      book.categories.map((c) => c.toLowerCase()).includes(selectedCategory.toLowerCase());
+    return matchesSearch && matchesCategory;
+  });
+
   const clearFilters = () => {
     setBooks(initialBooks);
     setSearchQuery('');
@@ -100,12 +127,28 @@ export default function BookGrid({ initialBooks }: BookGridProps) {
             <h2 className="text-3xl font-bold text-gray-900 mb-3">Discover Your Next Read</h2>
             <p className="text-gray-600 max-w-2xl mx-auto">Search through our carefully curated collection of Islamic literature</p>
           </div>
-          <SearchBar 
-            onSearch={handleSearch}
-            placeholder="Search by title or author..."
-            className="max-w-xl mx-auto"
-          />
-                    {(searchQuery || selectedCategory) && (
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-center mb-6">
+            <SearchBar 
+              onSearch={handleSearch}
+              placeholder="Search by title or author..."
+              className="max-w-xl w-full md:w-96"
+            />
+            <select
+              value={selectedCategory || ''}
+              onChange={e => {
+                const val = e.target.value;
+                if (val) handleCategoryFilter(val);
+                else clearFilters();
+              }}
+              className="w-full md:w-64 border-2 border-gray-200 rounded-lg py-3 px-4 text-base font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 shadow-sm hover:border-gray-300 transition-colors duration-200"
+            >
+              <option value="">All Categories</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+          {(searchQuery || selectedCategory) && (
             <div className="text-center mt-4">
               {loading ? (
                 <div className="inline-flex items-center gap-3 bg-blue-50 text-blue-700 px-4 py-2 rounded-full">
@@ -123,8 +166,8 @@ export default function BookGrid({ initialBooks }: BookGridProps) {
                     </svg>
                     <span className="font-medium">
                       {searchQuery 
-                        ? `Found ${books.length} book${books.length !== 1 ? 's' : ''} for "${searchQuery}"`
-                        : `${books.length} book${books.length !== 1 ? 's' : ''} in ${selectedCategory}`
+                        ? `Found ${displayedBooks.length} book${displayedBooks.length !== 1 ? 's' : ''} for "${searchQuery}"`
+                        : `${displayedBooks.length} book${displayedBooks.length !== 1 ? 's' : ''} in ${selectedCategory}`
                       }
                     </span>
                   </div>
@@ -150,7 +193,7 @@ export default function BookGrid({ initialBooks }: BookGridProps) {
           id="book-grid"
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 pb-16"
         >
-          {books.length === 0 && !loading && (
+          {displayedBooks.length === 0 && !loading && (
             <div className="col-span-full text-center py-16">
               <div className="max-w-md mx-auto">
                 <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -165,14 +208,14 @@ export default function BookGrid({ initialBooks }: BookGridProps) {
               </div>
             </div>
           )}
-          {books.map((book) => (
+          {displayedBooks.map((book) => (
             <div key={book.id} className="group">
               <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl border border-white/50 overflow-hidden transition-all duration-300 group-hover:scale-[1.02] group-hover:-translate-y-1">
                 <Link href={`/books/${book.id}`} className="block">
                   {/* Book Image */}
                   <div className="relative aspect-[3/4] bg-gradient-to-br from-gray-50 to-gray-100 p-4">
                     <Image
-                      src={book.image || '/placeholder.svg'}
+                      src={book.images && book.images[0] ? book.images[0] : '/placeholder.svg'}
                       alt={book.title}
                       fill
                       className="object-contain drop-shadow-lg transition-transform duration-300 group-hover:scale-105"
@@ -193,6 +236,14 @@ export default function BookGrid({ initialBooks }: BookGridProps) {
                       {book.title}
                     </h3>
                     <p className="text-sm text-gray-600 mb-3">by {book.author}</p>
+                    {/* Categories */}
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {book.categories && book.categories.length > 0 && book.categories.map((cat) => (
+                        <span key={cat} className="inline-block bg-emerald-50 text-emerald-700 px-2 py-1 rounded-full text-xs font-medium border border-emerald-100">
+                          {cat}
+                        </span>
+                      ))}
+                    </div>
                     
                     {/* Price */}
                     <div className="flex items-center justify-between mb-4">
@@ -210,7 +261,7 @@ export default function BookGrid({ initialBooks }: BookGridProps) {
                     onClick={(e) => e.preventDefault()}
                   >
                     <div className="w-full">
-                      <AddToCartButtonClient id={book.id} title={book.title} price={book.price} image={book.image} />
+                      <AddToCartButtonClient id={book.id} title={book.title} price={book.price} image={book.images && book.images[0] ? book.images[0] : ''} />
                     </div>
                   </div>
                 </div>

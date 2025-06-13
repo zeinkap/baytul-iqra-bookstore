@@ -45,9 +45,9 @@ Baytul Iqra Bookstore is an online Islamic bookstore offering:
    ```
 
 5. **Start the development server**
-   ```bash
-   npm run dev
-   ```
+```bash
+npm run dev
+```
 
 6. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
@@ -111,7 +111,7 @@ The bookstore organizes books into these categories:
 - **Biography & Seerah** (6 books) - Lives of prophets and companions
 - **Dua & Dhikr** (2 books) - Prayers and remembrance
 - **Fiqh & Islamic Law** (1 book) - Islamic jurisprudence
-- **Aqeedah & Theology** (1 book) - Islamic beliefs
+- **Hajj & Umrah** (1 book) - Pilgrimage and its rituals
 
 ## 🔧 Tech Stack
 

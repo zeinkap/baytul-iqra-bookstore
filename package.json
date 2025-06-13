@@ -26,6 +26,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hot-toast": "^2.5.2",
+    "react-select": "^5.10.1",
     "stripe": "^18.1.1",
     "yet-another-react-lightbox": "^3.23.2"
   },
@@ -40,7 +41,7 @@
     "eslint-config-next": "15.3.2",
     "tailwindcss": "^4.1.7",
     "ts-node": "^10.9.2",
-    "tsx": "^4.7.1",
+    "tsx": "^4.20.3",
     "typescript": "^5.8.3"
   }
 }

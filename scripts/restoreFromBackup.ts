@@ -101,13 +101,28 @@ async function restoreFromBackup(backupFilePath?: string) {
     for (const book of backupData.books) {
       // Remove the id to let the database auto-generate new ones
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, ...bookData } = book;
+      const { id, categories, ...bookData } = book;
       
       // Convert date strings back to Date objects
       bookData.createdAt = new Date(book.createdAt);
       bookData.updatedAt = new Date(book.updatedAt);
-      
-      await prisma.book.create({ data: bookData });
+
+      // Prepare category connections
+      let categoryConnect: { id: number }[] = [];
+      if (categories && categories.length > 0) {
+        const categoryNames = categories.map((cat: { id: number; name: string }) => cat.name);
+        const foundCategories = await prisma.category.findMany({
+          where: { name: { in: categoryNames } }
+        });
+        categoryConnect = foundCategories.map((cat: { id: number; name: string }) => ({ id: cat.id }));
+      }
+
+      await prisma.book.create({
+        data: {
+          ...bookData,
+          categories: { connect: categoryConnect }
+        }
+      });
       restoredCount++;
       
       if (restoredCount % 10 === 0) {
@@ -119,16 +134,13 @@ async function restoreFromBackup(backupFilePath?: string) {
     console.log(`\n🎉 Successfully restored ${finalCount} books!`);
     
     // Show category distribution after restore
-    const categories = await prisma.book.groupBy({
-      by: ['category'],
-      _count: { category: true }
-    });
+    const categories = await getCategoryDistribution();
     
     console.log('\n📊 Restored category distribution:');
-    categories
-      .sort((a, b) => b._count.category - a._count.category)
-      .forEach(cat => {
-        console.log(`   ${cat.category}: ${cat._count.category} books`);
+    Object.entries(categories)
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([category, count]) => {
+        console.log(`   ${category}: ${count} books`);
       });
     
     console.log('\n✅ Database restore completed successfully! 🚀');
@@ -146,6 +158,19 @@ async function restoreFromBackup(backupFilePath?: string) {
 if (require.main === module) {
   const backupFile = process.argv[2]; // Optional backup file path
   restoreFromBackup(backupFile).catch(console.error);
+}
+
+// Category distribution: count books per category
+async function getCategoryDistribution() {
+  const categories = await prisma.category.findMany({
+    include: { books: true },
+    orderBy: { name: 'asc' },
+  });
+  const dist: Record<string, number> = {};
+  for (const cat of categories) {
+    dist[cat.name] = cat.books.length;
+  }
+  return dist;
 }
 
 export default restoreFromBackup; 

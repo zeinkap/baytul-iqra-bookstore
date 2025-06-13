@@ -9,9 +9,9 @@ export type Book = {
   author: string;
   description: string;
   price: number;
-  image: string;
+  images: string[];
   stock: number;
-  category: string;
+  categories: string[];
   createdAt: string;
   updatedAt: string;
 };

@@ -20,7 +20,8 @@ async function backupDatabase() {
     
     // Fetch all books
     const books = await prisma.book.findMany({
-      orderBy: { id: 'asc' }
+      orderBy: { id: 'asc' },
+      include: { categories: true },
     });
     
     console.log(`📚 Found ${books.length} books to backup`);
@@ -38,30 +39,36 @@ async function backupDatabase() {
     
     // Create CSV backup
     const csvBackupPath = path.join(backupDir, `books-backup-${timestamp}.csv`);
-    const csvHeaders = 'id,title,author,description,price,image,stock,category,createdAt,updatedAt\n';
+    const csvHeaders = 'id,title,author,description,price,images,stock,categories,createdAt,updatedAt\n';
     
-    const csvData = books.map(book => {
-      const escapeCsv = (str: string) => {
-        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-          return `"${str.replace(/"/g, '""')}"`;
-        }
-        return str;
-      };
-      
-      return [
+    const csvRows: string[] = [];
+    const escapeCsv = (str: string) => {
+      if (typeof str !== 'string') return '';
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+    
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const book of books as any[]) {
+      const categories = book.categories.map((c: { name: string }) => c.name).join('; ');
+      const images = Array.isArray(book.images) ? book.images.join('; ') : '';
+      csvRows.push([
         book.id,
         escapeCsv(book.title),
         escapeCsv(book.author),
         escapeCsv(book.description),
         book.price,
-        escapeCsv(book.image),
+        escapeCsv(images),
         book.stock,
-        escapeCsv(book.category),
+        escapeCsv(categories),
         book.createdAt.toISOString(),
-        book.updatedAt.toISOString()
-      ].join(',');
-    }).join('\n');
+        book.updatedAt.toISOString(),
+      ].join(','));
+    }
     
+    const csvData = csvRows.join('\n');
     fs.writeFileSync(csvBackupPath, csvHeaders + csvData);
     console.log(`✅ CSV backup created: ${csvBackupPath}`);
     
@@ -114,15 +121,15 @@ async function backupDatabase() {
 }
 
 async function getCategoryDistribution() {
-  const categories = await prisma.book.groupBy({
-    by: ['category'],
-    _count: { category: true }
+  const categories = await prisma.category.findMany({
+    include: { books: true },
+    orderBy: { name: 'asc' },
   });
-  
-  return categories.reduce((acc, cat) => {
-    acc[cat.category] = cat._count.category;
-    return acc;
-  }, {} as Record<string, number>);
+  const dist: Record<string, number> = {};
+  for (const cat of categories) {
+    dist[cat.name] = cat.books.length;
+  }
+  return dist;
 }
 
 async function getAuthorDistribution() {

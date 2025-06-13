@@ -155,7 +155,7 @@ const seedBooks = [
     category: "Fiqh & Islamic Law"
   },
 
-  // Aqeedah & Theology
+  // Hajj & Umrah (was Aqeedah & Theology)
   {
     title: "The Fundamentals of Islamic Belief",
     author: "Dr. Abu Ameenah Bilal Philips",
@@ -163,7 +163,7 @@ const seedBooks = [
     price: 20.00,
     image: "",
     stock: 15,
-    category: "Aqeedah & Theology"
+    category: "Hajj & Umrah"
   }
 ];
 
@@ -200,16 +200,13 @@ async function seedDatabase() {
     console.log(`📊 Total books in database: ${totalBooks}`);
     
     // Show category distribution
-    const categories = await prisma.book.groupBy({
-      by: ['category'],
-      _count: { category: true }
-    });
+    const categories = await getCategoryDistribution();
     
     console.log('\n📊 Category distribution:');
-    categories
-      .sort((a, b) => b._count.category - a._count.category)
-      .forEach(cat => {
-        console.log(`   ${cat.category}: ${cat._count.category} books`);
+    Object.entries(categories)
+      .sort((a, b) => b[1] - a[1])
+      .forEach(([category, count]) => {
+        console.log(`   ${category}: ${count} books`);
       });
     
     console.log('\n✨ Database seeding completed successfully!');
@@ -228,4 +225,17 @@ if (require.main === module) {
   seedDatabase().catch(console.error);
 }
 
-export default seedDatabase; 
+export default seedDatabase;
+
+// Category distribution: count books per category
+async function getCategoryDistribution() {
+  const categories = await prisma.category.findMany({
+    include: { books: true },
+    orderBy: { name: 'asc' },
+  });
+  const dist: Record<string, number> = {};
+  for (const cat of categories) {
+    dist[cat.name] = cat.books.length;
+  }
+  return dist;
+} 

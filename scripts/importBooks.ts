@@ -33,7 +33,7 @@ async function main() {
     const author = record['Vendor']?.trim() || 'Unknown';
     const description = record['Body (HTML)']?.trim() || '';
     const price = parseFloat(record['Variant Price']) || 0;
-    const image = record['Image Src']?.split(',')[0]?.trim() || '';
+    const images = record['Image Src']?.split(',').map((img: string) => img.trim()) || [];
     const stock = parseInt(record['Variant Inventory Qty'] || '0') || 0;
 
     // Avoid duplicates by title
@@ -46,7 +46,7 @@ async function main() {
         author,
         description,
         price,
-        image,
+        images: { set: images },
         stock,
       },
     });

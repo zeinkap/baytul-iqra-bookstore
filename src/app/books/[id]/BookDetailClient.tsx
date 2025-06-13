@@ -12,15 +12,16 @@ export type Book = {
   author: string;
   description: string;
   price: number;
-  image: string;
+  images: string[];
   stock: number;
-  category: string;
+  categories: string[];
   createdAt: string;
   updatedAt: string;
 };
 
 export default function BookDetailClient({ book }: { book: Book }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [selectedImageIdx, setSelectedImageIdx] = useState(0);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50">
@@ -45,24 +46,48 @@ export default function BookDetailClient({ book }: { book: Book }) {
                     className="relative w-full aspect-[3/4] max-w-sm mx-auto bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 cursor-zoom-in overflow-hidden border border-gray-100 group-hover:scale-[1.02]" 
                     onClick={() => setLightboxOpen(true)}
                   >
-          <Image
-            src={book.image || '/placeholder.svg'}
-            alt={book.title}
-            fill
+                    <Image
+                      src={book.images && book.images[selectedImageIdx] ? book.images[selectedImageIdx] : '/placeholder.svg'}
+                      alt={book.title}
+                      fill
                       className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"
                       sizes="(max-width: 768px) 100vw, 40vw"
-            priority={true}
-          />
+                      priority={true}
+                    />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300 rounded-2xl" />
                     <span className="absolute bottom-3 right-3 bg-black/70 text-white text-xs px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-sm">
                       🔍 Click to enlarge
                     </span>
                   </div>
                   
+                  {/* Thumbnails row */}
+                  {book.images && book.images.length > 1 && (
+                    <div className="flex gap-2 mt-4 justify-center">
+                      {book.images.map((img, idx) => (
+                        <button
+                          key={img + idx}
+                          type="button"
+                          onClick={() => setSelectedImageIdx(idx)}
+                          className={`relative w-14 h-14 rounded-lg border-2 transition-all duration-200 overflow-hidden focus:outline-none ${selectedImageIdx === idx ? 'border-emerald-500 shadow-lg' : 'border-gray-200'}`}
+                          tabIndex={0}
+                          aria-label={`Show image ${idx + 1}`}
+                        >
+                          <Image
+                            src={img}
+                            alt={book.title + ' thumbnail ' + (idx + 1)}
+                            fill
+                            className="object-contain"
+                            sizes="56px"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  
                   {/* Add to Cart button with enhanced styling */}
                   <div className="mt-6 flex justify-center">
                     <div className="transform hover:scale-105 transition-transform duration-200">
-                      <AddToCartButtonClient id={book.id} title={book.title} price={book.price} image={book.image} />
+                      <AddToCartButtonClient id={book.id} title={book.title} price={book.price} image={book.images && book.images[0] ? book.images[0] : ''} />
                     </div>
                   </div>
                 </div>
@@ -86,6 +111,16 @@ export default function BookDetailClient({ book }: { book: Book }) {
                   </div>
                   <span className="text-lg font-semibold text-gray-700">by {book.author}</span>
                 </div>
+                {/* Categories */}
+                {book.categories && book.categories.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    {book.categories.map((cat) => (
+                      <span key={cat} className="inline-block bg-emerald-50 text-emerald-700 px-2 py-1 rounded-full text-xs font-medium border border-emerald-100">
+                        {cat}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 
                                  {/* Price with enhanced design */}
                  <div className="mb-6">
@@ -132,7 +167,8 @@ export default function BookDetailClient({ book }: { book: Book }) {
       <Lightbox
         open={lightboxOpen}
         close={() => setLightboxOpen(false)}
-        slides={[{ src: book.image || '/placeholder.svg', alt: book.title }]}
+        slides={(book.images && book.images.length > 0 ? book.images : ['/placeholder.svg']).map((img) => ({ src: img, alt: book.title }))}
+        index={selectedImageIdx}
       />
     </main>
   );

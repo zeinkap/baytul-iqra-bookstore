@@ -1,28 +1,37 @@
 "use client";
 import Link from 'next/link';
 import CartIconClient from './CartIconClient';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        setLoadingCategories(true);
+        const res = await fetch('/api/books/categories');
+        if (res.ok) {
+          const data = await res.json();
+          setCategories(data);
+        } else {
+          setCategories([]);
+        }
+      } catch {
+        setCategories([]);
+      } finally {
+        setLoadingCategories(false);
+      }
+    }
+    fetchCategories();
+  }, []);
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
-
-  const categories = [
-    'Quran & Tafsir',
-    'Hadith & Sunnah',
-    'Islamic History',
-    'Fiqh & Islamic Law',
-    'Aqeedah & Theology',
-    'Biography & Seerah',
-    'Children\'s Games',
-    'Dua & Dhikr',
-    'Children\'s Books',
-    'Islamic Literature'
-  ];
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-lg shadow-sm border-b border-gray-100/50">
@@ -86,7 +95,12 @@ export default function Header() {
                   onMouseLeave={() => setIsCategoriesOpen(false)}
                 >
                   <div className="py-2">
-                    {categories.map((category) => (
+                    {loadingCategories ? (
+                      <div className="px-4 py-2 text-sm text-gray-400">Loading...</div>
+                    ) : categories.length === 0 ? (
+                      <div className="px-4 py-2 text-sm text-gray-400">No categories</div>
+                    ) : (
+                      categories.map((category) => (
                       <Link
                         key={category}
                         href={`/?category=${encodeURIComponent(category)}#book-grid`}
@@ -95,7 +109,8 @@ export default function Header() {
                       >
                         {category}
                       </Link>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
@@ -153,7 +168,12 @@ export default function Header() {
             {/* Mobile Categories */}
             <div className="pt-2">
               <div className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wide">Categories</div>
-                             {categories.map((category) => (
+              {loadingCategories ? (
+                <div className="px-3 py-2 text-sm text-gray-400">Loading...</div>
+              ) : categories.length === 0 ? (
+                <div className="px-3 py-2 text-sm text-gray-400">No categories</div>
+              ) : (
+                categories.map((category) => (
                 <Link
                   key={category}
                   href={`/?category=${encodeURIComponent(category)}#book-grid`}
@@ -162,7 +182,8 @@ export default function Header() {
                 >
                   {category}
           </Link>
-              ))}
+                ))
+              )}
             </div>
           </nav>
         </div>

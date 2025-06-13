@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { Category } from '@prisma/client';
 
 // GET /api/books/category/[category] - Get books by category
 export async function GET(
@@ -30,14 +31,23 @@ export async function GET(
     const totalBooks = await prisma.book.count();
     console.log(`Total books in database: ${totalBooks}`);
     
-    // Query for books in this category
-    console.log(`Querying for category: "${decodedCategory}"`);
+    // Query for books in this category (many-to-many)
     const books = await prisma.book.findMany({
       where: {
-        category: decodedCategory
+        categories: {
+          some: { name: decodedCategory }
+        }
+      },
+      include: {
+        categories: true
       },
       orderBy: { createdAt: 'desc' }
     });
+    // Map categories to string[]
+    const booksWithCategories = books.map(book => ({
+      ...book,
+      categories: (book.categories as Category[]).map((cat) => cat.name)
+    }));
 
     console.log(`Found ${books.length} books for category: ${decodedCategory}`);
     
@@ -45,11 +55,11 @@ export async function GET(
     if (books.length > 0) {
       console.log('First book:', { 
         title: books[0].title, 
-        category: books[0].category 
+        category: books[0].categories[0] 
       });
     }
 
-    return NextResponse.json(books);
+    return NextResponse.json(booksWithCategories);
   } catch (error) {
     console.error('=== ERROR in category API ===');
     console.error('Error type:', error?.constructor?.name);
