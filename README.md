@@ -107,6 +107,7 @@ The restoration script will:
 - **Payments:** Stripe integration
 - **Styling:** Tailwind CSS
 - **Deployment:** Vercel-ready
+- **Email Service:** Resend (order confirmation emails)
 
 ## 🔒 Data Safety
 
@@ -141,6 +142,29 @@ For issues or questions:
 2. Follow existing code patterns
 3. Test database operations thoroughly
 4. Update documentation as needed
+
+## 📧 Order Confirmation Emails
+
+This project uses [Resend](https://resend.com/) to send order confirmation emails to customers after a successful payment.
+
+### How it works
+- When a customer completes checkout and payment via Stripe, a webhook (`/api/stripe/webhook`) listens for the `checkout.session.completed` event.
+- The webhook fetches the order details from the database and sends a confirmation email using Resend.
+- Emails are only sent after payment is confirmed (not before or if payment fails/abandoned).
+
+### Setup
+1. **Sign up for a Resend account** at [resend.com](https://resend.com/) and obtain your API key.
+2. **Add the following environment variable** to your `.env` file:
+   ```bash
+   RESEND_API_KEY="your_resend_api_key"
+   ```
+3. (Optional) Update the `from` address in `src/lib/sendEmail.ts` to match your verified sender domain.
+
+### Customization
+- The email content and logic can be found in `src/lib/sendEmail.ts`.
+- The webhook handler is in `src/app/api/stripe/webhook.ts`.
+
+**Note:** You must also set up your Stripe webhook endpoint in the Stripe dashboard to point to `/api/stripe/webhook` and provide the `STRIPE_WEBHOOK_SECRET` in your environment variables.
 
 ---
 

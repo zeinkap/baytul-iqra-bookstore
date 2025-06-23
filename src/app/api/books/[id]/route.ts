@@ -34,8 +34,8 @@ export async function PUT(
   try {
     const categoryConnect = categories.map((name: string) => ({ name }));
     const updatedBook = await prisma.book.update({
-      where: { id },
-      data: {
+    where: { id },
+    data: {
         title,
         author,
         description,
@@ -46,13 +46,13 @@ export async function PUT(
           set: [], // Disconnect all existing categories first
           connect: categoryConnect,
         },
-      },
+    },
       include: { categories: true },
-    });
-    return NextResponse.json({
+  });
+  return NextResponse.json({
       ...updatedBook,
       categories: updatedBook.categories.map((cat: Category) => cat.name)
-    });
+  });
   } catch (error) {
     console.error("Failed to update book:", error);
     return NextResponse.json({ error: 'Failed to update book' }, { status: 500 });

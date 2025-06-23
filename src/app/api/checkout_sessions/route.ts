@@ -12,30 +12,63 @@ type CartItem = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { items } = await req.json();
+    const { items, fulfillmentType, orderId, email } = await req.json();
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: 'No items provided' }, { status: 400 });
     }
 
-    const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((item: CartItem) => ({
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+
+    let line_items = items.map((item: CartItem) => ({
       price_data: {
         currency: 'usd',
         product_data: {
           name: item.title,
-          images: item.image ? [item.image] : undefined,
+          images: item.image
+            ? [item.image.startsWith('http') ? item.image : `${baseUrl}${item.image}`]
+            : undefined,
         },
         unit_amount: Math.round(item.price * 100),
       },
       quantity: item.quantity,
     }));
 
+    // Add shipping fee if needed
+    if (fulfillmentType === 'shipping') {
+      line_items = [
+        ...line_items,
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: { name: 'Shipping', images: undefined },
+            unit_amount: 500,
+          },
+          quantity: 1,
+        },
+      ];
+    } else if (fulfillmentType === 'pickup') {
+      line_items = [
+        ...line_items,
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: { name: 'Free Local Pickup', images: undefined },
+            unit_amount: 0,
+          },
+          quantity: 1,
+        },
+      ];
+    }
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items,
       mode: 'payment',
-      success_url: `${req.nextUrl.origin}/checkout?success=1`,
-      cancel_url: `${req.nextUrl.origin}/checkout?canceled=1`,
+      success_url: `${req.nextUrl.origin}/checkout/success?orderId=${orderId}`,
+      cancel_url: `${req.nextUrl.origin}/cart`,
       shipping_address_collection: { allowed_countries: ['US', 'CA'] },
+      customer_email: email,
+      metadata: { orderId },
     });
 
     return NextResponse.json({ url: session.url });

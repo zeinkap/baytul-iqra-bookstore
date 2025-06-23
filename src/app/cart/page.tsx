@@ -8,8 +8,13 @@ import { useState } from 'react';
 export default function CartPage() {
   const { cart, updateQuantity, removeFromCart, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
+  const [fulfillmentType, setFulfillmentType] = useState<'shipping' | 'pickup'>('shipping');
+  const [email, setEmail] = useState('');
+  const [emailTouched, setEmailTouched] = useState(false);
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const shippingFee = fulfillmentType === 'shipping' ? 5 : 0;
+  const grandTotal = total + shippingFee;
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50">
@@ -56,6 +61,67 @@ export default function CartPage() {
             </div>
           )}
         </div>
+
+        {/* Fulfillment Type Selection */}
+        {cart.length > 0 && (
+          <div className="mb-8 bg-white/90 rounded-xl shadow p-6 border border-gray-100">
+            <h2 className="text-lg font-semibold mb-4 text-gray-900">How would you like to receive your order?</h2>
+            <div className="flex flex-col sm:flex-row gap-4 mb-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="fulfillmentType"
+                  value="shipping"
+                  checked={fulfillmentType === 'shipping'}
+                  onChange={() => setFulfillmentType('shipping')}
+                  className="accent-emerald-600"
+                />
+                <span className="text-gray-900 font-semibold">Ship to my address</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="fulfillmentType"
+                  value="pickup"
+                  checked={fulfillmentType === 'pickup'}
+                  onChange={() => setFulfillmentType('pickup')}
+                  className="accent-emerald-600"
+                />
+                <span className="text-gray-900 font-semibold">Local Pickup <span className="text-gray-600 font-normal">(Alpharetta, GA)</span></span>
+              </label>
+            </div>
+            <div className="mb-2">
+              <label htmlFor="email" className="block text-gray-900 font-semibold mb-1">
+                Email for order confirmation <span className="text-red-600">*</span>
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={e => {
+                  setEmail(e.target.value);
+                  setEmailTouched(true);
+                }}
+                required
+                placeholder="you@example.com"
+                className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 placeholder-gray-700 text-gray-900"
+                onBlur={() => setEmailTouched(true)}
+              />
+              {emailTouched && !email && (
+                <p className="text-red-600 text-sm mt-1">Email is required.</p>
+              )}
+              {emailTouched && email && !/^\S+@\S+\.\S+$/.test(email) && (
+                <p className="text-red-600 text-sm mt-1">Please enter a valid email address.</p>
+              )}
+            </div>
+            {fulfillmentType === 'pickup' && (
+              <div className="mt-4 text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg p-4">
+                <strong>Pickup Location:</strong> Alpharetta, GA<br />
+                You will receive instructions for pickup after completing your order.
+              </div>
+            )}
+          </div>
+        )}
 
         {cart.length === 0 ? (
           /* Empty Cart State */
@@ -226,8 +292,12 @@ export default function CartPage() {
                       <span>${total.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between text-gray-600">
-                      <span>Shipping:</span>
-                      <span className="text-emerald-600 font-medium">Free</span>
+                      <span>{fulfillmentType === 'pickup' ? 'Local Pickup:' : 'Shipping:'}</span>
+                      {fulfillmentType === 'pickup' ? (
+                        <span>Free (Alpharetta, GA)</span>
+                      ) : (
+                        <span>$5 (flat rate)</span>
+                      )}
                     </div>
                     <div className="flex justify-between text-gray-600">
                       <span>Tax:</span>
@@ -237,7 +307,7 @@ export default function CartPage() {
                       <div className="flex justify-between items-center">
                         <span className="text-lg font-bold text-gray-900">Total:</span>
                         <span className="text-2xl font-bold text-gray-900">
-                          ${total.toFixed(2)}
+                          ${grandTotal.toFixed(2)}
                         </span>
                       </div>
                     </div>
@@ -250,10 +320,43 @@ export default function CartPage() {
               onClick={async () => {
                 setLoading(true);
                 try {
+                  // Email validation before proceeding
+                  setEmailTouched(true);
+                  if (!email) {
+                    toast.error('Please enter your email.');
+                    setLoading(false);
+                    return;
+                  }
+                  if (!/^\S+@\S+\.\S+$/.test(email)) {
+                    toast.error('Please enter a valid email address.');
+                    setLoading(false);
+                    return;
+                  }
+                  // 1. Create order in DB
+                  const orderRes = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      items: cart,
+                      total,
+                      fulfillmentType,
+                      pickupLocation: fulfillmentType === 'pickup' ? 'Alpharetta, GA' : undefined,
+                      email,
+                      // Add shippingAddress here if you collect it
+                    }),
+                  });
+                  const orderData = await orderRes.json();
+                  if (!orderRes.ok) {
+                    toast.error(orderData.error || 'Failed to create order');
+                    setLoading(false);
+                    return;
+                  }
+                  const orderId = orderData.id;
+                  // 2. Proceed to Stripe checkout
                   const res = await fetch('/api/checkout_sessions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ items: cart }),
+                    body: JSON.stringify({ items: cart, fulfillmentType, orderId, email }),
                   });
                   const data = await res.json();
                   if (data.url) {

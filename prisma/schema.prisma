@@ -27,3 +27,15 @@ model Category {
   name  String @unique
   books Book[] @relation("BookCategories")
 }
+
+model Order {
+  id               String   @id @default(uuid())
+  items            Json     // Array of cart items (id, title, price, quantity, image)
+  total            Float
+  fulfillmentType  String   
+  pickupLocation   String?  
+  shippingAddress  Json?    
+  email            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
