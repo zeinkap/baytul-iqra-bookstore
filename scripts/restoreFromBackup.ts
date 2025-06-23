@@ -100,27 +100,44 @@ async function restoreFromBackup(backupFilePath?: string) {
     let restoredCount = 0;
     
     for (const book of backupData.books) {
-      // Remove the id to let the database auto-generate new ones
+      // Remove the id, category, image, and images to handle them separately
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { id, categories, ...bookData } = book;
+      const { id, categories, category, image, images, ...bookData } = book;
       
       // Convert date strings back to Date objects
       bookData.createdAt = new Date(book.createdAt);
       bookData.updatedAt = new Date(book.updatedAt);
 
-      // Prepare category connections
-      let categoryConnect: { id: number }[] = [];
-      if (categories && categories.length > 0) {
-        const categoryNames = categories.map((cat: { id: number; name: string }) => cat.name);
-        const foundCategories = await prisma.category.findMany({
-          where: { name: { in: categoryNames } }
-        });
-        categoryConnect = foundCategories.map((cat: { id: number; name: string }) => ({ id: cat.id }));
+      // Determine category names from backup data (handles both old and new formats)
+      let categoryNames: string[] = [];
+      if (categories && Array.isArray(categories) && categories.length > 0) {
+        categoryNames = categories.map((cat: { name: string }) => cat.name).filter(Boolean);
+      } else if (category && typeof category === 'string') {
+        categoryNames = [category];
       }
+      
+      // Prepare category connections, creating any missing categories
+      let categoryConnect: { id: number }[] = [];
+      if (categoryNames.length > 0) {
+        const allCategoryRecords = await Promise.all(
+          categoryNames.map(name =>
+            prisma.category.upsert({
+              where: { name },
+              update: {},
+              create: { name },
+            })
+          )
+        );
+        categoryConnect = allCategoryRecords.map(cat => ({ id: cat.id }));
+      }
+
+      // Use 'images' array for the new schema
+      const imagesArray = images ?? (image ? [image] : []);
 
       await prisma.book.create({
         data: {
           ...bookData,
+          images: imagesArray,
           categories: { connect: categoryConnect }
         }
       });

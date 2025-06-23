@@ -20,7 +20,15 @@ export default function AdminBooksPage() {
   const [books, setBooks] = useState<Book[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [editingBook, setEditingBook] = useState<Book | null>(null);
-  const [form, setForm] = useState<Partial<Book>>({ categories: [], images: [""] });
+  const [form, setForm] = useState<Partial<Book>>({
+    title: "",
+    author: "",
+    description: "",
+    price: 0,
+    images: [""],
+    stock: 0,
+    categories: [],
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -106,23 +114,71 @@ export default function AdminBooksPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    const finalImages = form.images ? form.images.filter((img) => img && img.trim() !== "") : [];
+
+    if (finalImages.length === 0) {
+      setError("At least one image URL is required.");
+      return;
+    }
+    if (!form.categories || form.categories.length === 0) {
+      setError("At least one category is required.");
+      return;
+    }
+
     setLoading(true);
     try {
       const method = editingBook ? "PUT" : "POST";
       const url = editingBook ? `/api/books/${editingBook.id}` : "/api/books";
+      
+      const body = { ...form, images: finalImages };
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error("Failed to save book");
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: "Failed to save book" }));
+        throw new Error(errorData.error || "Failed to save book");
+      }
+
       await fetchBooks();
       setEditingBook(null);
-      setForm({ categories: [], images: [""] });
+      setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 0, categories: [] });
       setShowForm(false);
     } catch (err: unknown) {
-      if (err instanceof Error) setError(err.message);
-      else setError('Unknown error');
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unknown error occurred");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDelete(bookId: string) {
+    if (!confirm("Are you sure you want to delete this book?")) return;
+
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/books/${bookId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: "Failed to delete book" }));
+        throw new Error(errorData.error || "Failed to delete book");
+      }
+      await fetchBooks(); // Refresh the book list
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unknown error occurred");
+      }
     } finally {
       setLoading(false);
     }
@@ -174,19 +230,27 @@ export default function AdminBooksPage() {
           <h2 className="text-xl font-bold mb-2">{editingBook ? "Edit Book" : "Add New Book"}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block font-medium mb-1">Title</label>
+              <label className="block font-medium mb-1">
+                Title <span className="text-red-500">*</span>
+              </label>
               <input name="title" value={form.title || ""} onChange={handleFormChange} required className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
             <div>
-              <label className="block font-medium mb-1">Author</label>
+              <label className="block font-medium mb-1">
+                Author <span className="text-red-500">*</span>
+              </label>
               <input name="author" value={form.author || ""} onChange={handleFormChange} required className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
             <div className="md:col-span-2">
-              <label className="block font-medium mb-1">Description</label>
+              <label className="block font-medium mb-1">
+                Description <span className="text-red-500">*</span>
+              </label>
               <textarea name="description" value={form.description || ""} onChange={handleFormChange} required rows={3} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
             <div>
-              <label className="block font-medium mb-1">Image URLs</label>
+              <label className="block font-medium mb-1">
+                Image URLs <span className="text-red-500">*</span>
+              </label>
               {(form.images || [""]).map((img, idx) => (
                 <div key={idx} className="flex gap-2 mb-2">
                   <input
@@ -205,14 +269,18 @@ export default function AdminBooksPage() {
             </div>
             <div>
               <label className="block font-medium mb-1">Stock</label>
-              <input name="stock" type="number" value={form.stock || 0} onChange={handleFormChange} min={0} required className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              <input name="stock" type="number" value={form.stock || 0} onChange={handleFormChange} min={0} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
             <div>
-              <label className="block font-medium mb-1">Price</label>
+              <label className="block font-medium mb-1">
+                Price <span className="text-red-500">*</span>
+              </label>
               <input name="price" type="number" step="0.01" value={form.price || 0} onChange={handleFormChange} min={0} required className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
             <div>
-              <label className="block font-medium mb-1">Categories</label>
+              <label className="block font-medium mb-1">
+                Categories <span className="text-red-500">*</span>
+              </label>
               <Select
                 isMulti
                 options={categoryOptions}
@@ -234,7 +302,11 @@ export default function AdminBooksPage() {
             </button>
             <button
               type="button"
-              onClick={() => { setEditingBook(null); setForm({ categories: [], images: [""] }); setShowForm(false); }}
+              onClick={() => {
+                setEditingBook(null);
+                setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 0, categories: [] });
+                setShowForm(false);
+              }}
               className="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded-lg font-semibold shadow transition"
             >
               Cancel
@@ -248,8 +320,8 @@ export default function AdminBooksPage() {
           <thead>
             <tr className="bg-gray-100 text-gray-700">
               <th className="font-semibold py-3 px-2 text-left">Title</th>
-              <th className="font-semibold py-3 px-2 text-left">Author</th>
-              <th className="font-semibold py-3 px-2 text-left">Categories</th>
+              <th className="font-semibold py-3 px-2 text-left hidden md:table-cell">Author</th>
+              <th className="font-semibold py-3 px-2 text-left hidden md:table-cell">Categories</th>
               <th className="font-semibold py-3 px-2 text-left">Stock</th>
               <th className="font-semibold py-3 px-2 text-left">Price</th>
               <th className="font-semibold py-3 px-2 text-left">Actions</th>
@@ -270,16 +342,22 @@ export default function AdminBooksPage() {
                 }
               >
                 <td className="py-2 px-2 font-medium">{book.title}</td>
-                <td className="py-2 px-2">{book.author}</td>
-                <td className="py-2 px-2">{book.categories.join(", ")}</td>
+                <td className="py-2 px-2 hidden md:table-cell">{book.author}</td>
+                <td className="py-2 px-2 hidden md:table-cell">{book.categories.join(", ")}</td>
                 <td className="py-2 px-2">{book.stock}</td>
                 <td className="py-2 px-2">${book.price.toFixed(2)}</td>
                 <td className="py-2 px-2">
                   <button
                     onClick={() => startEdit(book)}
-                    className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-1 rounded font-semibold shadow transition"
+                    className="text-blue-600 hover:underline mr-4"
                   >
                     Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(book.id)}
+                    className="text-red-600 hover:underline"
+                  >
+                    Delete
                   </button>
                 </td>
               </tr>

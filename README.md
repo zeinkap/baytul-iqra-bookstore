@@ -16,7 +16,7 @@ Baytul Iqra Bookstore is an online Islamic bookstore offering:
 ### Prerequisites
 - Node.js 18+ 
 - PostgreSQL database
-- npm or yarn
+- npm
 
 ### Installation
 
@@ -67,51 +67,38 @@ npm run dev
 - `npm run db:reset` - Reset database (⚠️ destructive)
 - `npm run db:seed` - Seed database with books from CSV
 
-### Book Management
-- `npm run books:add` - Add a single book to database
-- `npm run authors:update` - Update authors for books with "Various Authors"
+## 💾 Database Backup & Restore
 
-## 💾 Database Backup System
+A robust backup and restore system is in place to protect your data.
 
-### Why Backup?
-Protect your 84+ books, author information, and categories from data loss.
-
-### Create Backup
+### Create a Backup
+To create a full backup of your books and categories, run:
 ```bash
 npm run db:backup
 ```
-Creates timestamped backups in `backups/` directory:
-- **JSON format** - Complete structured data
-- **CSV format** - Human-readable spreadsheet
-- **Metadata** - Backup stats and distributions
+This command:
+- Connects to your database.
+- Fetches all book data, including category relations.
+- Creates a timestamped JSON backup file (e.g., `books-backup-2025-06-01T12-30-00-000Z.json`).
+- Creates a `books-backup-latest.json` file, which is always a copy of the most recent backup.
+- Stores all backups in the `backups/` directory.
 
-### Restore from Backup
+### Restore from a Backup
+To restore your database from a backup, run the interactive restore script:
 ```bash
 npm run db:restore
 ```
-Interactive restoration process:
-- Shows available backup files
-- Warns before overwriting data
-- Restores books, authors, and categories
+The restoration script will:
+1.  List all available backup files from the `backups/` directory.
+2.  Prompt you to select which backup to restore from (defaults to the latest).
+3.  Warn you if you are about to overwrite existing data.
+4.  Delete existing book records if you confirm.
+5.  Restore all books and their category relationships from the selected backup file.
 
 ### Backup Best Practices
-- ✅ Backup before major changes
-- ✅ Backup before running migration scripts
-- ✅ Keep multiple backup versions
-- ✅ Store backups in version control or cloud storage
-
-## 📖 Book Categories
-
-The bookstore organizes books into these categories:
-- **Hadith & Sunnah** (41 books) - Prophetic traditions and teachings
-- **Quran & Tafsir** (11 books) - Quranic studies and commentary
-- **Children's Books** (7 books) - Islamic stories and learning
-- **Children's Games** (7 books) - Educational games and activities
-- **Islamic Literature** (6 books) - Contemporary Islamic writing
-- **Biography & Seerah** (6 books) - Lives of prophets and companions
-- **Dua & Dhikr** (2 books) - Prayers and remembrance
-- **Fiqh & Islamic Law** (1 book) - Islamic jurisprudence
-- **Hajj & Umrah** (1 book) - Pilgrimage and its rituals
+- ✅ **Backup before major changes:** Always create a backup before running a database migration or making significant changes to your data.
+- ✅ **Keep multiple versions:** The system automatically stores timestamped backups.
+- ✅ **Store backups securely:** Consider committing your `backups/` directory to your Git repository or storing them in a secure cloud location.
 
 ## 🔧 Tech Stack
 
@@ -120,35 +107,6 @@ The bookstore organizes books into these categories:
 - **Payments:** Stripe integration
 - **Styling:** Tailwind CSS
 - **Deployment:** Vercel-ready
-
-## 📝 Adding New Books
-
-### Method 1: Single Book Script
-1. Edit `scripts/addSingleBook.ts`
-2. Update book details (title, author, description, price, category)
-3. Run: `npm run books:add`
-
-### Method 2: Manual Database Entry
-Use the interactive author management tool:
-```bash
-npm run authors:update
-```
-
-### Method 3: CSV Import
-Add books to CSV and run:
-```bash
-npm run db:seed
-```
-
-## 🎯 Featured Authors
-
-Notable Islamic scholars and authors in our collection:
-- **Learning Roots** - Children's educational materials
-- **Dr. Muhammad Ali al-Hashimi** - "The Ideal Muslim" series
-- **Zaheer Khatri** - Contemporary Islamic literature
-- **Omar Suleiman** - Social justice and reform
-- **Ibn Kathir** - Classical Islamic scholarship
-- **Imam al-Nawawi** - Hadith collections
 
 ## 🔒 Data Safety
 

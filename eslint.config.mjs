@@ -18,7 +18,9 @@ const eslintConfig = [
       ".next/**/*",
       "node_modules/**/*",
       "*.js",
-      "*.mjs"
+      "*.mjs",
+      "dist/",
+      "dist-scripts/"
     ]
   }
 ];

@@ -42,3 +42,13 @@ next-env.d.ts
 
 /src/generated/prisma
 .env*.local
+
+# compiled output
+/dist
+/dist-scripts/
+
+# Local backups
+/backups/
+
+# environment variables
+.env
