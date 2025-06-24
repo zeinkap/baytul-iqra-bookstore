@@ -26,8 +26,19 @@ async function getBooks() {
   return res.json();
 }
 
+async function getCategories() {
+  const h = await headers();
+  const host = h.get('host') || 'localhost:3000';
+  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+  const baseUrl = `${protocol}://${host}`;
+  const res = await fetch(`${baseUrl}/api/books/categories`, { cache: 'no-store' });
+  if (!res.ok) return [];
+  return res.json();
+}
+
 export default async function HomePage() {
   const books: Book[] = await getBooks();
+  const categories: string[] = await getCategories();
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50">
@@ -124,7 +135,7 @@ export default async function HomePage() {
 
       {/* Book Grid with Search */}
       <div className="bg-white/50">
-        <BookGrid initialBooks={books} />
+        <BookGrid initialBooks={books} categories={categories} />
       </div>
     </main>
   );

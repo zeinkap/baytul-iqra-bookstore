@@ -20,28 +20,15 @@ export type Book = {
 
 interface BookGridProps {
   initialBooks: Book[];
+  categories: string[];
 }
 
-export default function BookGrid({ initialBooks }: BookGridProps) {
+export default function BookGrid({ initialBooks, categories }: BookGridProps) {
   const [books, setBooks] = useState<Book[]>(initialBooks);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [categories, setCategories] = useState<string[]>([]);
-
-  // Fetch categories for dropdown
-  useEffect(() => {
-    async function fetchCategories() {
-      try {
-        const res = await fetch('/api/books/categories');
-        if (res.ok) {
-          const data = await res.json();
-          setCategories(data);
-        }
-      } catch {}
-    }
-    fetchCategories();
-  }, []);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const handleCategoryFilter = useCallback(async (category: string) => {
     setLoading(true);
@@ -187,6 +174,15 @@ export default function BookGrid({ initialBooks }: BookGridProps) {
         </div>
       </div>
 
+      {/* Show total number of books when All Categories is selected */}
+      {(!selectedCategory || selectedCategory === '') && !searchQuery && (
+        <div className="max-w-6xl mx-auto px-4 mb-4 text-left">
+          <span className="inline-block bg-emerald-50 text-emerald-700 px-4 py-2 rounded-full font-medium text-sm">
+            Showing {displayedBooks.length} book{displayedBooks.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+      )}
+
       {/* Books Grid */}
       <div className="max-w-7xl mx-auto px-4">
         <div
@@ -208,20 +204,36 @@ export default function BookGrid({ initialBooks }: BookGridProps) {
               </div>
             </div>
           )}
-          {books.map((book) => (
+          {books.map((book, idx) => (
             <div key={book.id} className="group">
-              <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl border border-white/50 overflow-hidden transition-all duration-300 group-hover:scale-[1.02] group-hover:-translate-y-1">
+              <div 
+                className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl border border-white/50 overflow-hidden transition-all duration-300 group-hover:scale-[1.02] group-hover:-translate-y-1"
+                onMouseEnter={() => setHoveredIndex(idx)}
+                onMouseLeave={() => setHoveredIndex(null)}
+              >
                 <Link href={`/books/${book.id}`} className="block">
                   {/* Book Image */}
                   <div className="relative aspect-[3/4] bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+                    {/* First image (default) */}
                     <Image
                       src={book.images && book.images[0] ? book.images[0] : '/placeholder.svg'}
                       alt={book.title}
                       fill
-                      className="object-contain drop-shadow-lg transition-transform duration-300 group-hover:scale-105"
+                      className={`object-contain drop-shadow-lg transition-opacity duration-500 ${hoveredIndex === idx && book.images && book.images[1] ? 'opacity-0' : 'opacity-100'}`}
                       sizes="(max-width: 768px) 50vw, 25vw"
                       priority={false}
                     />
+                    {/* Second image (on hover, if exists) */}
+                    {book.images && book.images[1] && (
+                      <Image
+                        src={book.images[1]}
+                        alt={book.title + ' alternate'}
+                        fill
+                        className={`object-contain drop-shadow-lg absolute inset-0 transition-opacity duration-500 ${hoveredIndex === idx ? 'opacity-100' : 'opacity-0'}`}
+                        sizes="(max-width: 768px) 50vw, 25vw"
+                        priority={false}
+                      />
+                    )}
                     {/* Stock indicator */}
                     <div className="absolute top-3 right-3">
                       <div className={`px-2 py-1 rounded-full text-xs font-semibold ${book.stock > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>

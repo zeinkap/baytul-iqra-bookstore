@@ -1,33 +1,11 @@
 "use client";
 import Link from 'next/link';
 import CartIconClient from './CartIconClient';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
-export default function Header() {
+export default function Header({ categories }: { categories: string[] }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [loadingCategories, setLoadingCategories] = useState(true);
-
-  useEffect(() => {
-    async function fetchCategories() {
-      try {
-        setLoadingCategories(true);
-        const res = await fetch('/api/books/categories');
-        if (res.ok) {
-          const data = await res.json();
-          setCategories(data);
-        } else {
-          setCategories([]);
-        }
-      } catch {
-        setCategories([]);
-      } finally {
-        setLoadingCategories(false);
-      }
-    }
-    fetchCategories();
-  }, []);
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -95,9 +73,7 @@ export default function Header() {
                   onMouseLeave={() => setIsCategoriesOpen(false)}
                 >
                   <div className="py-2">
-                    {loadingCategories ? (
-                      <div className="px-4 py-2 text-sm text-gray-400">Loading...</div>
-                    ) : categories.length === 0 ? (
+                    {categories.length === 0 ? (
                       <div className="px-4 py-2 text-sm text-gray-400">No categories</div>
                     ) : (
                       categories.map((category) => (
@@ -168,9 +144,7 @@ export default function Header() {
             {/* Mobile Categories */}
             <div className="pt-2">
               <div className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wide">Categories</div>
-              {loadingCategories ? (
-                <div className="px-3 py-2 text-sm text-gray-400">Loading...</div>
-              ) : categories.length === 0 ? (
+              {categories.length === 0 ? (
                 <div className="px-3 py-2 text-sm text-gray-400">No categories</div>
               ) : (
                 categories.map((category) => (
