@@ -8,8 +8,20 @@ Baytul Iqra Bookstore is an online Islamic bookstore offering:
 - **84+ Books** across multiple Islamic categories
 - **Smart categorization** - Hadith & Sunnah, Quran & Tafsir, Children's Books, Biography & Seerah, and more
 - **Author management** - Proper attribution for Islamic scholars and contemporary authors
-- **E-commerce features** - Shopping cart, checkout, and inventory management
+- **E-commerce features** - Shopping cart, checkout, order management, and inventory management
+- **Order Management** - Orders are created via the `/api/orders` endpoint and stored in the `Order` table (PostgreSQL, Prisma). Supports both shipping and pickup fulfillment types. Order data includes cart items, total, fulfillment type, pickup location, shipping address, and customer email.
 - **Responsive design** - Works on desktop and mobile devices
+
+## 🛒 Order Management
+
+- Orders are created through the `/api/orders` API endpoint.
+- The `Order` table (managed by Prisma/PostgreSQL) stores all order details, including:
+  - Cart items (JSON)
+  - Total price
+  - Fulfillment type (shipping or pickup)
+  - Pickup location or shipping address
+  - Customer email
+- Supports both shipping and pickup workflows.
 
 ## 🚀 Getting Started
 
@@ -67,6 +79,13 @@ npm run dev
 - `npm run db:reset` - Reset database (⚠️ destructive)
 - `npm run db:seed` - Seed database with books from CSV
 
+### Production Migrations
+To apply schema changes to your production database (e.g., Neon), set the `DATABASE_URL` to your production connection string and run:
+```sh
+DATABASE_URL="your_production_url" npx prisma migrate deploy
+```
+This ensures your production database schema is up to date.
+
 ## 💾 Database Backup & Restore
 
 A robust backup and restore system is in place to protect your data.
@@ -107,6 +126,7 @@ The restoration script will:
 - **Payments:** Stripe integration
 - **Styling:** Tailwind CSS
 - **Deployment:** Vercel-ready
+- **Performance Monitoring:** Integrated with [Vercel Speed Insights](https://vercel.com/docs/analytics/speed-insights) for real user performance metrics
 - **Email Service:** Resend (order confirmation emails)
 
 ## 🔒 Data Safety
@@ -128,6 +148,16 @@ The restoration script will:
 npm run build
 npm run start
 ```
+
+## 📡 API Endpoints
+
+- `GET /api/books` — List all books
+- `GET /api/books/categories` — List all categories
+- `GET /api/books/category/[category]` — List books by category
+- `GET /api/books/[id]` — Get book details
+- `POST /api/orders` — Create a new order
+- `POST /api/checkout_sessions` — Create a Stripe checkout session
+- `POST /api/stripe/webhook` — Stripe webhook for payment events
 
 ## 📞 Support
 

@@ -6,6 +6,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { Toaster } from 'react-hot-toast';
 import { headers } from 'next/headers';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const merriweather = Merriweather({ subsets: ['latin'], weight: ['400', '700'], variable: '--font-merriweather', display: 'swap' });
@@ -42,6 +43,7 @@ export default async function RootLayout({
             <Footer />
           </div>
         </CartProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
