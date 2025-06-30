@@ -34,6 +34,9 @@ export default async function RootLayout({
   const categories: string[] = await getCategories();
   return (
     <html lang="en" className={`${inter.variable} ${merriweather.variable} bg-white`}>
+      <head>
+        <link rel="icon" href="/logo-baytul-iqra.png" type="image/png" />
+      </head>
       <body className="font-sans bg-white">
         <CartProvider>
           <Toaster position="top-right" />

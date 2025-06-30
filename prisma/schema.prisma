@@ -11,7 +11,7 @@ datasource db {
 
 model Book {
   id          String   @id @default(uuid())
-  title       String
+  title       String   @unique
   author      String
   description String
   price       Float

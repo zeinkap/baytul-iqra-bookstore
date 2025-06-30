@@ -1,11 +1,19 @@
 "use client";
 import Link from 'next/link';
+import Image from 'next/image';
 import CartIconClient from './CartIconClient';
 import { useState } from 'react';
 
 export default function Header({ categories }: { categories: string[] }) {
+  // Sort categories: all except 'Other' alphabetically, then 'Other' last
+  const sortedCategories = [
+    ...categories.filter((c) => c !== 'Other').sort((a, b) => a.localeCompare(b)),
+    ...categories.filter((c) => c === 'Other'),
+  ];
+
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
+  const [mobileBooksOpen, setMobileBooksOpen] = useState(false);
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -19,11 +27,16 @@ export default function Header({ categories }: { categories: string[] }) {
           {/* Logo and brand section */}
           <div className="flex items-center gap-8">
             <Link href="/" className="group flex items-center gap-3 hover:scale-105 transition-transform duration-200">
-              {/* Logo icon */}
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-200">
-                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+              {/* Logo image */}
+              <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-200 bg-white">
+                <Image
+                  src="/logo-baytul-iqra.png"
+                  alt="Baytul Iqra Logo"
+                  width={48}
+                  height={48}
+                  className="object-contain w-12 h-12"
+                  priority
+                />
               </div>
               {/* Brand name with enhanced typography */}
               <div className="flex flex-col">
@@ -39,18 +52,11 @@ export default function Header({ categories }: { categories: string[] }) {
             {/* Navigation menu - hidden on mobile */}
             <nav className="hidden lg:flex items-center gap-1">
               <Link 
-                href="/" 
-                className="px-4 py-2.5 text-gray-700 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl font-medium transition-all duration-200 text-sm"
-              >
-                Home
-              </Link>
-              <Link 
                 href="/#book-grid" 
                 className="px-4 py-2.5 text-gray-700 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl font-medium transition-all duration-200 text-sm"
               >
                 Shop
               </Link>
-              
               {/* Categories Dropdown */}
               <div className="relative">
                 <button
@@ -58,12 +64,11 @@ export default function Header({ categories }: { categories: string[] }) {
                   onMouseLeave={() => setIsCategoriesOpen(false)}
                   className="px-4 py-2.5 text-gray-700 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl font-medium transition-all duration-200 text-sm flex items-center gap-1"
                 >
-                  Categories
+                  Books
                   <svg className={`w-3 h-3 transition-transform duration-200 ${isCategoriesOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
-                
                 {/* Dropdown Menu */}
                 <div 
                   className={`absolute top-full left-0 mt-1 w-64 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl shadow-xl transition-all duration-200 ${
@@ -73,10 +78,10 @@ export default function Header({ categories }: { categories: string[] }) {
                   onMouseLeave={() => setIsCategoriesOpen(false)}
                 >
                   <div className="py-2">
-                    {categories.length === 0 ? (
+                    {sortedCategories.length === 0 ? (
                       <div className="px-4 py-2 text-sm text-gray-400">No categories</div>
                     ) : (
-                      categories.map((category) => (
+                      sortedCategories.map((category) => (
                       <Link
                         key={category}
                         href={`/?category=${encodeURIComponent(category)}#book-grid`}
@@ -90,6 +95,12 @@ export default function Header({ categories }: { categories: string[] }) {
                   </div>
                 </div>
               </div>
+              <Link
+                href="/contact"
+                className="px-4 py-2.5 text-gray-700 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl font-medium transition-all duration-200 text-sm"
+              >
+                Contact
+              </Link>
             </nav>
           </div>
 
@@ -127,38 +138,58 @@ export default function Header({ categories }: { categories: string[] }) {
         }`}>
           <nav className="px-4 py-3 space-y-1">
             <Link 
-              href="/" 
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="block px-3 py-2 text-gray-700 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg font-medium transition-all duration-200 text-sm"
-            >
-              Home
-            </Link>
-            <Link 
               href="/#book-grid" 
               onClick={() => setIsMobileMenuOpen(false)}
               className="block px-3 py-2 text-gray-700 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg font-medium transition-all duration-200 text-sm"
             >
               Shop
             </Link>
-            
-            {/* Mobile Categories */}
+            {/* Mobile Books Dropdown */}
             <div className="pt-2">
-              <div className="px-3 py-1 text-xs font-semibold text-gray-500 uppercase tracking-wide">Categories</div>
-              {categories.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-gray-400">No categories</div>
-              ) : (
-                categories.map((category) => (
-                <Link
-                  key={category}
-                  href={`/?category=${encodeURIComponent(category)}#book-grid`}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="block px-3 py-2 text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all duration-200 text-sm pl-6"
-                >
-                  {category}
-          </Link>
-                ))
-              )}
+              <button
+                className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide focus:outline-none"
+                onClick={() => setMobileBooksOpen((open) => !open)}
+                aria-expanded={mobileBooksOpen}
+                aria-controls="mobile-books-dropdown"
+              >
+                Books
+                <svg className={`w-4 h-4 ml-2 transition-transform duration-200 ${mobileBooksOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <div
+                id="mobile-books-dropdown"
+                className={`transition-all duration-200 overflow-hidden bg-gray-50 rounded-lg shadow-inner border border-gray-100 mt-1 ${
+                  mobileBooksOpen ? 'max-h-64 opacity-100 overflow-y-auto' : 'max-h-0 opacity-0'
+                }`}
+                style={{ minWidth: 0 }}
+              >
+                {sortedCategories.length === 0 ? (
+                  <div className="px-3 py-2 text-sm text-gray-400">No categories</div>
+                ) : (
+                  sortedCategories.map((category) => (
+                    <Link
+                      key={category}
+                      href={`/?category=${encodeURIComponent(category)}#book-grid`}
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        setMobileBooksOpen(false);
+                      }}
+                      className="block px-3 py-2 text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-all duration-200 text-sm pl-8"
+                    >
+                      {category}
+                    </Link>
+                  ))
+                )}
+              </div>
             </div>
+            <Link
+              href="/contact"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="block px-3 py-2 text-gray-700 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg font-medium transition-all duration-200 text-sm"
+            >
+              Contact
+            </Link>
           </nav>
         </div>
       </div>

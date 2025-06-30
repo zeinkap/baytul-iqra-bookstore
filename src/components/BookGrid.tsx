@@ -29,6 +29,13 @@ export default function BookGrid({ initialBooks, categories }: BookGridProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [sortOrder, setSortOrder] = useState<'default' | 'az' | 'za'>('default');
+
+  // Sort categories: all except 'Other' alphabetically, then 'Other' last
+  const sortedCategories = [
+    ...categories.filter((c) => c !== 'Other').sort((a, b) => a.localeCompare(b)),
+    ...categories.filter((c) => c === 'Other'),
+  ];
 
   const handleCategoryFilter = useCallback(async (category: string) => {
     setLoading(true);
@@ -95,6 +102,14 @@ export default function BookGrid({ initialBooks, categories }: BookGridProps) {
     return matchesSearch && matchesCategory;
   });
 
+  // Sort displayedBooks based on sortOrder
+  let sortedBooks = [...displayedBooks];
+  if (sortOrder === 'az') {
+    sortedBooks.sort((a, b) => a.title.localeCompare(b.title));
+  } else if (sortOrder === 'za') {
+    sortedBooks.sort((a, b) => b.title.localeCompare(a.title));
+  }
+
   const clearFilters = () => {
     setBooks(initialBooks);
     setSearchQuery('');
@@ -130,9 +145,18 @@ export default function BookGrid({ initialBooks, categories }: BookGridProps) {
               className="w-full md:w-64 border-2 border-gray-200 rounded-lg py-3 px-4 text-base font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 shadow-sm hover:border-gray-300 transition-colors duration-200"
             >
               <option value="">All Categories</option>
-              {categories.map((cat) => (
+              {sortedCategories.map((cat) => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
+            </select>
+            <select
+              value={sortOrder}
+              onChange={e => setSortOrder(e.target.value as 'default' | 'az' | 'za')}
+              className="w-full md:w-48 border-2 border-gray-200 rounded-lg py-3 px-4 text-base font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 shadow-sm hover:border-gray-300 transition-colors duration-200"
+            >
+              <option value="default">Sort by: Default</option>
+              <option value="az">Sort by: Title (A-Z)</option>
+              <option value="za">Sort by: Title (Z-A)</option>
             </select>
           </div>
           {(searchQuery || selectedCategory) && (
@@ -204,7 +228,7 @@ export default function BookGrid({ initialBooks, categories }: BookGridProps) {
               </div>
             </div>
           )}
-          {books.map((book, idx) => (
+          {sortedBooks.map((book, idx) => (
             <div key={book.id} className="group">
               <div 
                 className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl border border-white/50 overflow-hidden transition-all duration-300 group-hover:scale-[1.02] group-hover:-translate-y-1"

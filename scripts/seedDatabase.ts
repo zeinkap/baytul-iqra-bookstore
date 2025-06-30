@@ -10,27 +10,27 @@ const seedBooks = [
     author: "Imam al-Nawawi",
     description: "A collection of forty-two authentic hadith that are considered among the most important teachings of Islam. Each hadith is a foundation stone of Islamic law and guidance.",
     price: 22.00,
-    image: "",
+    images: [""],
     stock: 15,
-    category: "Hadith & Sunnah"
+    categories: ["Hadith & Sunnah"]
   },
   {
     title: "Fortress of the Muslim",
     author: "Said bin Ali bin Wahf Al-Qahtani",
     description: "A comprehensive collection of authentic du'as and dhikr from the Quran and Sunnah for daily life situations.",
     price: 5.00,
-    image: "",
+    images: [""],
     stock: 25,
-    category: "Hadith & Sunnah"
+    categories: ["Hadith & Sunnah"]
   },
   {
     title: "40 on Justice - The Prophetic Voice on Social Reform",
     author: "Omar Suleiman",
     description: "A powerful collection of 40 hadith and Quranic verses that highlight the prophetic voice on social justice and reform.",
     price: 18.00,
-    image: "",
+    images: [""],
     stock: 10,
-    category: "Hadith & Sunnah"
+    categories: ["Hadith & Sunnah"]
   },
 
   // Quran & Tafsir
@@ -39,18 +39,18 @@ const seedBooks = [
     author: "Seyyed Hossein Nasr",
     description: "A comprehensive study Quran with detailed commentary drawing from classical and contemporary Islamic scholarship.",
     price: 45.00,
-    image: "",
+    images: [""],
     stock: 8,
-    category: "Quran & Tafsir"
+    categories: ["Quran & Tafsir"]
   },
   {
     title: "Tafsir Ibn Kathir (Abridged)",
     author: "Ibn Kathir",
     description: "An abridged version of the classical Quranic commentary by the renowned Islamic scholar Ibn Kathir.",
     price: 35.00,
-    image: "",
+    images: [""],
     stock: 12,
-    category: "Quran & Tafsir"
+    categories: ["Quran & Tafsir"]
   },
 
   // Biography & Seerah
@@ -59,18 +59,18 @@ const seedBooks = [
     author: "Safiur Rahman al-Mubarakpuri",
     description: "A comprehensive biography of Prophet Muhammad (peace be upon him) that won first prize in a worldwide competition on the Prophet's biography.",
     price: 25.00,
-    image: "",
+    images: [""],
     stock: 20,
-    category: "Biography & Seerah"
+    categories: ["Biography & Seerah"]
   },
   {
     title: "Khadijah: Mother of History's Greatest Nation",
     author: "Fatima Barkatulla",
     description: "The inspiring story of Khadijah (may Allah be pleased with her), the first wife of Prophet Muhammad and the first person to embrace Islam.",
     price: 25.00,
-    image: "",
+    images: [""],
     stock: 15,
-    category: "Biography & Seerah"
+    categories: ["Biography & Seerah"]
   },
 
   // Children's Books
@@ -79,18 +79,18 @@ const seedBooks = [
     author: "Learning Roots",
     description: "An introduction to Allah for young children with beautiful illustrations and simple concepts.",
     price: 12.00,
-    image: "",
+    images: [""],
     stock: 30,
-    category: "Children's Books"
+    categories: ["Children's Books"]
   },
   {
     title: "The Way to Jannah",
     author: "Learning Roots",
     description: "Children learn the key to Jannah through this interactive lift-the-flap book designed for fathers and daughters.",
     price: 18.00,
-    image: "",
+    images: [""],
     stock: 25,
-    category: "Children's Books"
+    categories: ["Children's Books"]
   },
 
   // Children's Games
@@ -99,18 +99,18 @@ const seedBooks = [
     author: "Learning Roots",
     description: "Educational flash cards teaching children important Islamic supplications for daily situations.",
     price: 22.00,
-    image: "",
+    images: [""],
     stock: 20,
-    category: "Children's Games"
+    categories: ["Children's Games"]
   },
   {
     title: "The Giant Journey Puzzle",
     author: "Learning Roots",
     description: "A 178-piece puzzle featuring all the Prophets in chronological order, perfect for learning and family time.",
     price: 30.00,
-    image: "",
+    images: [""],
     stock: 15,
-    category: "Children's Games"
+    categories: ["Children's Games"]
   },
 
   // Islamic Literature
@@ -119,18 +119,18 @@ const seedBooks = [
     author: "Dr. Muhammad Ali al-Hashimi",
     description: "A comprehensive guide to Islamic character and conduct, showing how to live as an ideal Muslim in today's world.",
     price: 24.00,
-    image: "",
+    images: [""],
     stock: 18,
-    category: "Islamic Literature"
+    categories: ["Islamic Literature"]
   },
   {
     title: "Don't Be Sad",
     author: "Dr. Aaidh ibn Abdullah al-Qarni",
     description: "A book of hope and healing, offering Islamic guidance for overcoming sadness, depression, and life's challenges.",
     price: 24.00,
-    image: "",
+    images: [""],
     stock: 22,
-    category: "Islamic Literature"
+    categories: ["Islamic Literature"]
   },
 
   // Dua & Dhikr
@@ -139,9 +139,9 @@ const seedBooks = [
     author: "Various Scholars",
     description: "A collection of authentic du'as from the Quran and Sunnah for morning, evening, and daily activities.",
     price: 22.00,
-    image: "",
+    images: [""],
     stock: 25,
-    category: "Dua & Dhikr"
+    categories: ["Dua & Dhikr"]
   },
 
   // Fiqh & Islamic Law
@@ -150,9 +150,9 @@ const seedBooks = [
     author: "Dr. Ahmad ibn Naqib al-Misri",
     description: "A comprehensive introduction to Islamic law covering worship, transactions, and social interactions.",
     price: 28.00,
-    image: "",
+    images: [""],
     stock: 10,
-    category: "Fiqh & Islamic Law"
+    categories: ["Fiqh & Islamic Law"]
   },
 
   // Hajj & Umrah (was Aqeedah & Theology)
@@ -161,9 +161,9 @@ const seedBooks = [
     author: "Dr. Abu Ameenah Bilal Philips",
     description: "A clear explanation of the six pillars of Islamic faith and their significance in a Muslim's life.",
     price: 20.00,
-    image: "",
+    images: [""],
     stock: 15,
-    category: "Hajj & Umrah"
+    categories: ["Hajj & Umrah"]
   }
 ];
 
@@ -190,7 +190,29 @@ async function seedDatabase() {
     // Insert seed books
     let seedCount = 0;
     for (const book of seedBooks) {
-      await prisma.book.create({ data: book });
+      // Ensure all categories exist and get their IDs
+      const categoryConnect = [];
+      for (const catName of book.categories) {
+        const category = await prisma.category.upsert({
+          where: { name: catName },
+          update: {},
+          create: { name: catName },
+        });
+        categoryConnect.push({ id: category.id });
+      }
+      await prisma.book.create({
+        data: {
+          title: book.title,
+          author: book.author,
+          description: book.description,
+          price: book.price,
+          images: book.images,
+          stock: book.stock,
+          categories: {
+            connect: categoryConnect,
+          },
+        },
+      });
       seedCount++;
       console.log(`✅ Added: ${book.title} by ${book.author}`);
     }
