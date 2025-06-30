@@ -1,5 +1,4 @@
 import { Card } from '@/components/Card';
-import Link from 'next/link';
 import Image from 'next/image';
 
 export default function ContactPage() {

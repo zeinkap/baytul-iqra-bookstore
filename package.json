@@ -16,6 +16,7 @@
     "db:seed": "npx tsx scripts/seedDatabase.ts",
     "migrate:status": "npx prisma migrate status",
     "typecheck": "tsc --noEmit",
+    "lintcheck": "npm run lint",
     "start:prod": "npm run build && npm run start",
     "test": "playwright test"
   },

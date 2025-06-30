@@ -24,8 +24,10 @@ export const Button = React.forwardRef<
 >(({ variant = 'primary', asChild = false, className, children, ...props }, ref) => {
   const classes = clsx(baseStyles, variantStyles[variant], className);
   if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children, {
-      className: clsx(children.props.className, classes),
+    const child = children as React.ReactElement<Record<string, unknown>>;
+    const childClassName = typeof child.props.className === 'string' ? child.props.className : undefined;
+    return React.cloneElement(child, {
+      className: clsx(childClassName, classes),
     });
   }
   return (

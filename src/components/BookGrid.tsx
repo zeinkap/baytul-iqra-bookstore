@@ -103,7 +103,7 @@ export default function BookGrid({ initialBooks, categories }: BookGridProps) {
   });
 
   // Sort displayedBooks based on sortOrder
-  let sortedBooks = [...displayedBooks];
+  const sortedBooks = [...displayedBooks];
   if (sortOrder === 'az') {
     sortedBooks.sort((a, b) => a.title.localeCompare(b.title));
   } else if (sortOrder === 'za') {

@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import { headers } from 'next/headers';
 import BookGrid from '@/components/BookGrid';
 import { HERO_CAROUSEL_BOOK_IDS } from '@/config/heroCarouselBooks';
