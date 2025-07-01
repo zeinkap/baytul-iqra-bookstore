@@ -2,6 +2,8 @@
 
 A modern Islamic bookstore built with Next.js, featuring a comprehensive collection of Islamic literature, children's books, games, and educational materials.
 
+🌐 **Live Site**: [https://www.baytuliqra.com](https://www.baytuliqra.com/)
+
 ## 📚 About
 
 Baytul Iqra Bookstore is an online Islamic bookstore offering:
