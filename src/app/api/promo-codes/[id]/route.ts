@@ -3,8 +3,9 @@ import { prisma } from '@/lib/prisma';
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const data = await req.json();
     const { 
@@ -32,7 +33,7 @@ export async function PUT(
     }
 
     const promoCode = await prisma.promoCode.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         code: code.toUpperCase(),
         description,
@@ -57,8 +58,9 @@ export async function PUT(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     const data = await req.json();
     const { isActive } = data;
@@ -70,7 +72,7 @@ export async function PATCH(
     }
 
     const promoCode = await prisma.promoCode.update({
-      where: { id: params.id },
+      where: { id },
       data: { isActive },
     });
 
@@ -85,11 +87,12 @@ export async function PATCH(
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params;
   try {
     await prisma.promoCode.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ message: 'Promo code deleted successfully' });

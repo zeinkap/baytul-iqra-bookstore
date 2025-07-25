@@ -105,7 +105,7 @@ export default function CartPage() {
     };
 
     validateAppliedPromoCode();
-  }, [total, appliedPromoCode?.code]); // Re-run when total changes or promo code changes
+  }, [total, appliedPromoCode?.code, appliedPromoCode]); // Re-run when total changes or promo code changes
 
   // Helper function to get stock for a specific book
   const getBookStock = (bookId: string) => {
