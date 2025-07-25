@@ -28,10 +28,31 @@ model Category {
   books Book[] @relation("BookCategories")
 }
 
+model PromoCode {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  description String
+  discountType String  // "percentage" or "fixed"
+  discountValue Float  // percentage (0-100) or fixed amount in cents
+  minimumOrderAmount Float? // minimum order amount required
+  maxUses     Int?     // maximum number of times this code can be used
+  currentUses Int      @default(0)
+  validFrom   DateTime @default(now())
+  validUntil  DateTime?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  orders      Order[]
+}
+
 model Order {
   id               String   @id @default(uuid())
   items            Json     // Array of cart items (id, title, price, quantity, image)
   total            Float
+  discountAmount   Float    @default(0)
+  finalTotal       Float
+  promoCodeId      String?
+  promoCode        PromoCode? @relation(fields: [promoCodeId], references: [id])
   fulfillmentType  String   
   pickupLocation   String?  
   shippingAddress  Json?    

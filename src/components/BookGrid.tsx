@@ -246,6 +246,7 @@ export default function BookGrid({ initialBooks, categories }: BookGridProps) {
                       className={`object-contain drop-shadow-lg transition-opacity duration-500 ${hoveredIndex === idx && book.images && book.images[1] ? 'opacity-0' : 'opacity-100'}`}
                       sizes="(max-width: 768px) 50vw, 25vw"
                       priority={false}
+                      style={{ objectFit: 'contain' }}
                     />
                     {/* Second image (on hover, if exists) */}
                     {book.images && book.images[1] && (
@@ -256,12 +257,19 @@ export default function BookGrid({ initialBooks, categories }: BookGridProps) {
                         className={`object-contain drop-shadow-lg absolute inset-0 transition-opacity duration-500 ${hoveredIndex === idx ? 'opacity-100' : 'opacity-0'}`}
                         sizes="(max-width: 768px) 50vw, 25vw"
                         priority={false}
+                        style={{ objectFit: 'contain' }}
                       />
                     )}
                     {/* Stock indicator */}
                     <div className="absolute top-3 right-3">
-                      <div className={`px-2 py-1 rounded-full text-xs font-semibold ${book.stock > 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
-                        {book.stock > 0 ? 'In Stock' : 'Out of Stock'}
+                      <div className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        book.stock === 0 ? 'bg-red-100 text-red-800' : 
+                        book.stock === 1 ? 'bg-amber-100 text-amber-800' : 
+                        'bg-emerald-100 text-emerald-800'
+                      }`}>
+                        {book.stock === 0 ? 'Out of Stock' : 
+                         book.stock === 1 ? 'Only 1 left!' : 
+                         'In Stock'}
                       </div>
                     </div>
                   </div>
@@ -297,7 +305,7 @@ export default function BookGrid({ initialBooks, categories }: BookGridProps) {
                     onClick={(e) => e.preventDefault()}
                   >
                     <div className="w-full">
-                      <AddToCartButtonClient id={book.id} title={book.title} price={book.price} image={book.images && book.images[0] ? book.images[0] : ''} />
+                      <AddToCartButtonClient id={book.id} title={book.title} author={book.author} price={book.price} image={book.images && book.images[0] ? book.images[0] : ''} />
                     </div>
                   </div>
                 </div>

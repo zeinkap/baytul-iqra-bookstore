@@ -20,10 +20,49 @@ Baytul Iqra Bookstore is an online Islamic bookstore offering:
 - The `Order` table (managed by Prisma/PostgreSQL) stores all order details, including:
   - Cart items (JSON)
   - Total price
+  - Discount amount and final total
+  - Applied promo codes
   - Fulfillment type (shipping or pickup)
   - Pickup location or shipping address
   - Customer email
 - Supports both shipping and pickup workflows.
+
+## 🎫 Promo Code System
+
+A comprehensive discount system that allows customers to apply promo codes during checkout.
+
+### Features
+- **Multiple discount types**: Percentage-based or fixed dollar amounts
+- **Validation rules**: Minimum order amounts, usage limits, validity periods
+- **Real-time validation**: Instant feedback when applying codes
+- **Admin management**: Full CRUD operations for promo codes
+- **Usage tracking**: Monitor how many times each code has been used
+
+### Admin Interface
+- **Access**: Navigate to `/admin/promo-codes` to manage all promo codes
+- **Create codes**: Set discount type, value, minimum order amount, and usage limits
+- **Edit codes**: Modify existing codes or deactivate them
+- **Monitor usage**: Track how many times each code has been used
+- **Bulk management**: View all codes in a sortable table format
+
+### Sample Promo Codes
+The system comes with three sample promo codes for testing:
+- **WELCOME10**: 10% off orders over $25
+- **SAVE5**: $5 off orders over $50
+- **RAMADAN20**: 20% off orders over $30
+
+### How It Works
+1. Customers enter promo codes in the cart page
+2. System validates the code against rules (validity, minimum order, usage limits)
+3. Discount is applied to product subtotal only (shipping costs are not discounted)
+4. Final discounted total is processed through Stripe checkout
+5. Promo code usage is tracked in the database
+
+### Discount Rules
+- **Product-only discounts**: Promo codes apply to product subtotal only
+- **Shipping excluded**: Shipping and handling fees are not eligible for discounts
+- **Minimum order validation**: Based on product total before shipping
+- **Proportional distribution**: Discounts are distributed proportionally across all products
 
 ## 🚀 Getting Started
 
@@ -81,6 +120,9 @@ npm run dev
 - `npm run db:reset` - Reset database (⚠️ destructive)
 - `npm run db:seed` - Seed database with books from CSV
 
+### Promo Code Management
+- `npx tsx scripts/addPromoCodes.ts` - Add sample promo codes to database
+
 ### Production Migrations
 To apply schema changes to your production database (e.g., Neon), set the `DATABASE_URL` to your production connection string and run:
 ```sh
@@ -125,11 +167,12 @@ The restoration script will:
 
 - **Frontend:** Next.js 15, React 19, TypeScript
 - **Database:** PostgreSQL with Prisma ORM
-- **Payments:** Stripe integration
+- **Payments:** Stripe integration with discount support
 - **Styling:** Tailwind CSS
 - **Deployment:** Vercel-ready
 - **Performance Monitoring:** Integrated with [Vercel Speed Insights](https://vercel.com/docs/analytics/speed-insights) for real user performance metrics
 - **Email Service:** Resend (order confirmation emails)
+- **Discount System:** Custom promo code validation and management
 
 ## 🔒 Data Safety
 
@@ -160,6 +203,14 @@ npm run start
 - `POST /api/orders` — Create a new order
 - `POST /api/checkout_sessions` — Create a Stripe checkout session
 - `POST /api/stripe/webhook` — Stripe webhook for payment events
+
+### Promo Code Endpoints
+- `GET /api/promo-codes` — List all promo codes
+- `POST /api/promo-codes` — Create a new promo code
+- `PUT /api/promo-codes/[id]` — Update a promo code
+- `PATCH /api/promo-codes/[id]` — Update promo code status
+- `DELETE /api/promo-codes/[id]` — Delete a promo code
+- `POST /api/promo-codes/validate` — Validate a promo code for checkout
 
 ## 📞 Support
 

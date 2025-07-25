@@ -53,6 +53,7 @@ export default function BookDetailClient({ book }: { book: Book }) {
                       className="object-contain p-4 transition-transform duration-300 group-hover:scale-105"
                       sizes="(max-width: 768px) 100vw, 40vw"
             priority={true}
+            style={{ objectFit: 'contain' }}
           />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300 rounded-2xl" />
                     <span className="absolute bottom-3 right-3 bg-black/70 text-white text-xs px-3 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-sm">
@@ -78,6 +79,7 @@ export default function BookDetailClient({ book }: { book: Book }) {
                             fill
                             className="object-contain"
                             sizes="56px"
+                            style={{ objectFit: 'contain' }}
                           />
                         </button>
                       ))}
@@ -87,7 +89,7 @@ export default function BookDetailClient({ book }: { book: Book }) {
                   {/* Add to Cart button with enhanced styling */}
                   <div className="mt-6 flex justify-center">
                     <div className="transform hover:scale-105 transition-transform duration-200">
-                      <AddToCartButtonClient id={book.id} title={book.title} price={book.price} image={book.images && book.images[0] ? book.images[0] : ''} />
+                      <AddToCartButtonClient id={book.id} title={book.title} author={book.author} price={book.price} image={book.images && book.images[0] ? book.images[0] : ''} />
                     </div>
                   </div>
                 </div>
@@ -143,6 +145,14 @@ export default function BookDetailClient({ book }: { book: Book }) {
                       {book.stock > 0 ? `${book.stock} in stock` : 'Out of stock'}
                     </span>
                   </div>
+                  {book.stock === 1 && (
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-100 border border-amber-200">
+                      <svg className="w-4 h-4 text-amber-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 11H9v-2h2v2zm0-4H9V7h2v2z" />
+                      </svg>
+                      <span className="text-sm font-semibold text-amber-800">Only 1 left!</span>
+                    </div>
+                  )}
                 </div>
                 
                                  {/* Description with enhanced styling */}

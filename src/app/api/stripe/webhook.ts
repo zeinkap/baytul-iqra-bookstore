@@ -22,9 +22,24 @@ export async function POST(req: NextRequest) {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
     const orderId = session.metadata?.orderId;
+    const promoCodeId = session.metadata?.promoCodeId;
+    
     if (orderId) {
       // Fetch order from DB
       const order = await prisma.order.findUnique({ where: { id: orderId } });
+      
+      // Update promo code usage if used
+      if (promoCodeId && order?.promoCodeId) {
+        try {
+          await prisma.promoCode.update({
+            where: { id: promoCodeId },
+            data: { currentUses: { increment: 1 } }
+          });
+          console.log(`Updated usage for promo code: ${promoCodeId}`);
+        } catch (error) {
+          console.error('Error updating promo code usage:', error);
+        }
+      }
       if (order && order.email) {
         let items: { title: string; quantity: number; price: number }[] = [];
         if (Array.isArray(order.items)) {

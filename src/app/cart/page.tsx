@@ -3,7 +3,13 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/components/CartProvider';
 import { toast } from 'react-hot-toast';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+// Add type for book stock information
+type BookStock = {
+  id: string;
+  stock: number;
+};
 
 export default function CartPage() {
   const { cart, updateQuantity, removeFromCart, clearCart } = useCart();
@@ -12,10 +18,100 @@ export default function CartPage() {
   const [email, setEmail] = useState('');
   const [emailTouched, setEmailTouched] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
+  const [bookStocks, setBookStocks] = useState<BookStock[]>([]);
+  const [loadingStocks, setLoadingStocks] = useState(true);
+  const [promoCode, setPromoCode] = useState('');
+  const [appliedPromoCode, setAppliedPromoCode] = useState<{
+    id: string;
+    code: string;
+    description: string;
+    discountType: string;
+    discountValue: number;
+    discountAmount: number;
+    finalTotal: number;
+  } | null>(null);
+  const [promoCodeError, setPromoCodeError] = useState('');
+  const [validatingPromoCode, setValidatingPromoCode] = useState(false);
+  
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
   const shippingFee = fulfillmentType === 'shipping' ? 5 : 0;
-  const grandTotal = total + shippingFee;
+  const discountAmount = appliedPromoCode ? appliedPromoCode.discountAmount : 0;
+  const grandTotal = total + shippingFee - discountAmount;
+
+  // Fetch stock information for all books in cart
+  useEffect(() => {
+    const fetchBookStocks = async () => {
+      if (cart.length === 0) {
+        setLoadingStocks(false);
+        return;
+      }
+
+      try {
+        const stockPromises = cart.map(async (item) => {
+          const response = await fetch(`/api/books/${item.id}`);
+          if (response.ok) {
+            const book = await response.json();
+            return { id: item.id, stock: book.stock };
+          }
+          return { id: item.id, stock: 0 };
+        });
+
+        const stocks = await Promise.all(stockPromises);
+        setBookStocks(stocks);
+      } catch (error) {
+        console.error('Error fetching book stocks:', error);
+      } finally {
+        setLoadingStocks(false);
+      }
+    };
+
+    fetchBookStocks();
+  }, [cart]);
+
+  // Validate applied promo code when cart total changes
+  useEffect(() => {
+    const validateAppliedPromoCode = async () => {
+      if (!appliedPromoCode) return;
+
+      try {
+        const response = await fetch('/api/promo-codes/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: appliedPromoCode.code,
+            orderTotal: total // Only validate against product total, not shipping
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!data.valid) {
+          // Promo code is no longer valid, remove it
+          setAppliedPromoCode(null);
+          setPromoCodeError(data.error || 'Promo code is no longer valid');
+          toast.error('Promo code removed: ' + (data.error || 'No longer valid'));
+        } else {
+          // Update the applied promo code with new discount amount
+          setAppliedPromoCode(data.promoCode);
+        }
+      } catch (error) {
+        console.error('Error validating applied promo code:', error);
+        // On error, remove the promo code to be safe
+        setAppliedPromoCode(null);
+        setPromoCodeError('Failed to validate promo code');
+        toast.error('Promo code removed due to validation error');
+      }
+    };
+
+    validateAppliedPromoCode();
+  }, [total, appliedPromoCode?.code]); // Re-run when total changes or promo code changes
+
+  // Helper function to get stock for a specific book
+  const getBookStock = (bookId: string) => {
+    const bookStock = bookStocks.find(stock => stock.id === bookId);
+    return bookStock ? bookStock.stock : 0;
+  };
 
   return (
     <>
@@ -122,6 +218,92 @@ export default function CartPage() {
                   You will receive instructions for pickup after completing your order.
                 </div>
               )}
+              
+              {/* Promo Code Section */}
+              <div className="mt-4">
+                <label htmlFor="promoCode" className="block text-gray-900 font-semibold mb-1">
+                  Promo Code (Optional)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="promoCode"
+                    type="text"
+                    value={promoCode}
+                    onChange={(e) => {
+                      setPromoCode(e.target.value);
+                      setPromoCodeError('');
+                    }}
+                    placeholder="Enter promo code"
+                    className="flex-1 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 placeholder-gray-700 text-gray-900"
+                    disabled={validatingPromoCode}
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!promoCode.trim()) {
+                        setPromoCodeError('Please enter a promo code');
+                        return;
+                      }
+                      
+                      setValidatingPromoCode(true);
+                      setPromoCodeError('');
+                      
+                                             try {
+                         const response = await fetch('/api/promo-codes/validate', {
+                           method: 'POST',
+                           headers: { 'Content-Type': 'application/json' },
+                           body: JSON.stringify({
+                             code: promoCode.trim(),
+                             orderTotal: total // Only validate against product total, not shipping
+                           }),
+                         });
+                        
+                        const data = await response.json();
+                        
+                        if (data.valid) {
+                          setAppliedPromoCode(data.promoCode);
+                          setPromoCodeError('');
+                          toast.success(`Promo code applied! ${data.promoCode.description}`);
+                        } else {
+                          setPromoCodeError(data.error || 'Invalid promo code');
+                          setAppliedPromoCode(null);
+                        }
+                      } catch {
+                        setPromoCodeError('Failed to validate promo code');
+                        setAppliedPromoCode(null);
+                      } finally {
+                        setValidatingPromoCode(false);
+                      }
+                    }}
+                    disabled={validatingPromoCode || !promoCode.trim()}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded font-semibold transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {validatingPromoCode ? 'Validating...' : 'Apply'}
+                  </button>
+                </div>
+                {promoCodeError && (
+                  <p className="text-red-600 text-sm mt-1">{promoCodeError}</p>
+                )}
+                {appliedPromoCode && (
+                  <div className="mt-2 text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <strong>✓ {appliedPromoCode.description}</strong>
+                        <p className="text-sm">Discount: ${appliedPromoCode.discountAmount.toFixed(2)}</p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setAppliedPromoCode(null);
+                          setPromoCode('');
+                          setPromoCodeError('');
+                        }}
+                        className="text-emerald-600 hover:text-emerald-800 text-sm font-medium"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -181,7 +363,22 @@ export default function CartPage() {
                                 alt={item.title} 
                                 fill 
                                 className="object-contain p-2" 
+                                style={{ objectFit: 'contain' }}
                               />
+                              {/* Stock indicator */}
+                              {!loadingStocks && (
+                                <div className="absolute top-2 right-2">
+                                  <div className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                                    getBookStock(item.id) === 0 ? 'bg-red-100 text-red-800' : 
+                                    getBookStock(item.id) === 1 ? 'bg-amber-100 text-amber-800' : 
+                                    'bg-emerald-100 text-emerald-800'
+                                  }`}>
+                                    {getBookStock(item.id) === 0 ? 'Out of Stock' : 
+                                     getBookStock(item.id) === 1 ? 'Only 1 left!' : 
+                                     'In Stock'}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                           
@@ -191,7 +388,29 @@ export default function CartPage() {
                               <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2 leading-tight">
                                 {item.title}
                               </h3>
-                              <p className="text-gray-600 text-sm mb-3">by Unknown Author</p>
+                              <p className="text-gray-600 text-sm mb-3">by {item.author}</p>
+                              
+                              {/* Stock Status */}
+                              {!loadingStocks && (
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className={`flex items-center gap-2 px-3 py-1 rounded-lg text-sm font-medium ${
+                                    getBookStock(item.id) === 0 ? 'bg-red-50 border border-red-200 text-red-700' : 
+                                    getBookStock(item.id) === 1 ? 'bg-amber-50 border border-amber-200 text-amber-700' : 
+                                    'bg-emerald-50 border border-emerald-200 text-emerald-700'
+                                  }`}>
+                                    <div className={`w-2 h-2 rounded-full ${
+                                      getBookStock(item.id) === 0 ? 'bg-red-500' : 
+                                      getBookStock(item.id) === 1 ? 'bg-amber-500' : 
+                                      'bg-emerald-500'
+                                    }`} />
+                                    <span>
+                                      {getBookStock(item.id) === 0 ? 'Out of stock' : 
+                                       getBookStock(item.id) === 1 ? 'Only 1 left!' : 
+                                       `${getBookStock(item.id)} in stock`}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
                               
                               {/* Price */}
                               <div className="flex items-center gap-3 mb-4">
@@ -296,10 +515,12 @@ export default function CartPage() {
                           <span>$5 (flat rate)</span>
                         )}
                       </div>
-                      <div className="flex justify-between text-gray-600">
-                        <span>Tax:</span>
-                        <span>Calculated at checkout</span>
-                      </div>
+                      {appliedPromoCode && (
+                        <div className="flex justify-between text-emerald-600">
+                          <span>Discount ({appliedPromoCode.description}):</span>
+                          <span>-${appliedPromoCode.discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
                       <div className="border-t border-gray-200 pt-3">
                         <div className="flex justify-between items-center">
                           <span className="text-lg font-bold text-gray-900">Total:</span>
@@ -339,6 +560,8 @@ export default function CartPage() {
                               fulfillmentType,
                               pickupLocation: fulfillmentType === 'pickup' ? 'Alpharetta, GA' : undefined,
                               email,
+                              promoCodeId: appliedPromoCode?.id,
+                              discountAmount: appliedPromoCode?.discountAmount || 0,
                               // Add shippingAddress here if you collect it
                             }),
                           });
@@ -353,7 +576,13 @@ export default function CartPage() {
                           const res = await fetch('/api/checkout_sessions', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ items: cart, fulfillmentType, orderId, email }),
+                            body: JSON.stringify({ 
+                              items: cart, 
+                              fulfillmentType, 
+                              orderId, 
+                              email,
+                              promoCodeId: appliedPromoCode?.id 
+                            }),
                           });
                           const data = await res.json();
                           if (data.url) {

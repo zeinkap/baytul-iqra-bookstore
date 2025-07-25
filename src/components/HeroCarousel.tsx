@@ -56,6 +56,7 @@ export default function HeroCarousel({ heroBooks }: { heroBooks: Book[] }) {
               height={400}
               className="rounded-xl object-contain max-h-80 mb-4 shadow"
               priority
+              style={{ height: 'auto' }}
             />
             <div className="text-lg font-semibold text-center mb-2 line-clamp-2 text-gray-900" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.08)' }}>{book.title}</div>
             <Button asChild variant="primary" className="mt-2">

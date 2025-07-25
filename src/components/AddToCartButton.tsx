@@ -5,11 +5,13 @@ import { toast } from 'react-hot-toast';
 export default function AddToCartButton({
   id,
   title,
+  author,
   price,
   image,
 }: {
   id: string;
   title: string;
+  author: string;
   price: number;
   image: string;
 }) {
@@ -19,7 +21,7 @@ export default function AddToCartButton({
     <button
       className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-6 py-3.5 rounded-xl font-semibold flex items-center justify-center transition-all duration-300 cursor-pointer shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 group relative overflow-hidden"
       onClick={() => {
-        addToCart({ id, title, price, image });
+        addToCart({ id, title, author, price, image });
         toast.success('Added to cart!', {
           style: {
             background: '#f59e0b',
