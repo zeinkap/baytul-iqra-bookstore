@@ -18,14 +18,14 @@ export async function GET() {
 // POST /api/books - Add a new book
 export async function POST(req: NextRequest) {
   const data = await req.json();
-  const { title, author, description, price, images, stock, categories } = data;
+  const { title, author, description, price, images, stock, isBestseller, categories } = data;
   if (!title || !author || !description || !price || !Array.isArray(images) || images.length === 0 || stock == null || !Array.isArray(categories)) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
   // Connect to existing categories by name
   const categoryConnect = categories.map((name: string) => ({ name }));
   const book = await prisma.book.create({
-    data: { title, author, description, price, images, stock, categories: { connect: categoryConnect } },
+    data: { title, author, description, price, images, stock, isBestseller: isBestseller || false, categories: { connect: categoryConnect } },
     include: { categories: true }
   });
   return NextResponse.json({

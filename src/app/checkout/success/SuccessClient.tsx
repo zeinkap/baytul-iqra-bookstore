@@ -15,6 +15,16 @@ type Order = {
   items: OrderItem[];
   total: number;
   fulfillmentType: 'shipping' | 'pickup';
+  email?: string;
+  shippingAddress?: {
+    name?: string;
+    line1?: string;
+    line2?: string;
+    city?: string;
+    state?: string;
+    postal_code?: string;
+    country?: string;
+  };
 };
 
 export default function SuccessClient() {
@@ -25,6 +35,7 @@ export default function SuccessClient() {
   const [error, setError] = useState<string | null>(null);
   const { clearCart } = useCart();
   const clearedRef = useRef(false);
+  const notificationSentRef = useRef(false);
 
   useEffect(() => {
     if (!orderId) return;
@@ -37,6 +48,27 @@ export default function SuccessClient() {
         if (!clearedRef.current) {
           clearCart();
           clearedRef.current = true;
+        }
+        
+        // Send sales notification
+        if (!notificationSentRef.current && data.email) {
+          notificationSentRef.current = true;
+          fetch('/api/orders/notify-sales', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              orderId: data.id,
+              items: data.items,
+              total: data.total,
+              fulfillmentType: data.fulfillmentType,
+              customerEmail: data.email,
+              shippingAddress: data.shippingAddress,
+            }),
+          }).catch(error => {
+            console.error('Failed to send sales notification:', error);
+          });
         }
       })
       .catch(() => {

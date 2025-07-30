@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import AddToCartButtonClient from '@/components/AddToCartButtonClient';
-import SearchBar from '@/components/SearchBar';
+
 
 export type Book = {
   id: string;
@@ -20,27 +20,20 @@ export type Book = {
 
 interface BookGridProps {
   initialBooks: Book[];
-  categories: string[];
+  searchQuery?: string;
+  selectedCategories?: string[];
 }
 
-export default function BookGrid({ initialBooks, categories }: BookGridProps) {
+export default function BookGrid({ initialBooks, searchQuery = '', selectedCategories = [] }: BookGridProps) {
   const [books, setBooks] = useState<Book[]>(initialBooks);
   const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [sortOrder, setSortOrder] = useState<'default' | 'az' | 'za'>('default');
 
-  // Sort categories: all except 'Other' alphabetically, then 'Other' last
-  const sortedCategories = [
-    ...categories.filter((c) => c !== 'Other').sort((a, b) => a.localeCompare(b)),
-    ...categories.filter((c) => c === 'Other'),
-  ];
 
   const handleCategoryFilter = useCallback(async (category: string) => {
     setLoading(true);
     setSelectedCategory(category);
-    setSearchQuery(''); // Clear search when filtering by category
     
     try {
       const response = await fetch(`/api/books/category/${encodeURIComponent(category)}`);
@@ -68,27 +61,7 @@ export default function BookGrid({ initialBooks, categories }: BookGridProps) {
     }
   }, [handleCategoryFilter]);
 
-  const handleSearch = async (query: string) => {
-    setLoading(true);
-    setSearchQuery(query);
-    setSelectedCategory(null); // Clear category filter when searching
-    
-    try {
-      const response = await fetch(`/api/books/search?q=${encodeURIComponent(query)}`);
-      if (response.ok) {
-        const searchResults = await response.json();
-        setBooks(searchResults);
-      } else {
-        console.error('Search failed');
-        setBooks(initialBooks);
-      }
-    } catch (error) {
-      console.error('Search error:', error);
-      setBooks(initialBooks);
-    } finally {
-      setLoading(false);
-    }
-  };
+
 
   // Combined filter: if both search and category are set, filter client-side
   const displayedBooks = books.filter((book) => {
@@ -97,106 +70,19 @@ export default function BookGrid({ initialBooks, categories }: BookGridProps) {
       book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       book.author.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory =
-      !selectedCategory ||
-      book.categories.map((c) => c.toLowerCase()).includes(selectedCategory.toLowerCase());
+      selectedCategories.length === 0 ||
+      book.categories.some(cat => selectedCategories.includes(cat));
     return matchesSearch && matchesCategory;
   });
 
-  // Sort displayedBooks based on sortOrder
-  const sortedBooks = [...displayedBooks];
-  if (sortOrder === 'az') {
-    sortedBooks.sort((a, b) => a.title.localeCompare(b.title));
-  } else if (sortOrder === 'za') {
-    sortedBooks.sort((a, b) => b.title.localeCompare(a.title));
-  }
+  // Use displayedBooks directly since we removed sorting functionality
+  const sortedBooks = displayedBooks;
 
-  const clearFilters = () => {
-    setBooks(initialBooks);
-    setSearchQuery('');
-    setSelectedCategory(null);
-    // Update URL to remove category parameter
-    const url = new URL(window.location.href);
-    url.searchParams.delete('category');
-    window.history.replaceState({}, '', url.toString());
-  };
+
 
   return (
     <div className="py-16">
-      {/* Search Section */}
-      <div className="max-w-6xl mx-auto px-4 mb-12">
-        <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-xl p-8 border border-white/50">
-          <div className="text-center mb-6">
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">Discover Your Next Read</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">Search through our carefully curated collection of Islamic literature</p>
-          </div>
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-center mb-6">
-            <SearchBar 
-              onSearch={handleSearch}
-              placeholder="Search by title or author..."
-              className="max-w-xl w-full md:w-96"
-            />
-            <select
-              value={selectedCategory || ''}
-              onChange={e => {
-                const val = e.target.value;
-                if (val) handleCategoryFilter(val);
-                else clearFilters();
-              }}
-              className="w-full md:w-64 border-2 border-gray-200 rounded-lg py-3 px-4 text-base font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 shadow-sm hover:border-gray-300 transition-colors duration-200"
-            >
-              <option value="">All Categories</option>
-              {sortedCategories.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-            <select
-              value={sortOrder}
-              onChange={e => setSortOrder(e.target.value as 'default' | 'az' | 'za')}
-              className="w-full md:w-48 border-2 border-gray-200 rounded-lg py-3 px-4 text-base font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 shadow-sm hover:border-gray-300 transition-colors duration-200"
-            >
-              <option value="default">Sort by: Default</option>
-              <option value="az">Sort by: Title (A-Z)</option>
-              <option value="za">Sort by: Title (Z-A)</option>
-            </select>
-          </div>
-          {(searchQuery || selectedCategory) && (
-            <div className="text-center mt-4">
-              {loading ? (
-                <div className="inline-flex items-center gap-3 bg-blue-50 text-blue-700 px-4 py-2 rounded-full">
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <span className="font-medium">Loading...</span>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center gap-4">
-                  <div className="inline-flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-full">
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    <span className="font-medium">
-                      {searchQuery 
-                        ? `Found ${displayedBooks.length} book${displayedBooks.length !== 1 ? 's' : ''} for "${searchQuery}"`
-                        : `${displayedBooks.length} book${displayedBooks.length !== 1 ? 's' : ''} in ${selectedCategory}`
-                      }
-                    </span>
-                  </div>
-                  <button
-                    onClick={clearFilters}
-                    className="inline-flex items-center gap-1 text-gray-600 hover:text-gray-800 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 text-sm"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                    Clear Filter
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+
 
       {/* Show total number of books when All Categories is selected */}
       {(!selectedCategory || selectedCategory === '') && !searchQuery && (
@@ -291,8 +177,11 @@ export default function BookGrid({ initialBooks, categories }: BookGridProps) {
                     
                     {/* Price */}
                     <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-2xl font-bold text-emerald-600">${book.price.toFixed(2)}</span>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span className="text-2xl font-bold text-emerald-600">${book.price.toFixed(2)}</span>
+                        </div>
+                        <span className="text-xs text-gray-500 mt-1">Tax included</span>
                       </div>
                     </div>
                   </div>

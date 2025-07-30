@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/components/CartProvider';
 import { toast } from 'react-hot-toast';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 // Add type for book stock information
 type BookStock = {
@@ -70,42 +70,42 @@ export default function CartPage() {
   }, [cart]);
 
   // Validate applied promo code when cart total changes
-  useEffect(() => {
-    const validateAppliedPromoCode = async () => {
-      if (!appliedPromoCode) return;
+  const validateAppliedPromoCode = useCallback(async () => {
+    if (!appliedPromoCode) return;
 
-      try {
-        const response = await fetch('/api/promo-codes/validate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code: appliedPromoCode.code,
-            orderTotal: total // Only validate against product total, not shipping
-          }),
-        });
+    try {
+      const response = await fetch('/api/promo-codes/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: appliedPromoCode.code,
+          orderTotal: total // Only validate against product total, not shipping
+        }),
+      });
 
-        const data = await response.json();
+      const data = await response.json();
 
-        if (!data.valid) {
-          // Promo code is no longer valid, remove it
-          setAppliedPromoCode(null);
-          setPromoCodeError(data.error || 'Promo code is no longer valid');
-          toast.error('Promo code removed: ' + (data.error || 'No longer valid'));
-        } else {
-          // Update the applied promo code with new discount amount
-          setAppliedPromoCode(data.promoCode);
-        }
-      } catch (error) {
-        console.error('Error validating applied promo code:', error);
-        // On error, remove the promo code to be safe
+      if (!data.valid) {
+        // Promo code is no longer valid, remove it
         setAppliedPromoCode(null);
-        setPromoCodeError('Failed to validate promo code');
-        toast.error('Promo code removed due to validation error');
+        setPromoCodeError(data.error || 'Promo code is no longer valid');
+        toast.error('Promo code removed: ' + (data.error || 'No longer valid'));
+      } else {
+        // Update the applied promo code with new discount amount
+        setAppliedPromoCode(data.promoCode);
       }
-    };
+    } catch (error) {
+      console.error('Error validating applied promo code:', error);
+      // On error, remove the promo code to be safe
+      setAppliedPromoCode(null);
+      setPromoCodeError('Failed to validate promo code');
+      toast.error('Promo code removed due to validation error');
+    }
+  }, [appliedPromoCode, total]);
 
+  useEffect(() => {
     validateAppliedPromoCode();
-  }, [total, appliedPromoCode?.code, appliedPromoCode]); // Re-run when total changes or promo code changes
+  }, [validateAppliedPromoCode]);
 
   // Helper function to get stock for a specific book
   const getBookStock = (bookId: string) => {
@@ -116,53 +116,36 @@ export default function CartPage() {
   return (
     <>
       <main className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50">
-        <div className="max-w-7xl mx-auto px-4 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           
           {/* Header Section */}
-          <div className="mb-12">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-2">
+          <div className="mb-8 sm:mb-12">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 sm:gap-6 mb-6">
+              <div className="flex-1">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-2">
                   Shopping Cart
                 </h1>
-                <p className="text-gray-600 text-lg">
+                <p className="text-gray-600 text-base sm:text-lg">
                   {cart.length === 0 ? 'Your cart is waiting to be filled' : `${itemCount} item${itemCount !== 1 ? 's' : ''} in your cart`}
                 </p>
               </div>
               <Link 
                 href="/" 
-                className="inline-flex items-center gap-1 sm:gap-2 bg-white/90 hover:bg-white border border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 px-3 py-2 sm:px-6 sm:py-3 rounded-lg sm:rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-sm sm:text-base font-medium backdrop-blur-sm group"
+                className="inline-flex items-center gap-2 bg-white/90 hover:bg-white border border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 px-4 py-3 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 text-sm font-medium backdrop-blur-sm group w-full sm:w-auto justify-center"
               >
-                <svg className="w-3 h-3 sm:w-4 sm:h-4 transition-transform duration-200 group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 transition-transform duration-200 group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
-                <span className="hidden sm:inline">Continue Shopping</span>
-                <span className="sm:hidden">Continue</span>
+                <span>Continue Shopping</span>
               </Link>
             </div>
             
-            {/* Progress indicator */}
-            {cart.length > 0 && (
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-sm">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-gray-600">Shopping Progress</span>
-                  <span className="text-sm font-medium text-emerald-600">Step 1 of 3</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-gradient-to-r from-emerald-500 to-teal-500 h-2 rounded-full w-1/3 transition-all duration-300"></div>
-                </div>
-                <div className="flex justify-between text-xs text-gray-500 mt-2">
-                  <span>Cart Review</span>
-                  <span>Checkout</span>
-                  <span>Complete</span>
-                </div>
-              </div>
-            )}
+
           </div>
 
           {/* Fulfillment Type Selection */}
           {cart.length > 0 && (
-            <div className="mb-8 bg-white/90 rounded-xl shadow p-6 border border-gray-100">
+            <div className="mb-8 bg-white/90 rounded-xl shadow p-4 sm:p-6 border border-gray-100">
               <h2 className="text-lg font-semibold mb-4 text-gray-900">How would you like to receive your order?</h2>
               <div className="flex flex-col sm:flex-row gap-4 mb-4">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -247,15 +230,15 @@ export default function CartPage() {
                       setValidatingPromoCode(true);
                       setPromoCodeError('');
                       
-                                             try {
-                         const response = await fetch('/api/promo-codes/validate', {
-                           method: 'POST',
-                           headers: { 'Content-Type': 'application/json' },
-                           body: JSON.stringify({
-                             code: promoCode.trim(),
-                             orderTotal: total // Only validate against product total, not shipping
-                           }),
-                         });
+                      try {
+                        const response = await fetch('/api/promo-codes/validate', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            code: promoCode.trim(),
+                            orderTotal: total // Only validate against product total, not shipping
+                          }),
+                        });
                         
                         const data = await response.json();
                         
@@ -309,20 +292,20 @@ export default function CartPage() {
 
           {cart.length === 0 ? (
             /* Empty Cart State */
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-xl p-12 border border-white/50 text-center max-w-md">
-                <div className="w-20 h-20 bg-gradient-to-r from-emerald-100 to-teal-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <svg className="w-10 h-10 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="flex flex-col items-center justify-center py-12 sm:py-20">
+              <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-xl p-8 sm:p-12 border border-white/50 text-center max-w-md w-full">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-r from-emerald-100 to-teal-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-8 h-8 sm:w-10 sm:h-10 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                   </svg>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-3">Your cart is empty</h2>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">Your cart is empty</h2>
                 <p className="text-gray-600 mb-8 leading-relaxed">
                   Discover our curated collection of Islamic literature and find your next meaningful read.
                 </p>
                 <Link 
-                  href="/" 
-                  className="inline-flex items-center justify-center bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-8 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+                  href="/#book-grid" 
+                  className="inline-flex items-center justify-center bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 w-full sm:w-auto"
                 >
                   <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
@@ -330,17 +313,17 @@ export default function CartPage() {
                   Start Shopping
                 </Link>
               </div>
-          </div>
-        ) : (
-            /* Cart Items */
-            <div className="grid lg:grid-cols-3 gap-8">
+            </div>
+          ) : (
+            /* Cart Content */
+            <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
               
               {/* Cart Items List */}
               <div className="lg:col-span-2 space-y-6">
                 <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg border border-white/50 overflow-hidden">
-                  <div className="bg-gradient-to-r from-emerald-500 to-teal-500 px-6 py-4">
+                  <div className="bg-gradient-to-r from-emerald-500 to-teal-500 px-4 sm:px-6 py-4">
                     <div className="flex items-center justify-between text-white">
-                      <h2 className="text-xl font-bold">Your Items</h2>
+                      <h2 className="text-lg sm:text-xl font-bold">Your Items</h2>
                       <button
                         onClick={() => setShowClearModal(true)}
                         className="text-sm font-medium hover:bg-white/20 px-3 py-1 rounded-lg transition-colors duration-200"
@@ -352,11 +335,11 @@ export default function CartPage() {
                   
                   <div className="divide-y divide-gray-100">
                     {cart.map((item, idx) => (
-                      <div key={`${item.id}-${idx}`} className="p-6 hover:bg-gray-50/50 transition-colors duration-200">
-                        <div className="flex flex-col sm:flex-row gap-6">
+                      <div key={`${item.id}-${idx}`} className="p-4 sm:p-6 hover:bg-gray-50/50 transition-colors duration-200">
+                        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
                           
                           {/* Book Image */}
-                          <div className="relative w-24 h-32 sm:w-28 sm:h-36 flex-shrink-0 mx-auto sm:mx-0">
+                          <div className="relative w-20 h-28 sm:w-24 sm:h-32 lg:w-28 lg:h-36 flex-shrink-0 mx-auto sm:mx-0">
                             <div className="relative w-full h-full bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
                               <Image 
                                 src={item.image || '/placeholder.svg'} 
@@ -367,7 +350,7 @@ export default function CartPage() {
                               />
                               {/* Stock indicator */}
                               {!loadingStocks && (
-                                <div className="absolute top-2 right-2">
+                                <div className="absolute top-1 right-1 sm:top-2 sm:right-2">
                                   <div className={`px-2 py-1 rounded-full text-xs font-semibold ${
                                     getBookStock(item.id) === 0 ? 'bg-red-100 text-red-800' : 
                                     getBookStock(item.id) === 1 ? 'bg-amber-100 text-amber-800' : 
@@ -383,9 +366,9 @@ export default function CartPage() {
                           </div>
                           
                           {/* Book Details */}
-                          <div className="flex-1 flex flex-col justify-between">
+                          <div className="flex-1 flex flex-col justify-between min-w-0">
                             <div>
-                              <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2 leading-tight">
+                              <h3 className="font-bold text-base sm:text-lg text-gray-900 mb-2 line-clamp-2 leading-tight">
                                 {item.title}
                               </h3>
                               <p className="text-gray-600 text-sm mb-3">by {item.author}</p>
@@ -413,22 +396,28 @@ export default function CartPage() {
                               )}
                               
                               {/* Price */}
-                              <div className="flex items-center gap-3 mb-4">
-                                <span className="text-2xl font-bold text-emerald-600">
-                                  ${item.price.toFixed(2)}
-                                </span>
-                                <span className="text-sm text-gray-500">per item</span>
+                              <div className="mb-4">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-xl sm:text-2xl font-bold text-emerald-600">
+                                    ${item.price.toFixed(2)}
+                                  </span>
+                                  <span className="text-sm text-gray-500">per item</span>
+                                </div>
+                                <div className="mt-1">
+                                  <span className="text-xs text-gray-500">Tax included</span>
+                                </div>
                               </div>
                             </div>
                             
                             {/* Quantity Controls */}
-                            <div className="flex items-center justify-between">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                               <div className="flex items-center gap-3">
                                 <label className="text-sm font-medium text-gray-700">Quantity:</label>
                                 <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
                                   <button
                                     onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))}
                                     className="px-3 py-2 text-gray-600 hover:bg-gray-100 transition-colors duration-200"
+                                    aria-label="Decrease quantity"
                                   >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
@@ -440,10 +429,12 @@ export default function CartPage() {
                                     value={item.quantity}
                                     onChange={e => updateQuantity(item.id, Math.max(1, Number(e.target.value)))}
                                     className="w-16 px-3 py-2 text-center border-0 focus:ring-0 text-gray-900 bg-white"
+                                    aria-label="Quantity"
                                   />
                                   <button
                                     onClick={() => updateQuantity(item.id, item.quantity + 1)}
                                     className="px-3 py-2 text-gray-600 hover:bg-gray-100 transition-colors duration-200"
+                                    aria-label="Increase quantity"
                                   >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -468,6 +459,7 @@ export default function CartPage() {
                                   });
                                 }}
                                 className="inline-flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-2 rounded-lg transition-all duration-200 text-sm font-medium"
+                                aria-label="Remove item from cart"
                               >
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -484,6 +476,9 @@ export default function CartPage() {
                                   ${(item.price * item.quantity).toFixed(2)}
                                 </span>
                               </div>
+                              <div className="mt-1 text-right">
+                                <span className="text-xs text-gray-500">Tax included</span>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -495,12 +490,12 @@ export default function CartPage() {
               
               {/* Order Summary */}
               <div className="lg:col-span-1">
-                <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-white/50 overflow-hidden sticky top-24">
-                  <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4">
-                    <h2 className="text-xl font-bold text-white">Order Summary</h2>
+                <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-white/50 overflow-hidden lg:sticky lg:top-24">
+                  <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-4 sm:px-6 py-4">
+                    <h2 className="text-lg sm:text-xl font-bold text-white">Order Summary</h2>
                   </div>
                   
-                  <div className="p-6 space-y-6">
+                  <div className="p-4 sm:p-6 space-y-6">
                     {/* Order Details */}
                     <div className="space-y-3">
                       <div className="flex justify-between text-gray-600">
@@ -528,6 +523,9 @@ export default function CartPage() {
                             ${grandTotal.toFixed(2)}
                           </span>
                         </div>
+                        <div className="mt-1 text-right">
+                          <span className="text-xs text-gray-500">Tax included</span>
+                        </div>
                       </div>
                     </div>
                     
@@ -543,11 +541,29 @@ export default function CartPage() {
                           if (!email) {
                             toast.error('Please enter your email.');
                             setLoading(false);
+                            // Scroll to email field
+                            const emailField = document.getElementById('email');
+                            if (emailField) {
+                              emailField.scrollIntoView({ 
+                                behavior: 'smooth', 
+                                block: 'center' 
+                              });
+                              emailField.focus();
+                            }
                             return;
                           }
                           if (!/^\S+@\S+\.\S+$/.test(email)) {
                             toast.error('Please enter a valid email address.');
                             setLoading(false);
+                            // Scroll to email field
+                            const emailField = document.getElementById('email');
+                            if (emailField) {
+                              emailField.scrollIntoView({ 
+                                behavior: 'smooth', 
+                                block: 'center' 
+                              });
+                              emailField.focus();
+                            }
                             return;
                           }
                           // 1. Create order in DB
@@ -586,7 +602,10 @@ export default function CartPage() {
                           });
                           const data = await res.json();
                           if (data.url) {
-                            window.location.href = data.url;
+                            // Add a small delay to help with Stripe script loading
+                            setTimeout(() => {
+                              window.location.href = data.url;
+                            }, 100);
                           } else {
                             toast.error(data.error || 'Failed to create Stripe session');
                           }
@@ -629,12 +648,13 @@ export default function CartPage() {
                         <span className="font-medium">Secure Checkout</span>
                       </div>
                       <p>Your payment information is protected with SSL encryption</p>
+                      <p className="mt-1 text-xs">If you encounter any issues, try refreshing the page</p>
                     </div>
                   </div>
                 </div>
                 
                 {/* Additional Benefits */}
-                <div className="mt-6 bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-sm">
+                <div className="mt-6 bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-6 border border-white/50 shadow-sm">
                   <h3 className="font-bold text-gray-900 mb-4">Why Shop With Us?</h3>
                   <div className="space-y-3">
                     <div className="flex items-center gap-3">

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import AdminNav from '@/components/AdminNav';
 
 // PromoCode type
 interface PromoCode {
@@ -215,6 +216,7 @@ export default function AdminPromoCodesPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-6 text-gray-900 bg-white min-h-screen">
+      <AdminNav />
       <h1 className="text-3xl font-bold mb-6">Admin: Promo Codes</h1>
       
       <button

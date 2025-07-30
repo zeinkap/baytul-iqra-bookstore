@@ -21,7 +21,10 @@ async function getCategories() {
   const host = h.get('host') || 'localhost:3000';
   const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
   const baseUrl = `${protocol}://${host}`;
-  const res = await fetch(`${baseUrl}/api/books/categories`, { cache: 'no-store' });
+  const res = await fetch(`${baseUrl}/api/books/categories`, { 
+    cache: 'force-cache',
+    next: { revalidate: 3600 } // Cache for 1 hour
+  });
   if (!res.ok) return [];
   return res.json();
 }
@@ -39,7 +42,21 @@ export default async function RootLayout({
       </head>
       <body className="font-sans bg-white">
         <CartProvider>
-          <Toaster position="top-right" />
+          <Toaster 
+            position="top-center"
+            toastOptions={{
+              duration: 3000,
+              style: {
+                background: '#363636',
+                color: '#fff',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                fontSize: '14px',
+                maxWidth: '90vw',
+                wordBreak: 'break-word',
+              },
+            }}
+          />
           <Header categories={categories} />
           <div className="min-h-screen flex flex-col bg-white">
             <main className="flex-1">{children}</main>

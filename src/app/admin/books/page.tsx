@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Select, { MultiValue } from 'react-select';
+import AdminNav from '@/components/AdminNav';
 
 // Book type
 interface Book {
@@ -11,6 +12,7 @@ interface Book {
   price: number;
   images: string[];
   stock: number;
+  isBestseller: boolean;
   categories: string[];
   createdAt: string;
   updatedAt: string;
@@ -27,6 +29,7 @@ export default function AdminBooksPage() {
     price: 0,
     images: [""],
     stock: 0,
+    isBestseller: false,
     categories: [],
   });
   const [loading, setLoading] = useState(false);
@@ -74,7 +77,7 @@ export default function AdminBooksPage() {
   }
   function startAdd() {
     setEditingBook(null);
-    setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 0, categories: [] });
+    setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 0, isBestseller: false, categories: [] });
     setShowForm(true);
   }
   function handleFormChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
@@ -146,7 +149,7 @@ export default function AdminBooksPage() {
 
       await fetchBooks();
       setEditingBook(null);
-      setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 0, categories: [] });
+      setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 0, isBestseller: false, categories: [] });
       setShowForm(false);
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -184,6 +187,31 @@ export default function AdminBooksPage() {
     }
   }
 
+  async function toggleBestseller(bookId: string, currentStatus: boolean) {
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/books/${bookId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isBestseller: !currentStatus }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: "Failed to update bestseller status" }));
+        throw new Error(errorData.error || "Failed to update bestseller status");
+      }
+      await fetchBooks(); // Refresh the book list
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("An unknown error occurred");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
   // Filter books by search text (title, author, or category)
   const filteredBooks = books.filter((book) => {
     const text = searchText.toLowerCase();
@@ -196,6 +224,7 @@ export default function AdminBooksPage() {
 
   return (
     <div className="max-w-4xl mx-auto p-6 text-gray-900 bg-white min-h-screen">
+      <AdminNav />
       <h1 className="text-3xl font-bold mb-6">Admin: Books</h1>
       <div className="mb-4">
         <input
@@ -291,6 +320,18 @@ export default function AdminBooksPage() {
                 placeholder="Select categories..."
               />
             </div>
+            <div className="md:col-span-2">
+              <label className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  name="isBestseller"
+                  checked={form.isBestseller || false}
+                  onChange={(e) => setForm(f => ({ ...f, isBestseller: e.target.checked }))}
+                  className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <span className="font-medium">Mark as Bestseller</span>
+              </label>
+            </div>
           </div>
           <div className="flex gap-3 mt-4">
             <button
@@ -304,7 +345,7 @@ export default function AdminBooksPage() {
               type="button"
               onClick={() => {
                 setEditingBook(null);
-                setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 0, categories: [] });
+                setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 0, isBestseller: false, categories: [] });
                 setShowForm(false);
               }}
               className="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded-lg font-semibold shadow transition"
@@ -324,6 +365,7 @@ export default function AdminBooksPage() {
               <th className="font-semibold py-3 px-2 text-left hidden md:table-cell">Categories</th>
               <th className="font-semibold py-3 px-2 text-left">Stock</th>
               <th className="font-semibold py-3 px-2 text-left">Price</th>
+              <th className="font-semibold py-3 px-2 text-left">Bestseller</th>
               <th className="font-semibold py-3 px-2 text-left">Actions</th>
             </tr>
           </thead>
@@ -346,6 +388,18 @@ export default function AdminBooksPage() {
                 <td className="py-2 px-2 hidden md:table-cell">{book.categories.join(", ")}</td>
                 <td className="py-2 px-2">{book.stock}</td>
                 <td className="py-2 px-2">${book.price.toFixed(2)}</td>
+                <td className="py-2 px-2">
+                  <button
+                    onClick={() => toggleBestseller(book.id, book.isBestseller)}
+                    className={`px-3 py-1 rounded text-xs font-medium transition ${
+                      book.isBestseller
+                        ? 'bg-orange-100 text-orange-800 hover:bg-orange-200'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {book.isBestseller ? '★ Bestseller' : 'Set as Bestseller'}
+                  </button>
+                </td>
                 <td className="py-2 px-2">
                   <button
                     onClick={() => startEdit(book)}

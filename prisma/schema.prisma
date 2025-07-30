@@ -17,6 +17,7 @@ model Book {
   price       Float
   images      String[]
   stock       Int
+  isBestseller Boolean  @default(false)
   categories  Category[] @relation("BookCategories")
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
