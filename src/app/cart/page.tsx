@@ -339,14 +339,15 @@ export default function CartPage() {
                         <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
                           
                           {/* Book Image */}
-                          <div className="relative w-20 h-28 sm:w-24 sm:h-32 lg:w-28 lg:h-36 flex-shrink-0 mx-auto sm:mx-0">
-                            <div className="relative w-full h-full bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
+                          <Link href={`/books/${item.id}`} className="relative w-20 h-28 sm:w-24 sm:h-32 lg:w-28 lg:h-36 flex-shrink-0 mx-auto sm:mx-0 group">
+                            <div className="relative w-full h-full bg-white rounded-xl shadow-md overflow-hidden border border-gray-100 group-hover:shadow-lg transition-shadow duration-200">
                               <Image 
                                 src={item.image || '/placeholder.svg'} 
                                 alt={item.title} 
                                 fill 
-                                className="object-contain p-2" 
+                                className="object-contain p-2 group-hover:scale-105 transition-transform duration-200" 
                                 style={{ objectFit: 'contain' }}
+                                loading="lazy"
                               />
                               {/* Stock indicator */}
                               {!loadingStocks && (
@@ -363,14 +364,16 @@ export default function CartPage() {
                                 </div>
                               )}
                             </div>
-                          </div>
+                          </Link>
                           
                           {/* Book Details */}
                           <div className="flex-1 flex flex-col justify-between min-w-0">
                             <div>
-                              <h3 className="font-bold text-base sm:text-lg text-gray-900 mb-2 line-clamp-2 leading-tight">
-                                {item.title}
-                              </h3>
+                              <Link href={`/books/${item.id}`} className="block group">
+                                <h3 className="font-bold text-base sm:text-lg text-gray-900 mb-2 line-clamp-2 leading-tight group-hover:text-emerald-700 transition-colors duration-200">
+                                  {item.title}
+                                </h3>
+                              </Link>
                               <p className="text-gray-600 text-sm mb-3">by {item.author}</p>
                               
                               {/* Stock Status */}
@@ -676,10 +679,18 @@ export default function CartPage() {
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                         <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                         </svg>
                       </div>
-                      <span className="text-sm text-gray-700">100% authentic books</span>
+                      <span className="text-sm text-gray-700">US-based in Atlanta, GA</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <svg className="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z" />
+                        </svg>
+                      </div>
+                      <span className="text-sm text-gray-700">Small Muslim-owned family business</span>
                     </div>
                   </div>
                 </div>

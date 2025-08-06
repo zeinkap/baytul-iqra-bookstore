@@ -12,7 +12,12 @@ export async function GET() {
     ...book,
     categories: (book.categories as Category[]).map((cat) => cat.name)
   }));
-  return NextResponse.json(booksWithCategories);
+  
+  return NextResponse.json(booksWithCategories, {
+    headers: {
+      'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600', // 5 min cache, 10 min stale
+    },
+  });
 }
 
 // POST /api/books - Add a new book

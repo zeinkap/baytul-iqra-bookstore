@@ -16,6 +16,10 @@ export async function GET(
   return NextResponse.json({
     ...book,
     categories: book.categories.map((cat: Category) => cat.name)
+  }, {
+    headers: {
+      'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200', // 10 min cache, 20 min stale
+    },
   });
 }
 

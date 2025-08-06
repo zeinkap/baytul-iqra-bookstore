@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import AdminNav from '@/components/AdminNav';
 
 // Order types
@@ -83,7 +83,7 @@ export default function AdminOrdersPage() {
     return () => clearTimeout(timeoutId);
   }, [searchText]);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = async () => {
     setLoading(true);
     setError(null);
     
@@ -108,7 +108,7 @@ export default function AdminOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, searchText, fulfillmentFilter]);
+  };
 
   function handleSearch() {
     setPagination(prev => ({ ...prev, page: 1 }));

@@ -9,7 +9,11 @@ export async function GET() {
       orderBy: { name: 'asc' },
     });
     const categoryList = categories.map((c) => c.name);
-    return NextResponse.json(categoryList);
+    return NextResponse.json(categoryList, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=7200', // 1 hour cache, 2 hours stale
+      },
+    });
   } catch {
     return NextResponse.json({ error: 'Failed to fetch categories' }, { status: 500 });
   }

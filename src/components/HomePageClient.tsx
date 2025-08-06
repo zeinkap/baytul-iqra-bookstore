@@ -26,14 +26,6 @@ export default function HomePageClient({ books, categories, bestsellers }: HomeP
 
   return (
     <>
-      <div id="search-section">
-        <SearchSection 
-          categories={categories}
-          onSearch={handleSearch}
-          onCategoryChange={handleCategoryChange}
-        />
-      </div>
-      
       {/* Bestsellers Section */}
       {bestsellers.length > 0 && (
         <div className="max-w-7xl mx-auto px-4 mb-16">
@@ -69,6 +61,8 @@ export default function HomePageClient({ books, categories, bestsellers }: HomeP
                         fill
                         className="object-contain drop-shadow-lg transition-transform duration-300 group-hover:scale-105"
                         sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw"
+                        loading={index < 5 ? 'eager' : 'lazy'}
+                        priority={index < 5}
                       />
                       <div className="absolute top-3 left-3">
                         <div className="bg-orange-500 text-white text-xs px-2 py-1 rounded-full font-semibold">
@@ -94,6 +88,14 @@ export default function HomePageClient({ books, categories, bestsellers }: HomeP
         </div>
       )}
 
+      <div id="search-section">
+        <SearchSection 
+          categories={categories}
+          onSearch={handleSearch}
+          onCategoryChange={handleCategoryChange}
+        />
+      </div>
+      
       {/* Full Book Grid with Search */}
       <div className="bg-white/50">
         <BookGrid 

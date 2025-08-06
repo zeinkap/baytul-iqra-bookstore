@@ -21,11 +21,16 @@ export type Book = {
   updatedAt: string;
 };
 
-export default function BookDetailClient({ book }: { book: Book }) {
+export default function BookDetailClient({ book, relatedBooks }: { book: Book; relatedBooks: Book[] }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
   const { addToCart } = useCart();
+
+  // Scroll to top when component mounts
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   // Track scroll for floating action bar
   useEffect(() => {
@@ -37,7 +42,7 @@ export default function BookDetailClient({ book }: { book: Book }) {
   }, []);
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50">
+    <main className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50 pb-40 lg:pb-0">
       {/* Floating Action Bar (Mobile) */}
       <div className={`lg:hidden fixed bottom-0 left-0 right-0 z-50 transition-transform duration-300 ${
         isScrolled ? 'translate-y-0' : 'translate-y-full'
@@ -63,6 +68,19 @@ export default function BookDetailClient({ book }: { book: Book }) {
               <button
                 className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-3 py-2 rounded-lg font-semibold flex items-center justify-center transition-all duration-300 cursor-pointer shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 group relative overflow-hidden text-sm"
                 onClick={() => {
+                  if (book.stock <= 0) {
+                    toast.error('This item is out of stock', {
+                      style: {
+                        background: '#ef4444',
+                        color: '#fff',
+                      },
+                      iconTheme: {
+                        primary: '#fff',
+                        secondary: '#ef4444',
+                      },
+                    });
+                    return;
+                  }
                   addToCart({ id: book.id, title: book.title, author: book.author, price: book.price, image: book.images && book.images[0] ? book.images[0] : '' });
                   toast.success('Added to cart!', {
                     style: {
@@ -121,6 +139,8 @@ export default function BookDetailClient({ book }: { book: Book }) {
                       className="object-contain p-6 transition-transform duration-300 group-hover:scale-105"
                       sizes="(max-width: 768px) 100vw, 40vw"
                       priority={true}
+                      loading="eager"
+                      fetchPriority="high"
                       style={{ objectFit: 'contain' }}
                     />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300 rounded-2xl" />
@@ -154,6 +174,7 @@ export default function BookDetailClient({ book }: { book: Book }) {
                             fill
                             className="object-contain"
                             sizes="64px"
+                            loading="lazy"
                             style={{ objectFit: 'contain' }}
                           />
                           {selectedImageIdx === idx && (
@@ -171,7 +192,7 @@ export default function BookDetailClient({ book }: { book: Book }) {
                     {/* Enhanced Add to Cart button - hidden on mobile (replaced by floating bar) */}
                    <div className="mt-8 flex justify-center hidden lg:block">
                      <div className="transform hover:scale-105 transition-transform duration-200 w-full max-w-xs">
-                       <AddToCartButtonClient id={book.id} title={book.title} author={book.author} price={book.price} image={book.images && book.images[0] ? book.images[0] : ''} />
+                       <AddToCartButtonClient id={book.id} title={book.title} author={book.author} price={book.price} image={book.images && book.images[0] ? book.images[0] : ''} stock={book.stock} />
                      </div>
                    </div>
                    
@@ -181,6 +202,19 @@ export default function BookDetailClient({ book }: { book: Book }) {
                        <button
                          className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-4 py-2.5 rounded-xl font-semibold flex items-center justify-center transition-all duration-300 cursor-pointer shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 group relative overflow-hidden text-sm"
                          onClick={() => {
+                           if (book.stock <= 0) {
+                             toast.error('This item is out of stock', {
+                               style: {
+                                 background: '#ef4444',
+                                 color: '#fff',
+                               },
+                               iconTheme: {
+                                 primary: '#fff',
+                                 secondary: '#ef4444',
+                               },
+                             });
+                             return;
+                           }
                            addToCart({ id: book.id, title: book.title, author: book.author, price: book.price, image: book.images && book.images[0] ? book.images[0] : '' });
                            toast.success('Added to cart!', {
                              style: {
@@ -317,6 +351,51 @@ export default function BookDetailClient({ book }: { book: Book }) {
           </div>
         </div>
       </div>
+      
+      {/* Related Books Section */}
+      {relatedBooks.length > 0 && (
+        <div className="max-w-7xl mx-auto px-4 py-16">
+          <div className="mb-8">
+            <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 mb-2">
+              You May Also Like
+            </h2>
+            <p className="text-lg text-gray-600">
+              More books in the same category.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            {relatedBooks.map((relatedBook) => (
+              <div key={relatedBook.id} className="group">
+                <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl border border-white/50 overflow-hidden transition-all duration-300 group-hover:scale-[1.02] group-hover:-translate-y-1">
+                  <Link href={`/books/${relatedBook.id}`} className="block">
+                    <div className="relative aspect-[3/4] bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+                      <Image
+                        src={relatedBook.images && relatedBook.images[0] ? relatedBook.images[0] : '/placeholder.svg'}
+                        alt={relatedBook.title}
+                        fill
+                        className="object-contain drop-shadow-lg transition-transform duration-300 group-hover:scale-105"
+                        sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw"
+                        loading="lazy"
+                      />
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-bold text-gray-900 mb-1 line-clamp-2 group-hover:text-emerald-700 transition-colors duration-200 text-sm">
+                        {relatedBook.title}
+                      </h3>
+                      <p className="text-xs text-gray-600 mb-2">by {relatedBook.author}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-lg font-bold text-emerald-600">${relatedBook.price.toFixed(2)}</span>
+                        <span className="text-xs text-gray-500">Tax included</span>
+                      </div>
+                    </div>
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       
       <Lightbox
         open={lightboxOpen}

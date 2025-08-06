@@ -23,7 +23,9 @@ async function getBooks() {
   const host = h.get('host') || 'localhost:3000';
   const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
   const baseUrl = `${protocol}://${host}`;
-  const res = await fetch(`${baseUrl}/api/books`, { cache: 'no-store' });
+  const res = await fetch(`${baseUrl}/api/books`, { 
+    next: { revalidate: 300 } // Cache for 5 minutes
+  });
   if (!res.ok) return [];
   return res.json();
 }
@@ -33,7 +35,9 @@ async function getCategories() {
   const host = h.get('host') || 'localhost:3000';
   const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
   const baseUrl = `${protocol}://${host}`;
-  const res = await fetch(`${baseUrl}/api/books/categories`, { cache: 'no-store' });
+  const res = await fetch(`${baseUrl}/api/books/categories`, { 
+    next: { revalidate: 3600 } // Cache for 1 hour
+  });
   if (!res.ok) return [];
   return res.json();
 }
@@ -59,7 +63,7 @@ export default async function HomePage() {
   // Get bestsellers from database
   const bestsellers = books
     .filter(book => book.isBestseller)
-    .slice(0, 8);
+    .slice(0, 10);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50">

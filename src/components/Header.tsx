@@ -31,7 +31,28 @@ export default function Header({ categories }: { categories: string[] }) {
         <div className="flex items-center justify-between px-4 lg:px-6 py-4">
           {/* Left side - mobile menu button and logo */}
           <div className="flex items-center gap-4">
-            {/* Logo and brand section - always rendered first */}
+            {/* Mobile menu button - rendered first (left corner) */}
+            {mounted && (
+              <div className="lg:hidden">
+                <button 
+                  onClick={toggleMobileMenu}
+                  className="p-2.5 text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-all duration-200"
+                  aria-label="Toggle mobile menu"
+                >
+                  {isMobileMenuOpen ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            )}
+            
+            {/* Logo and brand section - rendered after mobile menu button */}
             <Link href="/" className="group flex items-center gap-3 hover:scale-105 transition-transform duration-200">
               {/* Logo image */}
               <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow duration-200 bg-white">
@@ -54,27 +75,6 @@ export default function Header({ categories }: { categories: string[] }) {
                 </span>
               </div>
             </Link>
-            
-            {/* Mobile menu button - rendered after logo */}
-            {mounted && (
-              <div className="lg:hidden">
-                <button 
-                  onClick={toggleMobileMenu}
-                  className="p-2.5 text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-all duration-200"
-                  aria-label="Toggle mobile menu"
-                >
-                  {isMobileMenuOpen ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            )}
             
             {/* Navigation menu - hidden on mobile */}
             <nav className="hidden lg:flex items-center gap-1">

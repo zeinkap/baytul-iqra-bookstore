@@ -52,12 +52,16 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
     }
   }, [initialBooks]);
 
-  // Check for category parameter in URL on component mount
+  // Check for category parameter in URL on component mount and clear it
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const categoryParam = urlParams.get('category');
     if (categoryParam) {
       handleCategoryFilter(categoryParam);
+      // Clear the category parameter from URL after applying the filter
+      urlParams.delete('category');
+      const newUrl = window.location.pathname + (urlParams.toString() ? `?${urlParams.toString()}` : '') + window.location.hash;
+      window.history.replaceState({}, '', newUrl);
     }
   }, [handleCategoryFilter]);
 
@@ -131,7 +135,8 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
                       fill
                       className={`object-contain drop-shadow-lg transition-opacity duration-500 ${hoveredIndex === idx && book.images && book.images[1] ? 'opacity-0' : 'opacity-100'}`}
                       sizes="(max-width: 768px) 50vw, 25vw"
-                      priority={false}
+                      priority={idx < 8} // Prioritize first 8 images
+                      loading={idx < 8 ? 'eager' : 'lazy'}
                       style={{ objectFit: 'contain' }}
                     />
                     {/* Second image (on hover, if exists) */}
@@ -143,6 +148,7 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
                         className={`object-contain drop-shadow-lg absolute inset-0 transition-opacity duration-500 ${hoveredIndex === idx ? 'opacity-100' : 'opacity-0'}`}
                         sizes="(max-width: 768px) 50vw, 25vw"
                         priority={false}
+                        loading="lazy"
                         style={{ objectFit: 'contain' }}
                       />
                     )}
@@ -194,7 +200,7 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
                     onClick={(e) => e.preventDefault()}
                   >
                     <div className="w-full">
-                      <AddToCartButtonClient id={book.id} title={book.title} author={book.author} price={book.price} image={book.images && book.images[0] ? book.images[0] : ''} />
+                      <AddToCartButtonClient id={book.id} title={book.title} author={book.author} price={book.price} image={book.images && book.images[0] ? book.images[0] : ''} stock={book.stock} />
                     </div>
                   </div>
                 </div>

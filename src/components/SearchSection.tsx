@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface SearchSectionProps {
   categories: string[];
@@ -15,6 +15,7 @@ export default function SearchSection({
 }: SearchSectionProps) {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const toggleCategory = (category: string) => {
     const newCategories = selectedCategories.includes(category)
@@ -24,6 +25,38 @@ export default function SearchSection({
     setSelectedCategories(newCategories);
     onCategoryChange?.(newCategories);
   };
+
+  // Real-time search with debouncing
+  useEffect(() => {
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Set new timeout for search
+    searchTimeoutRef.current = setTimeout(() => {
+      onSearch?.(searchQuery);
+      // Scroll to book grid after search (only if there's a query)
+      if (searchQuery.trim()) {
+        setTimeout(() => {
+          const bookGrid = document.getElementById('book-grid');
+          if (bookGrid) {
+            bookGrid.scrollIntoView({ 
+              behavior: 'smooth', 
+              block: 'start' 
+            });
+          }
+        }, 100);
+      }
+    }, 400); // 400ms delay for better UX
+
+    // Cleanup timeout on unmount
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery, onSearch]);
 
   const handleSearch = () => {
     onSearch?.(searchQuery);
@@ -59,7 +92,6 @@ export default function SearchSection({
               placeholder="Search by title, author, or keyword..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
               className="w-full px-6 py-4 text-lg border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
             />
             <button 
