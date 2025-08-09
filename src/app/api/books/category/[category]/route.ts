@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Category } from '@prisma/client';
-import { revalidateTag } from 'next/cache';
 
 // GET /api/books/category/[category] - Get books by category
 export async function GET(
@@ -56,7 +55,4 @@ export async function GET(
   }
 } 
 
-// Utility for future external revalidation of book data
-export function revalidateBooks() {
-  revalidateTag('books');
-}
+// Note: Avoid exporting non-route functions from this file to satisfy Next.js route typing
