@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
           : (session.payment_intent && 'id' in session.payment_intent ? (session.payment_intent as { id: string }).id : undefined);
         if (paymentIntentId) {
           const pi = await stripe.paymentIntents.retrieve(paymentIntentId as string);
-          const ship = (pi as any)?.shipping as { name?: string; address?: { line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } } | undefined;
+          const ship = (pi as Stripe.PaymentIntent).shipping as { name?: string; address?: { line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } } | undefined;
           if (ship?.address) {
             shippingAddress = {
               name: ship.name ?? undefined,

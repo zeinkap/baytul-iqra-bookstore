@@ -98,7 +98,8 @@ export async function PUT(req: NextRequest) {
     if (!sessionId) {
       return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
     }
-    const stripe = new (require('stripe'))(process.env.STRIPE_SECRET_KEY);
+    const { default: Stripe } = await import('stripe');
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
     const session = await stripe.checkout.sessions.retrieve(sessionId);
     if (!session || session.payment_status !== 'paid') {
       return NextResponse.json({ error: 'Session not paid' }, { status: 400 });
