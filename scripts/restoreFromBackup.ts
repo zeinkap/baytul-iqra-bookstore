@@ -35,7 +35,7 @@ async function restoreFromBackup(backupFilePath?: string) {
       }
       
       const backupFiles = fs.readdirSync(backupDir)
-        .filter(file => file.startsWith('books-backup-') && file.endsWith('.json'))
+        .filter(file => file.startsWith('dataset-backup-') && file.endsWith('.json'))
         .sort()
         .reverse(); // Latest first
       
@@ -77,12 +77,16 @@ async function restoreFromBackup(backupFilePath?: string) {
     console.log(`📅 Backup date: ${new Date(backupData.backupDate).toLocaleString()}`);
     console.log(`📚 Books in backup: ${backupData.totalBooks}`);
     
-    // Check current database state
-    const currentBookCount = await prisma.book.count();
-    console.log(`📊 Current books in database: ${currentBookCount}`);
+    // Check current database state (books, categories, promo codes)
+    const [currentBookCount, currentCategoryCount, currentPromoCount] = await Promise.all([
+      prisma.book.count(),
+      prisma.category.count(),
+      prisma.promoCode.count(),
+    ]);
+    console.log(`📊 Current books: ${currentBookCount}, categories: ${currentCategoryCount}, promo codes: ${currentPromoCount}`);
     
-    if (currentBookCount > 0) {
-      console.log('\n⚠️  WARNING: This will replace all existing books in the database!');
+    if (currentBookCount > 0 || currentCategoryCount > 0 || currentPromoCount > 0) {
+      console.log('\n⚠️  WARNING: This will replace existing books, categories, and promo codes in the database!');
       const confirm = await askQuestion('Are you sure you want to continue? (yes/no): ');
       
       if (confirm.toLowerCase() !== 'yes') {
@@ -90,11 +94,26 @@ async function restoreFromBackup(backupFilePath?: string) {
         return;
       }
       
-      // Clear existing books
-      const deletedCount = await prisma.book.deleteMany({});
-      console.log(`🗑️  Deleted ${deletedCount.count} existing books`);
+      // Clear existing data in correct order due to relations
+      await prisma.book.deleteMany({});
+      await prisma.category.deleteMany({});
+      await prisma.promoCode.deleteMany({});
+      console.log('🗑️  Cleared existing books, categories, and promo codes');
     }
     
+    // Restore categories first (if present in backup)
+    if (Array.isArray(backupData.categories)) {
+      console.log('\n🔄 Restoring categories...');
+      for (const cat of backupData.categories) {
+        await prisma.category.upsert({
+          where: { name: cat.name },
+          update: {},
+          create: { name: cat.name },
+        });
+      }
+      console.log(`✅ Restored ${backupData.categories.length} categories`);
+    }
+
     // Restore books
     console.log('\n🔄 Restoring books...');
     let restoredCount = 0;
@@ -161,6 +180,42 @@ async function restoreFromBackup(backupFilePath?: string) {
         console.log(`   ${category}: ${count} books`);
       });
     
+    // Restore promo codes (if present in backup)
+    if (Array.isArray(backupData.promoCodes)) {
+      console.log('\n🔄 Restoring promo codes...');
+      for (const pc of backupData.promoCodes) {
+        // Use upsert by unique code
+        await prisma.promoCode.upsert({
+          where: { code: pc.code },
+          update: {
+            description: pc.description,
+            discountType: pc.discountType,
+            discountValue: pc.discountValue,
+            minimumOrderAmount: pc.minimumOrderAmount ?? null,
+            maxUses: pc.maxUses ?? null,
+            currentUses: pc.currentUses ?? 0,
+            validFrom: pc.validFrom ? new Date(pc.validFrom) : new Date(),
+            validUntil: pc.validUntil ? new Date(pc.validUntil) : null,
+            isActive: pc.isActive,
+          },
+          create: {
+            code: pc.code,
+            description: pc.description,
+            discountType: pc.discountType,
+            discountValue: pc.discountValue,
+            minimumOrderAmount: pc.minimumOrderAmount ?? null,
+            maxUses: pc.maxUses ?? null,
+            currentUses: pc.currentUses ?? 0,
+            validFrom: pc.validFrom ? new Date(pc.validFrom) : new Date(),
+            validUntil: pc.validUntil ? new Date(pc.validUntil) : null,
+            isActive: pc.isActive,
+          },
+        });
+      }
+      const promoCount = await prisma.promoCode.count();
+      console.log(`✅ Restored ${promoCount} promo codes`);
+    }
+
     console.log('\n✅ Database restore completed successfully! 🚀');
     
   } catch (error) {

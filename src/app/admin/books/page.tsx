@@ -39,6 +39,22 @@ export default function AdminBooksPage() {
   const formAnchorRef = useRef<HTMLDivElement | null>(null);
   const [searchText, setSearchText] = useState("");
 
+  function isValidImageSrc(src: unknown): src is string {
+    return (
+      typeof src === 'string' &&
+      src.trim().length > 0 &&
+      (src.startsWith('/') || /^https?:\/\//.test(src))
+    );
+  }
+
+  function normalizeImageInput(input: string): string {
+    const value = (input || '').trim();
+    if (!value) return '';
+    if (value.startsWith('/') || /^https?:\/\//.test(value)) return value;
+    // Auto-prefix bare filenames with our public images folder
+    return `/book-images/${value}`;
+  }
+
   // Fetch books and categories
   useEffect(() => {
     fetchBooks();
@@ -59,13 +75,13 @@ export default function AdminBooksPage() {
 
   async function fetchBooks() {
     setLoading(true);
-    const res = await fetch("/api/books");
+    const res = await fetch("/api/books?bypassCache=1", { cache: 'no-store' });
     const data = await res.json();
     setBooks(data);
     setLoading(false);
   }
   async function fetchCategories() {
-    const res = await fetch("/api/books/categories");
+    const res = await fetch("/api/books/categories?bypassCache=1", { cache: 'no-store' });
     const data = await res.json();
     setCategories(data);
   }
@@ -86,7 +102,7 @@ export default function AdminBooksPage() {
       const idx = parseInt(name.split(".")[1], 10);
       setForm((f) => {
         const images = Array.isArray(f.images) ? [...f.images] : [""];
-        images[idx] = value;
+        images[idx] = normalizeImageInput(value);
         return { ...f, images };
       });
     } else {
@@ -118,12 +134,15 @@ export default function AdminBooksPage() {
     e.preventDefault();
     setError(null);
 
-    const finalImages = form.images ? form.images.filter((img) => img && img.trim() !== "") : [];
-
-    if (finalImages.length === 0) {
-      setError("At least one image URL is required.");
+    const rawImages = Array.isArray(form.images) ? form.images : [];
+    const trimmed = rawImages.map((i) => (typeof i === 'string' ? i.trim() : ''));
+    const nonEmpty = trimmed.filter((i) => i.length > 0);
+    const invalids = nonEmpty.filter((i) => !isValidImageSrc(i));
+    if (invalids.length > 0) {
+      setError("Image URL must start with '/' or 'http(s)'. Fix invalid entries or leave them blank.");
       return;
     }
+    const finalImages = nonEmpty.filter(isValidImageSrc);
     if (!form.categories || form.categories.length === 0) {
       setError("At least one category is required.");
       return;
@@ -223,7 +242,7 @@ export default function AdminBooksPage() {
   });
 
   return (
-    <div className="max-w-4xl mx-auto p-6 text-gray-900 bg-white min-h-screen">
+    <div className="w-full max-w-7xl mx-auto p-6 text-gray-900 bg-white min-h-screen">
       <AdminNav />
       <h1 className="text-3xl font-bold mb-6">Admin: Books</h1>
       <div className="mb-4">
@@ -278,7 +297,7 @@ export default function AdminBooksPage() {
             </div>
             <div>
               <label className="block font-medium mb-1">
-                Image URLs <span className="text-red-500">*</span>
+                Image URLs <span className="text-gray-500 font-normal">(optional)</span>
               </label>
               {(form.images || [""]).map((img, idx) => (
                 <div key={idx} className="flex gap-2 mb-2">
@@ -294,6 +313,11 @@ export default function AdminBooksPage() {
                   )}
                 </div>
               ))}
+              <div className="text-xs text-gray-600 mt-1">
+                Use paths like <code>/book-images/your-file.webp</code> or full URLs like <code>https://...</code>.
+                Bare filenames (e.g., <code>cover.jpg</code>) will be saved as <code>/book-images/cover.jpg</code> automatically.
+                Leave blank to use a placeholder.
+              </div>
               <button type="button" onClick={handleAddImageField} className="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">Add Image</button>
             </div>
             <div>
@@ -356,7 +380,7 @@ export default function AdminBooksPage() {
         </form>
       )}
       {/* Book List */}
-      <div className="bg-gray-50 border border-gray-200 rounded-xl shadow p-4">
+      <div className="bg-gray-50 border border-gray-200 rounded-xl shadow p-4 overflow-x-auto">
         <table className="w-full text-sm md:text-base">
           <thead>
             <tr className="bg-gray-100 text-gray-700">

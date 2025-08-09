@@ -17,6 +17,31 @@ async function createBackup() {
       },
     });
 
+    // Also capture all categories (including those without books)
+    const categories = await prisma.category.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+
+    // Capture promo codes (excluding any order/linkage data)
+    const promoCodes = await prisma.promoCode.findMany({
+      select: {
+        code: true,
+        description: true,
+        discountType: true,
+        discountValue: true,
+        minimumOrderAmount: true,
+        maxUses: true,
+        currentUses: true,
+        validFrom: true,
+        validUntil: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
     if (books.length === 0) {
       console.log("⚠️ No books found in the database. Nothing to back up.");
       return;
@@ -29,8 +54,8 @@ async function createBackup() {
     }
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const backupFileName = `books-backup-${timestamp}.json`;
-    const latestBackupFileName = "books-backup-latest.json";
+    const backupFileName = `dataset-backup-${timestamp}.json`;
+    const latestBackupFileName = "dataset-backup-latest.json";
 
     const backupFilePath = path.join(backupDir, backupFileName);
     const latestBackupFilePath = path.join(backupDir, latestBackupFileName);
@@ -39,6 +64,8 @@ async function createBackup() {
       backupDate: new Date().toISOString(),
       totalBooks: books.length,
       books: books, // Use the fetched books data directly.
+      categories,
+      promoCodes,
     };
 
     const jsonContent = JSON.stringify(backupData, null, 2);

@@ -24,7 +24,7 @@ async function getBooks() {
   const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
   const baseUrl = `${protocol}://${host}`;
   const res = await fetch(`${baseUrl}/api/books`, { 
-    next: { revalidate: 300 } // Cache for 5 minutes
+    next: { revalidate: 300, tags: ['books'] } // Cache for 5 minutes, tag for revalidation
   });
   if (!res.ok) return [];
   return res.json();
@@ -36,7 +36,7 @@ async function getCategories() {
   const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
   const baseUrl = `${protocol}://${host}`;
   const res = await fetch(`${baseUrl}/api/books/categories`, { 
-    next: { revalidate: 3600 } // Cache for 1 hour
+    next: { revalidate: 3600, tags: ['categories'] } // Cache for 1 hour, tag for revalidation
   });
   if (!res.ok) return [];
   return res.json();

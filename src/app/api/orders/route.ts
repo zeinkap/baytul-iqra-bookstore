@@ -90,3 +90,62 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Failed to create order' }, { status: 500 });
   }
 } 
+
+// Create order idempotently from a Stripe session id. Useful when webhook is delayed in development.
+export async function PUT(req: NextRequest) {
+  try {
+    const { sessionId } = await req.json();
+    if (!sessionId) {
+      return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
+    }
+    const stripe = new (require('stripe'))(process.env.STRIPE_SECRET_KEY);
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    if (!session || session.payment_status !== 'paid') {
+      return NextResponse.json({ error: 'Session not paid' }, { status: 400 });
+    }
+    const orderId = session.metadata?.orderId as string | undefined;
+    if (!orderId) {
+      return NextResponse.json({ error: 'Missing orderId in session metadata' }, { status: 400 });
+    }
+    // If already exists, return it
+    const existing = await prisma.order.findUnique({ where: { id: orderId } });
+    if (existing) return NextResponse.json(existing);
+
+    // Build from line items similar to webhook
+    const lineItems = await stripe.checkout.sessions.listLineItems(sessionId);
+    const productItems: { title: string; quantity: number; price: number }[] = [];
+    let totalCents = 0;
+    for (const li of lineItems.data) {
+      const name = li.description || (li.price?.product as unknown as string);
+      const qty = li.quantity || 1;
+      const unit = li.price?.unit_amount ?? 0;
+      const lineTotal = unit * qty;
+      if (name?.toLowerCase() === 'shipping' || name?.toLowerCase() === 'free local pickup') {
+        totalCents += lineTotal;
+        continue;
+      }
+      productItems.push({ title: name || 'Item', quantity: qty, price: unit / 100 });
+      totalCents += lineTotal;
+    }
+    const discountAmountCents = Number(session.metadata?.discountAmount || '0');
+    const fulfillmentType = (session.metadata?.fulfillmentType as 'shipping' | 'pickup') || 'shipping';
+    const pickupLocation = session.metadata?.pickupLocation || undefined;
+    const created = await prisma.order.create({
+      data: {
+        id: orderId,
+        items: productItems,
+        total: productItems.reduce((s, it) => s + it.price * it.quantity, 0),
+        discountAmount: (discountAmountCents || 0) / 100,
+        finalTotal: (totalCents || 0) / 100,
+        promoCodeId: session.metadata?.promoCodeId || null,
+        fulfillmentType,
+        pickupLocation: fulfillmentType === 'pickup' ? (pickupLocation || 'Alpharetta, GA') : null,
+        email: session.customer_details?.email || session.customer_email || undefined,
+      },
+    });
+    return NextResponse.json(created);
+  } catch (error) {
+    console.error('Failed to create order from session:', error);
+    return NextResponse.json({ error: 'Failed to create order from session' }, { status: 500 });
+  }
+}

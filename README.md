@@ -137,6 +137,7 @@ A robust backup and restore system is in place to protect your data.
 ### Create a Backup
 To create a full backup of your books and categories, run:
 ```bash
+DATABASE_URL="YOUR_PROD_OR_LOCAL_DB_URL" 
 npm run db:backup
 ```
 This command:

@@ -30,6 +30,14 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
+  const isValidImageSrc = (src: unknown): src is string => {
+    return (
+      typeof src === 'string' &&
+      src.trim().length > 0 &&
+      (src.startsWith('/') || /^https?:\/\//.test(src))
+    );
+  };
+
 
   const handleCategoryFilter = useCallback(async (category: string) => {
     setLoading(true);
@@ -118,7 +126,13 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
               </div>
             </div>
           )}
-          {sortedBooks.map((book, idx) => (
+          {sortedBooks.map((book, idx) => {
+            const validImages = Array.isArray(book.images)
+              ? book.images.filter(isValidImageSrc)
+              : [];
+            const firstImage = validImages[0] || '/placeholder.svg';
+            const secondImage = validImages[1];
+            return (
             <div key={book.id} className="group">
               <div 
                 className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl border border-white/50 overflow-hidden transition-all duration-300 group-hover:scale-[1.02] group-hover:-translate-y-1"
@@ -130,19 +144,19 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
                   <div className="relative aspect-[3/4] bg-gradient-to-br from-gray-50 to-gray-100 p-4">
                     {/* First image (default) */}
                     <Image
-                      src={book.images && book.images[0] ? book.images[0] : '/placeholder.svg'}
+                      src={firstImage}
                       alt={book.title}
                       fill
-                      className={`object-contain drop-shadow-lg transition-opacity duration-500 ${hoveredIndex === idx && book.images && book.images[1] ? 'opacity-0' : 'opacity-100'}`}
+                      className={`object-contain drop-shadow-lg transition-opacity duration-500 ${hoveredIndex === idx && secondImage ? 'opacity-0' : 'opacity-100'}`}
                       sizes="(max-width: 768px) 50vw, 25vw"
                       priority={idx < 8} // Prioritize first 8 images
                       loading={idx < 8 ? 'eager' : 'lazy'}
                       style={{ objectFit: 'contain' }}
                     />
                     {/* Second image (on hover, if exists) */}
-                    {book.images && book.images[1] && (
+                    {secondImage && (
                       <Image
-                        src={book.images[1]}
+                        src={secondImage}
                         alt={book.title + ' alternate'}
                         fill
                         className={`object-contain drop-shadow-lg absolute inset-0 transition-opacity duration-500 ${hoveredIndex === idx ? 'opacity-100' : 'opacity-0'}`}
@@ -200,13 +214,14 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
                     onClick={(e) => e.preventDefault()}
                   >
                     <div className="w-full">
-                      <AddToCartButtonClient id={book.id} title={book.title} author={book.author} price={book.price} image={book.images && book.images[0] ? book.images[0] : ''} stock={book.stock} />
+                      <AddToCartButtonClient id={book.id} title={book.title} author={book.author} price={book.price} image={firstImage || ''} stock={book.stock} />
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

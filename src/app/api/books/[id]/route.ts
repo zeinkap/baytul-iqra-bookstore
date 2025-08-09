@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Category } from '@prisma/client';
+import { revalidateTag } from 'next/cache';
 
 // GET /api/books/[id] - Get a single book
 export async function GET(
@@ -18,7 +19,8 @@ export async function GET(
     categories: book.categories.map((cat: Category) => cat.name)
   }, {
     headers: {
-      'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200', // 10 min cache, 20 min stale
+      'Cache-Control': 'private, no-store, no-cache, must-revalidate',
+      'Pragma': 'no-cache',
     },
   });
 }
@@ -31,9 +33,12 @@ export async function PUT(
   const { id } = await params;
   const data = await req.json();
   const { title, author, description, price, images, stock, isBestseller, categories } = data;
-  if (!title || !author || !description || !price || !Array.isArray(images) || stock == null || !Array.isArray(categories)) {
+  if (!title || !author || !description || !price || stock == null || !Array.isArray(categories)) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
+  const isValidImageSrc = (src: unknown): src is string =>
+    typeof src === 'string' && src.trim().length > 0 && (src.startsWith('/') || /^https?:\/\//.test(src));
+  const normalizedImages: string[] = Array.isArray(images) ? images.filter(isValidImageSrc) : [];
 
   try {
     const categoryConnect = categories.map((name: string) => ({ name }));
@@ -44,7 +49,7 @@ export async function PUT(
         author,
         description,
         price,
-        images,
+        images: normalizedImages,
         stock,
         isBestseller: isBestseller || false,
         categories: {
@@ -54,6 +59,9 @@ export async function PUT(
     },
       include: { categories: true },
   });
+  // Revalidate book listings/details caches
+  revalidateTag('books');
+
   return NextResponse.json({
       ...updatedBook,
       categories: updatedBook.categories.map((cat: Category) => cat.name)
@@ -78,6 +86,8 @@ export async function PATCH(
       data,
       include: { categories: true },
     });
+    // Revalidate caches for books data
+    revalidateTag('books');
     return NextResponse.json({
       ...updatedBook,
       categories: updatedBook.categories.map((cat: Category) => cat.name)
@@ -102,6 +112,8 @@ export async function DELETE(
     await prisma.book.delete({
       where: { id },
     });
+    // Revalidate caches for books data
+    revalidateTag('books');
     return NextResponse.json({ message: 'Book deleted successfully' }, { status: 200 });
   } catch (error) {
     console.error('Failed to delete book:', error);

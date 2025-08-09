@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Category } from '@prisma/client';
+import { revalidateTag } from 'next/cache';
 
 // GET /api/books/category/[category] - Get books by category
 export async function GET(
@@ -39,7 +40,8 @@ export async function GET(
 
     return NextResponse.json(booksWithCategories, {
       headers: {
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600', // 5 min cache
+      'Cache-Control': 'private, no-store, no-cache, must-revalidate',
+      'Pragma': 'no-cache',
       },
     });
   } catch (error) {
@@ -53,3 +55,8 @@ export async function GET(
     }, { status: 500 });
   }
 } 
+
+// Utility for future external revalidation of book data
+export function revalidateBooks() {
+  revalidateTag('books');
+}

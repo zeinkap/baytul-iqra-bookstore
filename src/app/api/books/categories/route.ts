@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 
 // GET /api/books/categories - Get all unique book categories
@@ -18,3 +19,8 @@ export async function GET() {
     return NextResponse.json({ error: 'Failed to fetch categories' }, { status: 500 });
   }
 } 
+
+// Exported utility for potential external revalidation
+export function revalidateCategories() {
+  revalidateTag('categories');
+}

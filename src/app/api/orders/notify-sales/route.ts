@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Sending sales notification to sales@baytulirqra.com');
+    console.log('Sending sales notification to sales@baytuliqra.com');
     const result = await sendOrderNotificationToSales({
       orderId,
       items,

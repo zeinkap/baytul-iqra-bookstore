@@ -23,7 +23,7 @@ async function getCategories() {
   const baseUrl = `${protocol}://${host}`;
   const res = await fetch(`${baseUrl}/api/books/categories`, { 
     cache: 'force-cache',
-    next: { revalidate: 3600 } // Cache for 1 hour
+    next: { revalidate: 3600, tags: ['categories'] } // Cache for 1 hour
   });
   if (!res.ok) return [];
   return res.json();

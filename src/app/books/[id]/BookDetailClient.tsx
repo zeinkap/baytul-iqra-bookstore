@@ -27,6 +27,19 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
   const [isScrolled, setIsScrolled] = useState(false);
   const { addToCart } = useCart();
 
+  const isValidImageSrc = (src: unknown): src is string => {
+    return (
+      typeof src === 'string' &&
+      src.trim().length > 0 &&
+      (src.startsWith('/') || /^https?:\/\//.test(src))
+    );
+  };
+
+  const validImages = Array.isArray(book.images)
+    ? book.images.filter(isValidImageSrc)
+    : [];
+  const displayedIdx = Math.max(0, Math.min(selectedImageIdx, Math.max(0, validImages.length - 1)));
+
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -52,7 +65,7 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100">
                 <Image
-                  src={book.images && book.images[0] ? book.images[0] : '/placeholder.svg'}
+                  src={validImages[0] ? validImages[0] : '/placeholder.svg'}
                   alt={book.title}
                   width={48}
                   height={48}
@@ -133,7 +146,7 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
                     onClick={() => setLightboxOpen(true)}
                   >
                     <Image
-                      src={book.images && book.images[selectedImageIdx] ? book.images[selectedImageIdx] : '/placeholder.svg'}
+                      src={validImages[displayedIdx] ? validImages[displayedIdx] : '/placeholder.svg'}
                       alt={book.title}
                       fill
                       className="object-contain p-6 transition-transform duration-300 group-hover:scale-105"
@@ -153,15 +166,15 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
                   </div>
                   
                   {/* Enhanced thumbnails */}
-                  {book.images && book.images.length > 1 && (
+                  {validImages.length > 1 && (
                     <div className="flex gap-3 mt-6 justify-center">
-                      {book.images.map((img, idx) => (
+                      {validImages.map((img, idx) => (
                         <button
                           key={img + idx}
                           type="button"
                           onClick={() => setSelectedImageIdx(idx)}
                           className={`relative w-16 h-16 rounded-xl border-2 transition-all duration-200 overflow-hidden focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
-                            selectedImageIdx === idx 
+                            displayedIdx === idx 
                               ? 'border-emerald-500 shadow-lg scale-110' 
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
@@ -177,7 +190,7 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
                             loading="lazy"
                             style={{ objectFit: 'contain' }}
                           />
-                          {selectedImageIdx === idx && (
+                          {displayedIdx === idx && (
                             <div className="absolute inset-0 bg-emerald-500/20 flex items-center justify-center">
                               <svg className="w-4 h-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
@@ -192,7 +205,7 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
                     {/* Enhanced Add to Cart button - hidden on mobile (replaced by floating bar) */}
                    <div className="mt-8 flex justify-center hidden lg:block">
                      <div className="transform hover:scale-105 transition-transform duration-200 w-full max-w-xs">
-                       <AddToCartButtonClient id={book.id} title={book.title} author={book.author} price={book.price} image={book.images && book.images[0] ? book.images[0] : ''} stock={book.stock} />
+                       <AddToCartButtonClient id={book.id} title={book.title} author={book.author} price={book.price} image={validImages[0] ? validImages[0] : ''} stock={book.stock} />
                      </div>
                    </div>
                    
@@ -215,7 +228,7 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
                              });
                              return;
                            }
-                           addToCart({ id: book.id, title: book.title, author: book.author, price: book.price, image: book.images && book.images[0] ? book.images[0] : '' });
+                            addToCart({ id: book.id, title: book.title, author: book.author, price: book.price, image: validImages[0] ? validImages[0] : '' });
                            toast.success('Added to cart!', {
                              style: {
                                background: '#f59e0b',
@@ -400,8 +413,8 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
       <Lightbox
         open={lightboxOpen}
         close={() => setLightboxOpen(false)}
-        slides={(book.images && book.images.length > 0 ? book.images : ['/placeholder.svg']).map((img) => ({ src: img, alt: book.title }))}
-        index={selectedImageIdx}
+        slides={(validImages.length > 0 ? validImages : ['/placeholder.svg']).map((img) => ({ src: img, alt: book.title }))}
+        index={displayedIdx}
       />
     </main>
   );

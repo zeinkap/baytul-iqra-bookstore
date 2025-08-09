@@ -24,6 +24,9 @@ export default function HomePageClient({ books, categories, bestsellers }: HomeP
     setSelectedCategories(categories);
   };
 
+  const isValidImageSrc = (src: unknown): src is string =>
+    typeof src === 'string' && src.trim().length > 0 && (src.startsWith('/') || /^https?:\/\//.test(src));
+
   return (
     <>
       {/* Bestsellers Section */}
@@ -50,13 +53,16 @@ export default function HomePageClient({ books, categories, bestsellers }: HomeP
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-            {bestsellers.map((book, index) => (
+            {bestsellers.map((book, index) => {
+              const validImages = Array.isArray(book.images) ? book.images.filter(isValidImageSrc) : [];
+              const firstImage = validImages[0] || '/placeholder.svg';
+              return (
               <div key={book.id} className="group">
                 <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl border border-white/50 overflow-hidden transition-all duration-300 group-hover:scale-[1.02] group-hover:-translate-y-1">
                   <a href={`/books/${book.id}`} className="block">
                     <div className="relative aspect-[3/4] bg-gradient-to-br from-gray-50 to-gray-100 p-4">
                       <Image
-                        src={book.images && book.images[0] ? book.images[0] : '/placeholder.svg'}
+                        src={firstImage}
                         alt={book.title}
                         fill
                         className="object-contain drop-shadow-lg transition-transform duration-300 group-hover:scale-105"
@@ -83,7 +89,8 @@ export default function HomePageClient({ books, categories, bestsellers }: HomeP
                   </a>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

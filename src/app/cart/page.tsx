@@ -569,28 +569,10 @@ export default function CartPage() {
                             }
                             return;
                           }
-                          // 1. Create order in DB
-                          const orderRes = await fetch('/api/orders', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                              items: cart,
-                              total,
-                              fulfillmentType,
-                              pickupLocation: fulfillmentType === 'pickup' ? 'Alpharetta, GA' : undefined,
-                              email,
-                              promoCodeId: appliedPromoCode?.id,
-                              discountAmount: appliedPromoCode?.discountAmount || 0,
-                              // Add shippingAddress here if you collect it
-                            }),
-                          });
-                          const orderData = await orderRes.json();
-                          if (!orderRes.ok) {
-                            toast.error(orderData.error || 'Failed to create order');
-                            setLoading(false);
-                            return;
-                          }
-                          const orderId = orderData.id;
+                          // 1. Generate an order ID to use after successful payment
+                          const orderId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+                            ? crypto.randomUUID()
+                            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
                           // 2. Proceed to Stripe checkout
                           const res = await fetch('/api/checkout_sessions', {
                             method: 'POST',
@@ -600,7 +582,9 @@ export default function CartPage() {
                               fulfillmentType, 
                               orderId, 
                               email,
-                              promoCodeId: appliedPromoCode?.id 
+                              promoCodeId: appliedPromoCode?.id,
+                              discountAmount: appliedPromoCode?.discountAmount || 0,
+                              pickupLocation: fulfillmentType === 'pickup' ? 'Alpharetta, GA' : undefined,
                             }),
                           });
                           const data = await res.json();

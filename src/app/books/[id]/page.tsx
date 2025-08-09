@@ -19,7 +19,7 @@ async function getBook(id: string): Promise<Book | null> {
     process.env.NEXT_PUBLIC_BASE_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
   const res = await fetch(`${baseUrl}/api/books/${id}`, { 
-    next: { revalidate: 600 } // Cache for 10 minutes
+    next: { revalidate: 600, tags: ['books'] } // Cache for 10 minutes, tag for revalidation
   });
   if (!res.ok) return null;
   return res.json();
@@ -33,7 +33,7 @@ async function getRelatedBooks(categories: string[], currentBookId: string): Pro
   try {
     // Get all books
     const res = await fetch(`${baseUrl}/api/books`, { 
-      next: { revalidate: 300 } // Cache for 5 minutes
+      next: { revalidate: 300, tags: ['books'] } // Cache for 5 minutes, tag for revalidation
     });
     if (!res.ok) return [];
     

@@ -13,7 +13,7 @@ type CartItem = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { items, fulfillmentType, orderId, email, promoCodeId } = await req.json();
+    const { items, fulfillmentType, orderId, email, promoCodeId, discountAmount, pickupLocation } = await req.json();
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: 'No items provided' }, { status: 400 });
     }
@@ -118,13 +118,16 @@ export async function POST(req: NextRequest) {
       payment_method_types: ['card'],
       line_items,
       mode: 'payment',
-      success_url: `${req.nextUrl.origin}/checkout/success?orderId=${orderId}`,
+      success_url: `${req.nextUrl.origin}/checkout/success?orderId=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.nextUrl.origin}/cart`,
       shipping_address_collection: { allowed_countries: ['US', 'CA'] },
       customer_email: email,
       metadata: { 
         orderId, 
-        promoCodeId: promoCodeId || ''
+        promoCodeId: promoCodeId || '',
+        fulfillmentType,
+        discountAmount: discountAmount ? String(discountAmount) : '0',
+        pickupLocation: pickupLocation || '',
       },
     });
 

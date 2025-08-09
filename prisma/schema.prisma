@@ -58,6 +58,7 @@ model Order {
   pickupLocation   String?  
   shippingAddress  Json?    
   email            String?
+  customerName     String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
