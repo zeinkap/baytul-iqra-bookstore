@@ -32,6 +32,9 @@ export default function CartPage() {
   } | null>(null);
   const [promoCodeError, setPromoCodeError] = useState('');
   const [validatingPromoCode, setValidatingPromoCode] = useState(false);
+  const [isInPersonSale, setIsInPersonSale] = useState(false);
+  const [paymentLink, setPaymentLink] = useState<string | null>(null);
+  const [showPaymentLink, setShowPaymentLink] = useState(false);
   
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -173,7 +176,7 @@ export default function CartPage() {
               </div>
               <div className="mb-2">
                 <label htmlFor="email" className="block text-gray-900 font-semibold mb-1">
-                  Email for order confirmation <span className="text-red-600">*</span>
+                  Email for order confirmation {!isInPersonSale && <span className="text-red-600">*</span>}
                 </label>
                 <input
                   id="email"
@@ -183,13 +186,16 @@ export default function CartPage() {
                     setEmail(e.target.value);
                     setEmailTouched(true);
                   }}
-                  required
-                  placeholder="you@example.com"
+                  required={!isInPersonSale}
+                  placeholder={isInPersonSale ? "customer@email.com (optional)" : "you@example.com"}
                   className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 placeholder-gray-700 text-gray-900"
                   onBlur={() => setEmailTouched(true)}
                 />
-                {emailTouched && !email && (
+                {emailTouched && !email && !isInPersonSale && (
                   <p className="text-red-600 text-sm mt-1">Email is required.</p>
+                )}
+                {isInPersonSale && (
+                  <p className="text-gray-500 text-sm mt-1">Optional for in-person sales</p>
                 )}
                 {emailTouched && email && !/^\S+@\S+\.\S+$/.test(email) && (
                   <p className="text-red-600 text-sm mt-1">Please enter a valid email address.</p>
@@ -541,69 +547,171 @@ export default function CartPage() {
                       </div>
                     </div>
                     
+                    {/* In-Person Sale Toggle */}
+                    <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="flex items-center gap-2 text-sm font-medium text-amber-800">
+                          <input
+                            type="checkbox"
+                            checked={isInPersonSale}
+                            onChange={(e) => {
+                              setIsInPersonSale(e.target.checked);
+                              setPaymentLink(null);
+                              setShowPaymentLink(false);
+                            }}
+                            className="w-4 h-4 text-amber-600 border-amber-300 rounded focus:ring-amber-500"
+                          />
+                          In-Person Sale (Bazaar/Event)
+                        </label>
+                      </div>
+                      {isInPersonSale && (
+                        <p className="text-xs text-amber-700">
+                          Generate a payment link for customer to tap and pay with their phone
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Payment Link Display */}
+                    {showPaymentLink && paymentLink && (
+                      <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                        <h3 className="text-sm font-semibold text-emerald-800 mb-2">Payment Link Generated!</h3>
+                        <p className="text-xs text-emerald-700 mb-3">
+                          Customer can tap this link to pay with Apple Pay, Google Pay, or card
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(paymentLink);
+                              toast.success('Payment link copied to clipboard!');
+                            }}
+                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                          >
+                            Copy Link
+                          </button>
+                          <button
+                            onClick={() => setShowPaymentLink(false)}
+                            className="px-3 py-2 text-emerald-600 hover:bg-emerald-100 rounded-lg text-sm font-medium transition-colors"
+                          >
+                            Hide
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Checkout Button */}
                     <button
-                      className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-6 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none relative overflow-hidden group"
+                      className={`w-full px-6 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none relative overflow-hidden group ${
+                        isInPersonSale 
+                          ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white'
+                          : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'
+                      }`}
                       disabled={loading}
                       onClick={async () => {
                         setLoading(true);
                         try {
-                          // Email validation before proceeding
-                          setEmailTouched(true);
-                          if (!email) {
-                            toast.error('Please enter your email.');
-                            setLoading(false);
-                            // Scroll to email field
-                            const emailField = document.getElementById('email');
-                            if (emailField) {
-                              emailField.scrollIntoView({ 
-                                behavior: 'smooth', 
-                                block: 'center' 
-                              });
-                              emailField.focus();
+                          // Email validation before proceeding (only for online checkout)
+                          if (!isInPersonSale) {
+                            setEmailTouched(true);
+                            if (!email) {
+                              toast.error('Please enter your email.');
+                              setLoading(false);
+                              // Scroll to email field
+                              const emailField = document.getElementById('email');
+                              if (emailField) {
+                                emailField.scrollIntoView({ 
+                                  behavior: 'smooth', 
+                                  block: 'center' 
+                                });
+                                emailField.focus();
+                              }
+                              return;
                             }
-                            return;
-                          }
-                          if (!/^\S+@\S+\.\S+$/.test(email)) {
-                            toast.error('Please enter a valid email address.');
-                            setLoading(false);
-                            // Scroll to email field
-                            const emailField = document.getElementById('email');
-                            if (emailField) {
-                              emailField.scrollIntoView({ 
-                                behavior: 'smooth', 
-                                block: 'center' 
-                              });
-                              emailField.focus();
+                            if (!/^\S+@\S+\.\S+$/.test(email)) {
+                              toast.error('Please enter a valid email address.');
+                              setLoading(false);
+                              // Scroll to email field
+                              const emailField = document.getElementById('email');
+                              if (emailField) {
+                                emailField.scrollIntoView({ 
+                                  behavior: 'smooth', 
+                                  block: 'center' 
+                                });
+                                emailField.focus();
+                              }
+                              return;
                             }
-                            return;
                           }
-                          // 1. Generate an order ID to use after successful payment
-                          const orderId = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
-                            ? crypto.randomUUID()
-                            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-                          // 2. Proceed to Stripe checkout
-                          const res = await fetch('/api/checkout_sessions', {
+                          // 1. Create order in DB
+                          const orderRes = await fetch('/api/orders', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
-                              items: cart, 
-                              fulfillmentType, 
-                              orderId, 
+                            body: JSON.stringify({
+                              items: cart,
+                              total,
+                              fulfillmentType,
+                              pickupLocation: fulfillmentType === 'pickup' ? 'Alpharetta, GA' : undefined,
                               email,
                               promoCodeId: appliedPromoCode?.id,
                               discountAmount: appliedPromoCode?.discountAmount || 0,
-                              pickupLocation: fulfillmentType === 'pickup' ? 'Alpharetta, GA' : undefined,
+                              // Add shippingAddress here if you collect it
                             }),
                           });
-                          const data = await res.json();
-                          if (data.url) {
-                            // Add a small delay to help with Stripe script loading
-                            setTimeout(() => {
-                              window.location.href = data.url;
-                            }, 100);
+                          const orderData = await orderRes.json();
+                          if (!orderRes.ok) {
+                            toast.error(orderData.error || 'Failed to create order');
+                            setLoading(false);
+                            return;
+                          }
+                          const orderId = orderData.id;
+                          
+                          if (isInPersonSale) {
+                            // 2. Generate payment link for in-person sale
+                            const res = await fetch('/api/checkout_sessions', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ 
+                                items: cart, 
+                                fulfillmentType, 
+                                orderId, 
+                                email: email || 'inperson@baytuliqra.com', // Use default email for in-person sales
+                                promoCodeId: appliedPromoCode?.id,
+                                createPaymentLink: true,
+                                discountAmount: appliedPromoCode?.discountAmount || 0,
+                                pickupLocation: fulfillmentType === 'pickup' ? 'Alpharetta, GA' : undefined,
+                              }),
+                            });
+                            const data = await res.json();
+                            if (data.paymentLinkUrl) {
+                              setPaymentLink(data.paymentLinkUrl);
+                              setShowPaymentLink(true);
+                              toast.success('Payment link generated! Customer can tap to pay.');
+                            } else {
+                              toast.error(data.error || 'Failed to create payment link');
+                            }
                           } else {
-                            toast.error(data.error || 'Failed to create Stripe session');
+                            // 2. Proceed to Stripe checkout for online sales
+                            const res = await fetch('/api/checkout_sessions', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ 
+                                items: cart, 
+                                fulfillmentType, 
+                                orderId, 
+                                email,
+                                promoCodeId: appliedPromoCode?.id,
+                                discountAmount: appliedPromoCode?.discountAmount || 0,
+                                pickupLocation: fulfillmentType === 'pickup' ? 'Alpharetta, GA' : undefined,
+                              }),
+                            });
+                            const data = await res.json();
+                            if (data.url) {
+                              // Add a small delay to help with Stripe script loading
+                              setTimeout(() => {
+                                window.location.href = data.url;
+                              }, 100);
+                            } else {
+                              toast.error(data.error || 'Failed to create Stripe session');
+                            }
                           }
                         } catch {
                           toast.error('Error connecting to payment gateway.');
@@ -629,7 +737,7 @@ export default function CartPage() {
                             <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
-                            Proceed to Checkout
+                            {isInPersonSale ? 'Generate Payment Link' : 'Proceed to Checkout'}
                           </>
                         )}
                       </div>

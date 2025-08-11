@@ -13,7 +13,7 @@ type CartItem = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { items, fulfillmentType, orderId, email, promoCodeId, discountAmount, pickupLocation } = await req.json();
+    const { items, fulfillmentType, orderId, email, promoCodeId, createPaymentLink, discountAmount, pickupLocation } = await req.json();
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: 'No items provided' }, { status: 400 });
     }
@@ -114,6 +114,25 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // If creating a payment link for in-person sales
+    if (createPaymentLink) {
+      const paymentLink = await stripe.paymentLinks.create({
+        line_items,
+        after_completion: { type: 'redirect', redirect: { url: `${req.nextUrl.origin}/checkout/success?orderId=${orderId}` } },
+        metadata: { 
+          orderId, 
+          promoCodeId: promoCodeId || '',
+          fulfillmentType
+        },
+      });
+
+      return NextResponse.json({ 
+        paymentLinkUrl: paymentLink.url,
+        orderId 
+      });
+    }
+
+    // Regular Stripe Checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items,
