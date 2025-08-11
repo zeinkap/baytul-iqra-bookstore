@@ -15,6 +15,8 @@
     "db:reset": "npx prisma migrate reset",
     "db:seed": "npx tsx scripts/seedDatabase.ts",
     "db:update-images": "npx tsx scripts/updateBookImages.ts",
+    "db:extract-formats": "npx tsx scripts/extractBookFormats.ts",
+    "db:clean-titles": "npx tsx scripts/cleanBookTitles.ts",
     "migrate:status": "npx prisma migrate status",
     "typecheck": "tsc --noEmit",
     "lintcheck": "npm run lint",

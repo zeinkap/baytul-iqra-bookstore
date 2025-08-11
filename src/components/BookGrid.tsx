@@ -13,6 +13,7 @@ export type Book = {
   price: number;
   images: string[];
   stock: number;
+  format?: string;
   categories: string[];
   createdAt: string;
   updatedAt: string;
@@ -186,6 +187,16 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
                       {book.title}
                     </h3>
                     <p className="text-sm text-gray-600 mb-3">by {book.author}</p>
+                    
+                    {/* Book Format */}
+                    {book.format && (
+                      <div className="mb-3">
+                        <span className="inline-block bg-blue-50 text-blue-700 px-2 py-1 rounded-full text-xs font-medium border border-blue-100">
+                          {book.format}
+                        </span>
+                      </div>
+                    )}
+                    
                     {/* Categories */}
                     <div className="flex flex-wrap gap-2 mb-3">
                       {book.categories && book.categories.length > 0 && book.categories.map((cat) => (

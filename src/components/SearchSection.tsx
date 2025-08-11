@@ -106,34 +106,103 @@ export default function SearchSection({
         </div>
 
         {/* Quick Category Filters */}
-        <div className="flex flex-wrap justify-center gap-3 mb-8">
-          {categories.slice(0, 8).map((category) => {
-            const isSelected = selectedCategories.includes(category);
-            return (
-              <button
-                key={category}
-                onClick={() => toggleCategory(category)}
-                className={`px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200 ${
-                  isSelected
-                    ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
-                    : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200 hover:border-gray-400'
-                }`}
+        <div className="mb-8">
+          {/* Desktop: Button layout */}
+          <div className="hidden md:flex flex-wrap justify-center gap-3">
+            {categories.map((category) => {
+              const isSelected = selectedCategories.includes(category);
+              return (
+                <button
+                  key={category}
+                  onClick={() => toggleCategory(category)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200 ${
+                    isSelected
+                      ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+                      : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200 hover:border-gray-400'
+                  }`}
+                >
+                  {category}
+                </button>
+              );
+            })}
+            <button 
+              onClick={() => {
+                setSelectedCategories([]);
+                setSearchQuery('');
+                onCategoryChange?.([]);
+                onSearch?.('');
+              }}
+              className="px-4 py-2 bg-gray-50 text-gray-700 rounded-full text-sm font-medium border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-all duration-200"
+            >
+              Clear All
+            </button>
+          </div>
+
+          {/* Mobile: Dropdown layout */}
+          <div className="md:hidden">
+            <div className="text-center mb-4">
+              <label htmlFor="category-select" className="block text-sm font-medium text-gray-700 mb-2">
+                Select Categories
+              </label>
+              <select
+                id="category-select"
+                multiple
+                value={selectedCategories}
+                onChange={(e) => {
+                  const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
+                  setSelectedCategories(selectedOptions);
+                  onCategoryChange?.(selectedOptions);
+                }}
+                className="w-full max-w-xs px-4 py-3 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-200 bg-white text-gray-900"
+                size={Math.min(categories.length + 1, 6)} // Show up to 6 options, but at least all categories
               >
-                {category}
-              </button>
-            );
-          })}
-          <button 
-            onClick={() => {
-              setSelectedCategories([]);
-              setSearchQuery('');
-              onCategoryChange?.([]);
-              onSearch?.('');
-            }}
-            className="px-4 py-2 bg-gray-50 text-gray-700 rounded-full text-sm font-medium border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-all duration-200"
-          >
-            Clear All
-          </button>
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-2">
+                Hold Ctrl/Cmd to select multiple categories
+              </p>
+            </div>
+            
+            {/* Selected categories display */}
+            {selectedCategories.length > 0 && (
+              <div className="text-center mb-4">
+                <div className="flex flex-wrap justify-center gap-2 mb-3">
+                  {selectedCategories.map((category) => (
+                    <span
+                      key={category}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm font-medium border border-emerald-200"
+                    >
+                      {category}
+                      <button
+                        onClick={() => toggleCategory(category)}
+                        className="ml-1 text-emerald-600 hover:text-emerald-800 transition-colors duration-200"
+                        aria-label={`Remove ${category}`}
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <button 
+                  onClick={() => {
+                    setSelectedCategories([]);
+                    setSearchQuery('');
+                    onCategoryChange?.([]);
+                    onSearch?.('');
+                  }}
+                  className="px-4 py-2 bg-gray-50 text-gray-700 rounded-full text-sm font-medium border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-all duration-200"
+                >
+                  Clear All
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
 

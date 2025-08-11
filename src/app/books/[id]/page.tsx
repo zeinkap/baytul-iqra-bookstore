@@ -9,6 +9,7 @@ export type Book = {
   price: number;
   images: string[];
   stock: number;
+  format?: string;
   categories: string[];
   createdAt: string;
   updatedAt: string;

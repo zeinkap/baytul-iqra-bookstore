@@ -18,6 +18,7 @@ model Book {
   images      String[]
   stock       Int
   isBestseller Boolean  @default(false)
+  format      String?  // Book format: Paperback, Hardcover, etc.
   categories  Category[] @relation("BookCategories")
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt

@@ -13,6 +13,7 @@ interface Book {
   images: string[];
   stock: number;
   isBestseller: boolean;
+  format?: string;
   categories: string[];
   createdAt: string;
   updatedAt: string;
@@ -87,14 +88,27 @@ export default function AdminBooksPage() {
   }
 
   function startEdit(book: Book) {
+    setForm({
+      title: book.title,
+      author: book.author,
+      description: book.description,
+      price: book.price,
+      images: book.images.length > 0 ? book.images : [""],
+      stock: book.stock,
+      isBestseller: book.isBestseller,
+      format: book.format || "",
+      categories: book.categories,
+    });
     setEditingBook(book);
-    setForm({ ...book, images: book.images && book.images.length > 0 ? book.images : [""] });
     setShowForm(true);
+    formRef.current?.scrollIntoView({ behavior: "smooth" });
   }
+
   function startAdd() {
+    setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 0, isBestseller: false, format: "", categories: [] });
     setEditingBook(null);
-    setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 0, isBestseller: false, categories: [] });
     setShowForm(true);
+    formRef.current?.scrollIntoView({ behavior: "smooth" });
   }
   function handleFormChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     const { name, value } = e.target;
@@ -289,6 +303,12 @@ export default function AdminBooksPage() {
               </label>
               <input name="author" value={form.author || ""} onChange={handleFormChange} required className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
+            <div>
+              <label className="block font-medium mb-1">
+                Format <span className="text-gray-500 font-normal">(optional)</span>
+              </label>
+              <input name="format" value={form.format || ""} onChange={handleFormChange} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="e.g., Paperback, Hardcover" />
+            </div>
             <div className="md:col-span-2">
               <label className="block font-medium mb-1">
                 Description <span className="text-red-500">*</span>
@@ -369,7 +389,7 @@ export default function AdminBooksPage() {
               type="button"
               onClick={() => {
                 setEditingBook(null);
-                setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 0, isBestseller: false, categories: [] });
+                setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 0, isBestseller: false, format: "", categories: [] });
                 setShowForm(false);
               }}
               className="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded-lg font-semibold shadow transition"
@@ -386,6 +406,7 @@ export default function AdminBooksPage() {
             <tr className="bg-gray-100 text-gray-700">
               <th className="font-semibold py-3 px-2 text-left">Title</th>
               <th className="font-semibold py-3 px-2 text-left hidden md:table-cell">Author</th>
+              <th className="font-semibold py-3 px-2 text-left hidden md:table-cell">Format</th>
               <th className="font-semibold py-3 px-2 text-left hidden md:table-cell">Categories</th>
               <th className="font-semibold py-3 px-2 text-left">Stock</th>
               <th className="font-semibold py-3 px-2 text-left">Price</th>
@@ -409,6 +430,7 @@ export default function AdminBooksPage() {
               >
                 <td className="py-2 px-2 font-medium">{book.title}</td>
                 <td className="py-2 px-2 hidden md:table-cell">{book.author}</td>
+                <td className="py-2 px-2 hidden md:table-cell">{book.format}</td>
                 <td className="py-2 px-2 hidden md:table-cell">{book.categories.join(", ")}</td>
                 <td className="py-2 px-2">{book.stock}</td>
                 <td className="py-2 px-2">${book.price.toFixed(2)}</td>

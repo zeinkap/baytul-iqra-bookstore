@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
 // POST /api/books - Add a new book
 export async function POST(req: NextRequest) {
   const data = await req.json();
-  const { title, author, description, price, images, stock, isBestseller, categories } = data;
+  const { title, author, description, price, images, stock, isBestseller, format, categories } = data;
   if (!title || !author || !description || !price || stock == null || !Array.isArray(categories)) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
   // Connect to existing categories by name
   const categoryConnect = categories.map((name: string) => ({ name }));
   const book = await prisma.book.create({
-    data: { title, author, description, price, images: normalizedImages, stock, isBestseller: isBestseller || false, categories: { connect: categoryConnect } },
+    data: { title, author, description, price, images: normalizedImages, stock, isBestseller: isBestseller || false, format, categories: { connect: categoryConnect } },
     include: { categories: true }
   });
   // Invalidate caches for any pages/data tagged with 'books'

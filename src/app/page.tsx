@@ -13,6 +13,7 @@ export type Book = {
   images: string[];
   stock: number;
   isBestseller: boolean;
+  format?: string;
   categories: string[];
   createdAt: string;
   updatedAt: string;
