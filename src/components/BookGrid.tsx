@@ -225,7 +225,7 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
                     onClick={(e) => e.preventDefault()}
                   >
                     <div className="w-full">
-                      <AddToCartButtonClient id={book.id} title={book.title} author={book.author} price={book.price} image={firstImage || ''} stock={book.stock} />
+                      <AddToCartButtonClient id={book.id} title={book.title} author={book.author} price={book.price} image={firstImage || ''} stock={book.stock} format={book.format} />
                     </div>
                   </div>
                 </div>

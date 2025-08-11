@@ -9,6 +9,7 @@ export default function AddToCartButton({
   price,
   image,
   stock = 0,
+  format,
 }: {
   id: string;
   title: string;
@@ -16,6 +17,7 @@ export default function AddToCartButton({
   price: number;
   image: string;
   stock?: number;
+  format?: string;
 }) {
   const { addToCart } = useCart();
 
@@ -36,7 +38,7 @@ export default function AddToCartButton({
       return;
     }
 
-    addToCart({ id, title, author, price, image });
+    addToCart({ id, title, author, price, image, format });
     toast.success('Added to cart!', {
       style: {
         background: '#f59e0b',

@@ -8,6 +8,7 @@ export default function AddToCartButtonClient(props: {
   price: number;
   image: string;
   stock?: number;
+  format?: string;
 }) {
   return <AddToCartButton {...props} />;
 } 

@@ -206,7 +206,7 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
                     {/* Enhanced Add to Cart button - hidden on mobile (replaced by floating bar) */}
                    <div className="mt-8 flex justify-center hidden lg:block">
                      <div className="transform hover:scale-105 transition-transform duration-200 w-full max-w-xs">
-                       <AddToCartButtonClient id={book.id} title={book.title} author={book.author} price={book.price} image={validImages[0] ? validImages[0] : ''} stock={book.stock} />
+                       <AddToCartButtonClient id={book.id} title={book.title} author={book.author} price={book.price} image={validImages[0] ? validImages[0] : ''} stock={book.stock} format={book.format} />
                      </div>
                    </div>
                    
