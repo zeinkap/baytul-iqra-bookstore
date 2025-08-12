@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
     // Create product line items first (without shipping)
-    let product_line_items = items.map((item: CartItem) => ({
+    let product_line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((item: CartItem) => ({
       price_data: {
         currency: 'usd',
         product_data: {
@@ -43,7 +43,12 @@ export async function POST(req: NextRequest) {
         });
         
         if (promoCode) {
-          const productSubtotal = product_line_items.reduce((sum, item) => sum + (item.price_data.unit_amount * item.quantity), 0);
+          const productSubtotal = product_line_items.reduce((sum, item) => {
+            if (item.price_data && item.price_data.unit_amount && item.quantity) {
+              return sum + (item.price_data.unit_amount * item.quantity);
+            }
+            return sum;
+          }, 0);
           let discountAmount = 0;
           
           if (promoCode.discountType === 'percentage') {
@@ -70,6 +75,8 @@ export async function POST(req: NextRequest) {
             const discountRatio = discountAmount / productSubtotal;
             
             product_line_items = product_line_items.map(item => {
+              if (!item.price_data || !item.price_data.unit_amount || !item.quantity) return item;
+              
               const itemTotal = item.price_data.unit_amount * item.quantity;
               const itemDiscount = Math.round(itemTotal * discountRatio);
               const newUnitAmount = Math.max(0, item.price_data.unit_amount - Math.round(itemDiscount / item.quantity));
@@ -91,7 +98,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Start with discounted product line items
-    const line_items = [...product_line_items];
+    const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [...product_line_items];
 
     // Add shipping fee after discount has been applied
     if (fulfillmentType === 'shipping') {
@@ -102,7 +109,7 @@ export async function POST(req: NextRequest) {
           unit_amount: 500,
         },
         quantity: 1,
-      });
+      } as Stripe.Checkout.SessionCreateParams.LineItem);
     } else if (fulfillmentType === 'pickup') {
       line_items.push({
         price_data: {
@@ -111,19 +118,42 @@ export async function POST(req: NextRequest) {
           unit_amount: 0,
         },
         quantity: 1,
-      });
+      } as Stripe.Checkout.SessionCreateParams.LineItem);
     }
 
     // If creating a payment link for in-person sales
     if (createPaymentLink) {
+      console.log('Creating payment link with params:', {
+        orderId,
+        promoCodeId,
+        fulfillmentType,
+        discountAmount,
+        pickupLocation,
+        lineItemsCount: line_items.length
+      });
+
       const paymentLink = await stripe.paymentLinks.create({
-        line_items,
+        line_items: line_items as Stripe.PaymentLinkCreateParams.LineItem[],
         after_completion: { type: 'redirect', redirect: { url: `${req.nextUrl.origin}/checkout/success?orderId=${orderId}` } },
         metadata: { 
           orderId, 
           promoCodeId: promoCodeId || '',
-          fulfillmentType
+          fulfillmentType,
+          discountAmount: discountAmount ? String(discountAmount) : '0',
+          pickupLocation: pickupLocation || '',
         },
+        // Add payment method types for payment links
+        payment_method_types: ['card'],
+        // Add shipping address collection if needed
+        ...(fulfillmentType === 'shipping' && {
+          shipping_address_collection: { allowed_countries: ['US', 'CA'] }
+        }),
+      });
+
+      console.log('Payment link created:', {
+        url: paymentLink.url,
+        id: paymentLink.id,
+        active: paymentLink.active
       });
 
       return NextResponse.json({ 
