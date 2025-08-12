@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import AdminNav from '@/components/AdminNav';
 
 // Order types
@@ -68,22 +68,7 @@ export default function AdminOrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
 
-  // Fetch orders
-  useEffect(() => {
-    fetchOrders();
-  }, [pagination.page, fulfillmentFilter]);
-
-  // Debounced search
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      setPagination(prev => ({ ...prev, page: 1 }));
-      fetchOrders();
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchText]);
-
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
     setLoading(true);
     setError(null);
     
@@ -108,7 +93,22 @@ export default function AdminOrdersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [pagination.page, pagination.limit, searchText, fulfillmentFilter]);
+
+  // Fetch orders
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
+
+  // Debounced search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setPagination(prev => ({ ...prev, page: 1 }));
+      fetchOrders();
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchText, fetchOrders]);
 
   function handleSearch() {
     setPagination(prev => ({ ...prev, page: 1 }));
