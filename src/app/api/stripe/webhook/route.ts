@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // Simple test endpoint
 export async function GET() {
@@ -9,7 +9,7 @@ export async function GET() {
   });
 }
 
-export async function POST(_req: NextRequest) {
+export async function POST() {
   return NextResponse.json({ 
     status: 'POST endpoint received',
     timestamp: new Date().toISOString(),
