@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/components/CartProvider';
 import { toast } from 'react-hot-toast';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 
 // Add type for book stock information
 type BookStock = {
@@ -62,6 +62,16 @@ export default function CartPage() {
 
         const stocks = await Promise.all(stockPromises);
         setBookStocks(stocks);
+        
+        // Check if any cart items exceed available stock
+        stocks.forEach((stock) => {
+          const cartItem = cart.find(item => item.id === stock.id);
+          if (cartItem && cartItem.quantity > stock.stock) {
+            // Auto-adjust quantity to available stock
+            updateQuantity(stock.id, stock.stock);
+            toast.error(`${cartItem.title} quantity adjusted to ${stock.stock} (available stock)`);
+          }
+        });
       } catch (error) {
         console.error('Error fetching book stocks:', error);
       } finally {
@@ -70,45 +80,46 @@ export default function CartPage() {
     };
 
     fetchBookStocks();
-  }, [cart]);
+  }, [cart, updateQuantity]);
 
   // Validate applied promo code when cart total changes
-  const validateAppliedPromoCode = useCallback(async () => {
+  useEffect(() => {
     if (!appliedPromoCode) return;
 
-    try {
-      const response = await fetch('/api/promo-codes/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: appliedPromoCode.code,
-          orderTotal: total // Only validate against product total, not shipping
-        }),
-      });
+    const validatePromoCode = async () => {
+      try {
+        const response = await fetch('/api/promo-codes/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: appliedPromoCode.code,
+            orderTotal: total // Only validate against product total, not shipping
+          }),
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (!data.valid) {
-        // Promo code is no longer valid, remove it
+        if (!data.valid) {
+          // Promo code is no longer valid, remove it
+          setAppliedPromoCode(null);
+          setPromoCodeError(data.error || 'Promo code is no longer valid');
+          toast.error('Promo code removed: ' + (data.error || 'No longer valid'));
+        } else {
+          // Update the applied promo code with new discount amount
+          setAppliedPromoCode(data.promoCode);
+        }
+      } catch (error) {
+        console.error('Error validating applied promo code:', error);
+        // On error, remove the promo code to be safe
         setAppliedPromoCode(null);
-        setPromoCodeError(data.error || 'Promo code is no longer valid');
-        toast.error('Promo code removed: ' + (data.error || 'No longer valid'));
-      } else {
-        // Update the applied promo code with new discount amount
-        setAppliedPromoCode(data.promoCode);
+        setPromoCodeError('Failed to validate promo code');
+        toast.error('Promo code removed due to validation error');
       }
-    } catch (error) {
-      console.error('Error validating applied promo code:', error);
-      // On error, remove the promo code to be safe
-      setAppliedPromoCode(null);
-      setPromoCodeError('Failed to validate promo code');
-      toast.error('Promo code removed due to validation error');
-    }
-  }, [appliedPromoCode, total]);
+    };
 
-  useEffect(() => {
-    validateAppliedPromoCode();
-  }, [validateAppliedPromoCode]);
+    validatePromoCode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [total, appliedPromoCode?.code]); // Only re-run when total or promo code changes
 
   // Helper function to get stock for a specific book
   const getBookStock = (bookId: string) => {
@@ -444,14 +455,35 @@ export default function CartPage() {
                                   <input
                                     type="number"
                                     min={1}
+                                    max={getBookStock(item.id)}
                                     value={item.quantity}
-                                    onChange={e => updateQuantity(item.id, Math.max(1, Number(e.target.value)))}
+                                    onChange={e => {
+                                      const newQuantity = Math.max(1, Number(e.target.value));
+                                      const maxStock = getBookStock(item.id);
+                                      if (newQuantity <= maxStock) {
+                                        updateQuantity(item.id, newQuantity);
+                                      } else {
+                                        toast.error(`Only ${maxStock} available in stock`);
+                                      }
+                                    }}
                                     className="w-16 px-3 py-2 text-center border-0 focus:ring-0 text-gray-900 bg-white"
                                     aria-label="Quantity"
                                   />
                                   <button
-                                    onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                                    className="px-3 py-2 text-gray-600 hover:bg-gray-100 transition-colors duration-200"
+                                    onClick={() => {
+                                      const maxStock = getBookStock(item.id);
+                                      if (item.quantity < maxStock) {
+                                        updateQuantity(item.id, item.quantity + 1);
+                                      } else {
+                                        toast.error(`Only ${maxStock} available in stock`);
+                                      }
+                                    }}
+                                    disabled={item.quantity >= getBookStock(item.id)}
+                                    className={`px-3 py-2 transition-colors duration-200 ${
+                                      item.quantity >= getBookStock(item.id)
+                                        ? 'text-gray-400 cursor-not-allowed'
+                                        : 'text-gray-600 hover:bg-gray-100'
+                                    }`}
                                     aria-label="Increase quantity"
                                   >
                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

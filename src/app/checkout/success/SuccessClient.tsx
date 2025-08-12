@@ -16,7 +16,10 @@ type Order = {
   id: string;
   items: OrderItem[];
   total: number;
+  finalTotal: number;
+  discountAmount: number;
   fulfillmentType: 'shipping' | 'pickup';
+  pickupLocation?: string;
   email?: string;
   customerName?: string;
   shippingAddress?: {
@@ -182,8 +185,30 @@ export default function SuccessClient() {
   const formatCurrency = (n: number) => `$${Number(n || 0).toFixed(2)}`;
   const formatAddress = (addr?: Order['shippingAddress']) => {
     if (!addr) return 'N/A';
-    const parts = [addr.name, addr.line1, addr.line2, addr.city, addr.state, addr.postal_code, addr.country].filter(Boolean);
-    return parts.join(', ');
+    
+    // Handle case where shippingAddress might be a JSON string
+    let address = addr;
+    if (typeof addr === 'string') {
+      try {
+        address = JSON.parse(addr);
+      } catch {
+        return 'N/A';
+      }
+    }
+    
+    if (!address || typeof address !== 'object') return 'N/A';
+    
+    const parts = [
+      address.name, 
+      address.line1, 
+      address.line2, 
+      address.city, 
+      address.state, 
+      address.postal_code, 
+      address.country
+    ].filter(Boolean);
+    
+    return parts.length > 0 ? parts.join(', ') : 'N/A';
   };
 
   return (
@@ -223,9 +248,39 @@ export default function SuccessClient() {
                   </div>
                 ))}
               </div>
-              <div className="mt-4 border-t border-gray-200 pt-4 flex items-center justify-between text-xl font-extrabold text-gray-900">
-                <span>Total</span>
-                <span className="text-emerald-700">{formatCurrency(Number((order as unknown as { finalTotal?: number }).finalTotal ?? order.total ?? 0))}</span>
+              
+              {/* Order Summary Totals */}
+              <div className="mt-4 border-t border-gray-200 pt-4 space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600">Subtotal</span>
+                  <span className="text-gray-900">{formatCurrency(order.total)}</span>
+                </div>
+                
+                {order.fulfillmentType === 'shipping' && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Shipping</span>
+                    <span className="text-gray-900">$5.00</span>
+                  </div>
+                )}
+                
+                {order.fulfillmentType === 'pickup' && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Pickup</span>
+                    <span className="text-gray-900">Free</span>
+                  </div>
+                )}
+                
+                {order.discountAmount > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Discount</span>
+                    <span className="text-red-600">-{formatCurrency(order.discountAmount)}</span>
+                  </div>
+                )}
+                
+                <div className="flex items-center justify-between text-xl font-extrabold text-gray-900 pt-2 border-t border-gray-200">
+                  <span>Total</span>
+                  <span className="text-emerald-700">{formatCurrency(order.finalTotal)}</span>
+                </div>
               </div>
             </Card.Body>
           </Card>

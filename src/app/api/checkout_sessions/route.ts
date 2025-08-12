@@ -123,14 +123,7 @@ export async function POST(req: NextRequest) {
 
     // If creating a payment link for in-person sales
     if (createPaymentLink) {
-      console.log('Creating payment link with params:', {
-        orderId,
-        promoCodeId,
-        fulfillmentType,
-        discountAmount,
-        pickupLocation,
-        lineItemsCount: line_items.length
-      });
+      
 
       const paymentLink = await stripe.paymentLinks.create({
         line_items: line_items as Stripe.PaymentLinkCreateParams.LineItem[],
@@ -148,13 +141,10 @@ export async function POST(req: NextRequest) {
         ...(fulfillmentType === 'shipping' && {
           shipping_address_collection: { allowed_countries: ['US', 'CA'] }
         }),
+
       });
 
-      console.log('Payment link created:', {
-        url: paymentLink.url,
-        id: paymentLink.id,
-        active: paymentLink.active
-      });
+
 
       return NextResponse.json({ 
         paymentLinkUrl: paymentLink.url,
@@ -171,6 +161,7 @@ export async function POST(req: NextRequest) {
       cancel_url: `${req.nextUrl.origin}/cart`,
       shipping_address_collection: { allowed_countries: ['US', 'CA'] },
       customer_email: email,
+      billing_address_collection: 'required', // This will collect customer name
       metadata: { 
         orderId, 
         promoCodeId: promoCodeId || '',
@@ -179,6 +170,8 @@ export async function POST(req: NextRequest) {
         pickupLocation: pickupLocation || '',
       },
     });
+
+
 
     return NextResponse.json({ url: session.url });
   } catch (err) {
