@@ -23,18 +23,18 @@ export async function POST(req: NextRequest) {
     const lineItems = await stripe.checkout.sessions.listLineItems(sessionId);
     const productItems: { title: string; quantity: number; price: number }[] = [];
     let totalCents = 0;
-    for (const li of lineItems.data) {
-      const name = li.description || (li.price?.product as unknown as string);
-      const qty = li.quantity || 1;
-      const unit = li.price?.unit_amount ?? 0;
-      const lineTotal = unit * qty;
-      if (name?.toLowerCase() === 'shipping' || name?.toLowerCase() === 'free local pickup') {
-        totalCents += lineTotal;
-        continue;
-      }
-      productItems.push({ title: name || 'Item', quantity: qty, price: unit / 100 });
+      for (const li of lineItems.data) {
+    const name = li.description || (li.price?.product as unknown as string);
+    const qty = li.quantity || 1;
+    const unit = li.price?.unit_amount ?? 0;
+    const lineTotal = unit * qty;
+    if (name?.toLowerCase() === 'shipping') {
       totalCents += lineTotal;
+      continue;
     }
+    productItems.push({ title: name || 'Item', quantity: qty, price: unit / 100 });
+    totalCents += lineTotal;
+  }
     const discountAmountCents = Number(session.metadata?.discountAmount || '0');
     const fulfillmentType = (session.metadata?.fulfillmentType as 'shipping' | 'pickup') || 'shipping';
     const pickupLocation = session.metadata?.pickupLocation || undefined;

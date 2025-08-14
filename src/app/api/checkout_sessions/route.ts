@@ -98,32 +98,62 @@ export async function POST(req: NextRequest) {
     }
 
     // Start with discounted product line items
-    const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [...product_line_items];
+    let line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [...product_line_items];
 
     // Add shipping fee after discount has been applied
     if (fulfillmentType === 'shipping') {
-      line_items.push({
-        price_data: {
-          currency: 'usd',
-          product_data: { name: 'Shipping', images: undefined },
-          unit_amount: 500,
-        },
-        quantity: 1,
-      } as Stripe.Checkout.SessionCreateParams.LineItem);
+      // Don't add shipping as a separate line item for payment links as it gets archived by Stripe
+      // Instead, we'll include shipping cost in the product prices or handle it via metadata
+      console.log('Skipping shipping line item to prevent Stripe archiving - shipping cost will be included in product prices');
+      
+      // Add shipping cost to each product line item proportionally
+      const shippingCostCents = 500; // $5.00 shipping
+      const totalProductValue = product_line_items.reduce((sum, item) => {
+        if (item.price_data && item.price_data.unit_amount && item.quantity) {
+          return sum + (item.price_data.unit_amount * item.quantity);
+        }
+        return sum;
+      }, 0);
+      
+      if (totalProductValue > 0) {
+        const shippingRatio = shippingCostCents / totalProductValue;
+        
+        line_items = product_line_items.map(item => {
+          if (!item.price_data || !item.price_data.unit_amount || !item.quantity) return item;
+          
+          const itemTotal = item.price_data.unit_amount * item.quantity;
+          const itemShippingCost = Math.round(itemTotal * shippingRatio);
+          const newUnitAmount = item.price_data.unit_amount + Math.round(itemShippingCost / item.quantity);
+          
+          return {
+            ...item,
+            price_data: {
+              ...item.price_data,
+              unit_amount: newUnitAmount
+            }
+          };
+        });
+      }
     } else if (fulfillmentType === 'pickup') {
-      line_items.push({
-        price_data: {
-          currency: 'usd',
-          product_data: { name: 'Free Local Pickup', images: undefined },
-          unit_amount: 0,
-        },
-        quantity: 1,
-      } as Stripe.Checkout.SessionCreateParams.LineItem);
+      // Don't add a zero-price line item for pickup as it gets archived by Stripe
+      // Instead, we'll handle pickup as metadata only
+      console.log('Skipping zero-price pickup line item to prevent Stripe archiving');
     }
 
     // If creating a payment link for in-person sales
     if (createPaymentLink) {
-      
+      console.log('Creating payment link with:', {
+        orderId,
+        fulfillmentType,
+        pickupLocation,
+        lineItemsCount: line_items.length,
+        totalAmount: line_items.reduce((sum, item) => {
+          if (item.price_data && item.price_data.unit_amount && item.quantity) {
+            return sum + (item.price_data.unit_amount * item.quantity);
+          }
+          return sum;
+        }, 0)
+      });
 
       const paymentLink = await stripe.paymentLinks.create({
         line_items: line_items as Stripe.PaymentLinkCreateParams.LineItem[],
@@ -134,6 +164,8 @@ export async function POST(req: NextRequest) {
           fulfillmentType,
           discountAmount: discountAmount ? String(discountAmount) : '0',
           pickupLocation: pickupLocation || '',
+          shippingIncluded: fulfillmentType === 'shipping' ? 'true' : 'false',
+          shippingCost: fulfillmentType === 'shipping' ? '500' : '0',
         },
         // Add payment method types for payment links
         payment_method_types: ['card'],
@@ -141,10 +173,41 @@ export async function POST(req: NextRequest) {
         ...(fulfillmentType === 'shipping' && {
           shipping_address_collection: { allowed_countries: ['US', 'CA'] }
         }),
+        // Add billing address collection for customer information
+        billing_address_collection: 'required',
+      });
 
+      console.log('Payment link created successfully:', {
+        paymentLinkId: paymentLink.id,
+        paymentLinkUrl: paymentLink.url,
+        active: paymentLink.active,
+        stripeMode: process.env.STRIPE_SECRET_KEY?.includes('sk_test_') ? 'test' : 'live',
+        lineItems: line_items.length,
+        totalAmount: line_items.reduce((sum, item) => {
+          if (item.price_data && item.price_data.unit_amount && item.quantity) {
+            return sum + (item.price_data.unit_amount * item.quantity);
+          }
+          return sum;
+        }, 0)
       });
 
 
+
+      // Verify the payment link is still active after creation
+      try {
+        const verifyPaymentLink = await stripe.paymentLinks.retrieve(paymentLink.id);
+        console.log('Payment link verification after creation:', {
+          id: verifyPaymentLink.id,
+          active: verifyPaymentLink.active,
+          url: verifyPaymentLink.url
+        });
+        
+        if (!verifyPaymentLink.active) {
+          console.error('Payment link was deactivated immediately after creation!');
+        }
+      } catch (verifyError) {
+        console.error('Error verifying payment link:', verifyError);
+      }
 
       return NextResponse.json({ 
         paymentLinkUrl: paymentLink.url,
@@ -168,6 +231,8 @@ export async function POST(req: NextRequest) {
         fulfillmentType,
         discountAmount: discountAmount ? String(discountAmount) : '0',
         pickupLocation: pickupLocation || '',
+        shippingIncluded: fulfillmentType === 'shipping' ? 'true' : 'false',
+        shippingCost: fulfillmentType === 'shipping' ? '500' : '0',
       },
     });
 
@@ -175,6 +240,23 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ url: session.url });
   } catch (err) {
-    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
+    console.error('Error in checkout session creation:', err);
+    
+    // Provide more specific error messages
+    if (err instanceof Error) {
+      if (err.message.includes('payment_link_deactivated')) {
+        return NextResponse.json({ 
+          error: 'Payment link has been deactivated. Please create a new one.' 
+        }, { status: 400 });
+      }
+      if (err.message.includes('invalid_request_error')) {
+        return NextResponse.json({ 
+          error: 'Invalid request. Please check your payment configuration.' 
+        }, { status: 400 });
+      }
+      return NextResponse.json({ error: err.message }, { status: 500 });
+    }
+    
+    return NextResponse.json({ error: 'An unexpected error occurred' }, { status: 500 });
   }
 } 

@@ -9,6 +9,7 @@ export default function AdminNav() {
     { href: '/admin/books', label: 'Books' },
     { href: '/admin/orders', label: 'Orders' },
     { href: '/admin/promo-codes', label: 'Promo Codes' },
+    { href: '/admin/payment-links', label: 'Payment Links' },
   ];
 
   return (

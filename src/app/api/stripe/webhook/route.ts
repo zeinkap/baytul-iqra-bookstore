@@ -86,11 +86,14 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     const qty = li.quantity || 1;
     const unit = (li.price?.unit_amount ?? 0);
     const lineTotal = unit * qty;
-    // Exclude shipping line by its name we set
-    if (name?.toLowerCase() === 'shipping' || name?.toLowerCase() === 'free local pickup') {
+    
+    // For payment links, shipping costs are embedded in product prices
+    // For regular checkout sessions, we still need to exclude shipping line items
+    if (name?.toLowerCase() === 'shipping') {
       totalCents += lineTotal; // still count for finalTotal
       continue;
     }
+    
     productItems.push({ title: name || 'Item', quantity: qty, price: (unit / 100) });
     totalCents += lineTotal;
   }
