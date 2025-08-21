@@ -3,6 +3,18 @@ import { useEffect, useState, useCallback } from "react";
 import AdminNav from '@/components/AdminNav';
 import { toast } from 'react-hot-toast';
 
+// Debounce utility function for string parameters
+function debounceString(
+  func: (query: string) => void,
+  wait: number
+): (query: string) => void {
+  let timeout: NodeJS.Timeout;
+  return (query: string) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(query), wait);
+  };
+}
+
 interface Book {
   id: string;
   title: string;
@@ -32,8 +44,11 @@ export default function ProfitMarginsPage() {
   const [saving, setSaving] = useState<string | null>(null);
   const [editingCost, setEditingCost] = useState<{ [key: string]: string }>({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [bookSuggestions, setBookSuggestions] = useState<Book[]>([]);
+  const [showBookSuggestions, setShowBookSuggestions] = useState(false);
+  const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   
-    // Collapsible section states
+  // Collapsible section states
   const [collapsedSections, setCollapsedSections] = useState({
     summary: false,
     topPerformers: false,
@@ -58,6 +73,60 @@ export default function ProfitMarginsPage() {
   useEffect(() => {
     setFilteredProfitData(profitData);
   }, [profitData]);
+
+  // Close book suggestions when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Element;
+      if (!target.closest('.book-search-container')) {
+        setShowBookSuggestions(false);
+        setBookSuggestions([]);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Debounced book search function
+  const debouncedBookSearch = useCallback(
+    debounceString(async (query: string) => {
+      if (!query || query.trim().length < 2) {
+        setBookSuggestions([]);
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/books/search?q=${encodeURIComponent(query)}&limit=10`);
+        if (res.ok) {
+          const books = await res.json();
+          setBookSuggestions(books);
+        }
+      } catch (error) {
+        console.error('Error searching books:', error);
+      }
+    }, 300),
+    []
+  );
+
+  async function searchBooks(query: string) {
+    debouncedBookSearch(query);
+  }
+
+  function selectBook(book: Book) {
+    setSelectedBookId(book.id);
+    setShowBookSuggestions(false);
+    setBookSuggestions([]);
+    
+    // Filter to show only this book
+    const filtered = profitData.filter(item => item.book.id === book.id);
+    setFilteredProfitData(filtered);
+  }
+
+  function clearBookSelection() {
+    setSelectedBookId(null);
+    setFilteredProfitData(profitData);
+  }
 
 
 
@@ -576,7 +645,82 @@ export default function ProfitMarginsPage() {
           {/* Search Bar and Books Table */}
           <CollapsibleSection title="📚 Books Profit Analysis Table" section="booksTable">
             {/* Search Bar */}
-            <div className="mb-6">
+            {/* Book Selection Search */}
+          <div className="mb-6">
+            <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center justify-between">
+              <div className="flex-1 max-w-lg">
+                <label htmlFor="bookSearch" className="block text-sm font-semibold text-gray-800 mb-3">
+                  📚 Focus on Specific Book
+                </label>
+                <div className="relative book-search-container">
+                  <input
+                    id="bookSearch"
+                    type="text"
+                    placeholder="Type book title to search and focus on specific book..."
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value.trim().length >= 2) {
+                        searchBooks(value);
+                        setShowBookSuggestions(true);
+                      } else {
+                        setBookSuggestions([]);
+                        setShowBookSuggestions(false);
+                      }
+                    }}
+                    onFocus={() => {
+                      if (bookSuggestions.length > 0) {
+                        setShowBookSuggestions(true);
+                      }
+                    }}
+                    className="w-full px-6 py-4 pl-12 pr-12 border-2 border-gray-200 rounded-xl text-base text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 font-medium shadow-sm hover:border-gray-300 transition-all duration-200"
+                    autoComplete="off"
+                  />
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  
+                  {/* Book Suggestions */}
+                  {showBookSuggestions && bookSuggestions.length > 0 && (
+                    <div className="absolute z-20 w-full mt-1 bg-white border-2 border-gray-200 rounded-xl shadow-xl max-h-60 overflow-y-auto">
+                      {bookSuggestions.map((book) => (
+                        <button
+                          key={book.id}
+                          onClick={() => selectBook(book)}
+                          className="w-full px-4 py-3 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                        >
+                          <div className="font-medium text-gray-900">{book.title}</div>
+                          <div className="text-sm text-gray-600">
+                            by {book.author} • ${book.price.toFixed(2)} • {book.stock} in stock
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {selectedBookId && (
+                <div className="flex items-center gap-3">
+                  <div className="text-sm text-gray-600 bg-blue-50 px-4 py-3 rounded-lg border border-blue-200">
+                    <span className="font-medium">
+                      🎯 Focused on specific book • <span className="text-blue-600">{filteredProfitData.length}</span> result
+                    </span>
+                  </div>
+                  <button
+                    onClick={clearBookSelection}
+                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                  >
+                    Clear Focus
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* General Search Bar */}
+          <div className="mb-6">
             <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center justify-between">
               <div className="flex-1 max-w-lg">
                 <label htmlFor="search" className="block text-sm font-semibold text-gray-800 mb-3">
