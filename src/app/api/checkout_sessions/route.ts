@@ -13,7 +13,7 @@ type CartItem = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { items, fulfillmentType, orderId, email, promoCodeId, createPaymentLink, discountAmount, pickupLocation } = await req.json();
+    const { items, fulfillmentType, orderId, email, phone, promoCodeId, createPaymentLink, discountAmount, pickupLocation } = await req.json();
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: 'No items provided' }, { status: 400 });
     }
@@ -166,6 +166,8 @@ export async function POST(req: NextRequest) {
           pickupLocation: pickupLocation || '',
           shippingIncluded: fulfillmentType === 'shipping' ? 'true' : 'false',
           shippingCost: fulfillmentType === 'shipping' ? '500' : '0',
+          customerPhone: phone || '',
+          cartItems: JSON.stringify(items),
         },
         // Add payment method types for payment links
         payment_method_types: ['card'],
@@ -233,6 +235,8 @@ export async function POST(req: NextRequest) {
         pickupLocation: pickupLocation || '',
         shippingIncluded: fulfillmentType === 'shipping' ? 'true' : 'false',
         shippingCost: fulfillmentType === 'shipping' ? '500' : '0',
+        customerPhone: phone || '',
+        cartItems: JSON.stringify(items),
       },
     });
 

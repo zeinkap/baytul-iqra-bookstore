@@ -10,6 +10,8 @@ interface Book {
   author: string;
   description: string;
   price: number;
+  costPrice?: number;
+  shippingCost?: number;
   images: string[];
   stock: number;
   isBestseller: boolean;
@@ -93,6 +95,8 @@ export default function AdminBooksPage() {
       author: book.author,
       description: book.description,
       price: book.price,
+      costPrice: book.costPrice,
+      shippingCost: book.shippingCost,
       images: book.images.length > 0 ? book.images : [""],
       stock: book.stock,
       isBestseller: book.isBestseller,
@@ -120,7 +124,7 @@ export default function AdminBooksPage() {
         return { ...f, images };
       });
     } else {
-      setForm((f) => ({ ...f, [name]: name === "price" || name === "stock" ? Number(value) : value }));
+      setForm((f) => ({ ...f, [name]: name === "price" || name === "stock" || name === "costPrice" || name === "shippingCost" ? Number(value) : value }));
     }
   }
   // Helper to map categories to react-select format
@@ -295,25 +299,25 @@ export default function AdminBooksPage() {
               <label className="block font-medium mb-1">
                 Title <span className="text-red-500">*</span>
               </label>
-              <input name="title" value={form.title || ""} onChange={handleFormChange} required className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              <input name="title" value={form.title || ""} onChange={handleFormChange} required className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
             <div>
               <label className="block font-medium mb-1">
                 Author <span className="text-red-500">*</span>
               </label>
-              <input name="author" value={form.author || ""} onChange={handleFormChange} required className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              <input name="author" value={form.author || ""} onChange={handleFormChange} required className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
             <div>
               <label className="block font-medium mb-1">
                 Format <span className="text-gray-500 font-normal">(optional)</span>
               </label>
-              <input name="format" value={form.format || ""} onChange={handleFormChange} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="e.g., Paperback, Hardcover" />
+              <input name="format" value={form.format || ""} onChange={handleFormChange} className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="e.g., Paperback, Hardcover" />
             </div>
             <div className="md:col-span-2">
               <label className="block font-medium mb-1">
                 Description <span className="text-red-500">*</span>
               </label>
-              <textarea name="description" value={form.description || ""} onChange={handleFormChange} required rows={3} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              <textarea name="description" value={form.description || ""} onChange={handleFormChange} required rows={3} className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
             <div>
               <label className="block font-medium mb-1">
@@ -325,7 +329,7 @@ export default function AdminBooksPage() {
                     name={`images.${idx}`}
                     value={img}
                     onChange={handleFormChange}
-                    className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                     placeholder={`Image URL #${idx + 1}`}
                   />
                   {form.images && form.images.length > 1 && (
@@ -342,13 +346,25 @@ export default function AdminBooksPage() {
             </div>
             <div>
               <label className="block font-medium mb-1">Stock</label>
-              <input name="stock" type="number" value={form.stock || 0} onChange={handleFormChange} min={0} className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              <input name="stock" type="number" value={form.stock || 0} onChange={handleFormChange} min={0} className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
             <div>
               <label className="block font-medium mb-1">
                 Price <span className="text-red-500">*</span>
               </label>
-              <input name="price" type="number" step="0.01" value={form.price || 0} onChange={handleFormChange} min={0} required className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              <input name="price" type="number" step="0.01" value={form.price || 0} onChange={handleFormChange} min={0} required className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            </div>
+            <div>
+              <label className="block font-medium mb-1">
+                Cost Price <span className="text-gray-500 font-normal">(optional)</span>
+              </label>
+              <input name="costPrice" type="number" step="0.01" value={form.costPrice || ""} onChange={handleFormChange} min={0} className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Enter cost price for profit tracking" />
+            </div>
+            <div>
+              <label className="block font-medium mb-1">
+                Shipping Cost <span className="text-gray-500 font-normal">(optional)</span>
+              </label>
+              <input name="shippingCost" type="number" step="0.01" value={form.shippingCost || ""} onChange={handleFormChange} min={0} className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Estimate shipping cost per book" />
             </div>
             <div>
               <label className="block font-medium mb-1">

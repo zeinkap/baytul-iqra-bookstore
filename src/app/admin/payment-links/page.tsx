@@ -21,6 +21,8 @@ interface PaymentLink {
     orderId?: string;
     fulfillmentType?: string;
     pickupLocation?: string;
+    customerPhone?: string;
+    cartItems?: string;
   };
 }
 
@@ -52,6 +54,7 @@ export default function AdminPaymentLinksPage() {
     fulfillmentType: 'pickup' as 'shipping' | 'pickup',
     pickupLocation: 'Alpharetta, GA',
     customerEmail: '',
+    customerPhone: '',
   });
 
   useEffect(() => {
@@ -102,6 +105,7 @@ export default function AdminPaymentLinksPage() {
           fulfillmentType: form.fulfillmentType,
           orderId,
           email: form.customerEmail,
+          phone: form.customerPhone,
           createPaymentLink: true,
           pickupLocation: form.pickupLocation,
         }),
@@ -119,6 +123,7 @@ export default function AdminPaymentLinksPage() {
         fulfillmentType: 'pickup',
         pickupLocation: 'Alpharetta, GA',
         customerEmail: '',
+        customerPhone: '',
       });
       
       // Refresh the list
@@ -298,7 +303,7 @@ export default function AdminPaymentLinksPage() {
       date = new Date(timestamp);
     } else if (timestamp > 1000000000000) {
       // If it's a large number, it's likely milliseconds
-      date = new Date(timestamp);
+      date = new Date(timestamp * 1000);
     } else {
       // If it's a smaller number, it's likely seconds
       date = new Date(timestamp * 1000);
@@ -318,6 +323,18 @@ export default function AdminPaymentLinksPage() {
       minute: '2-digit',
       hour12: true
     });
+  }
+
+  function parseCartItems(cartItemsJson?: string): CartItem[] {
+    if (!cartItemsJson) return [];
+    
+    try {
+      const items = JSON.parse(cartItemsJson);
+      return Array.isArray(items) ? items : [];
+    } catch (error) {
+      console.error('Error parsing cart items:', error);
+      return [];
+    }
   }
 
   return (
@@ -476,6 +493,23 @@ export default function AdminPaymentLinksPage() {
               </p>
             </div>
 
+            {/* Customer Phone */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Customer Phone <span className="text-gray-400">(Optional)</span>
+              </label>
+              <input
+                type="tel"
+                placeholder="e.g., 123-456-7890"
+                value={form.customerPhone}
+                onChange={(e) => setForm(prev => ({ ...prev, customerPhone: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-500 bg-white"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Customer&apos;s phone number for order updates (optional)
+              </p>
+            </div>
+
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800">
                 <span className="text-red-500">*</span> Required fields must be filled to create a payment link.
@@ -530,6 +564,49 @@ export default function AdminPaymentLinksPage() {
                           <p className="text-sm text-gray-600">
                             <span className="font-medium">Order ID:</span> {link.metadata.orderId}
                           </p>
+                        )}
+                        {link.metadata?.fulfillmentType && (
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">Fulfillment:</span> 
+                            <span className="ml-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {link.metadata.fulfillmentType === 'pickup' ? 'Local Pickup' : 'Shipping'}
+                            </span>
+                          </p>
+                        )}
+                        {link.metadata?.customerPhone && (
+                          <p className="text-sm text-gray-600">
+                            <span className="font-medium">Phone:</span> {link.metadata.customerPhone}
+                          </p>
+                        )}
+                        {/* Cart Items with Quantities */}
+                        {link.metadata?.cartItems && (
+                          <div className="mt-2">
+                            <p className="text-sm font-medium text-gray-700 mb-1">Items:</p>
+                            <div className="space-y-1">
+                              {parseCartItems(link.metadata.cartItems).map((item, index) => (
+                                <div key={index} className="text-sm text-gray-600 flex justify-between items-center bg-gray-50 px-2 py-1 rounded">
+                                  <span className="truncate flex-1">{item.title}</span>
+                                  <span className="text-gray-500 ml-2">
+                                    Qty: {item.quantity} × ${item.price.toFixed(2)}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                            {/* Summary */}
+                            {(() => {
+                              const items = parseCartItems(link.metadata.cartItems);
+                              const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+                              const totalAmount = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                              return (
+                                <div className="mt-2 pt-2 border-t border-gray-200">
+                                  <div className="flex justify-between text-sm font-medium text-gray-700">
+                                    <span>Total Quantity: {totalQuantity}</span>
+                                    <span>Total Amount: ${totalAmount.toFixed(2)}</span>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
                         )}
                       </div>
                       <div className="flex gap-2">

@@ -32,7 +32,7 @@ export async function PUT(
 ) {
   const { id } = await params;
   const data = await req.json();
-  const { title, author, description, price, images, stock, isBestseller, format, categories } = data;
+  const { title, author, description, price, costPrice, images, stock, isBestseller, format, categories } = data;
   if (!title || !author || !description || !price || stock == null || !Array.isArray(categories)) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
@@ -49,6 +49,7 @@ export async function PUT(
         author,
         description,
         price,
+        costPrice: costPrice !== undefined ? costPrice : undefined,
         images: normalizedImages,
         stock,
         isBestseller: isBestseller || false,
