@@ -6,6 +6,12 @@
 - When suggesting testing changes, mention that the user should run their dev server if needed
 - Focus on code changes and implementation rather than server management
 
+## Build Rule
+- DO NOT run `npm run build` or any build commands
+- The user will manage the build process themselves
+- When suggesting testing changes, mention that the user should run the build command if needed
+- Focus on code changes and implementation rather than build management
+
 ## General Development Guidelines
 - Prefer editing existing files over creating new ones unless absolutely necessary
 - Always use proper TypeScript types

@@ -67,6 +67,8 @@ export default function AdminOrdersPage() {
   const [fulfillmentFilter, setFulfillmentFilter] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [sortField, setSortField] = useState<string>('createdAt');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -99,6 +101,58 @@ export default function AdminOrdersPage() {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  // Sorting function
+  function handleSort(field: string) {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  }
+
+  // Sort data based on current sort field and direction
+  function getSortedData(data: Order[]) {
+    return [...data].sort((a, b) => {
+      let aValue: string | number;
+      let bValue: string | number;
+
+      switch (sortField) {
+        case 'id':
+          aValue = a.id.toLowerCase();
+          bValue = b.id.toLowerCase();
+          break;
+        case 'createdAt':
+          aValue = new Date(a.createdAt).getTime();
+          bValue = new Date(b.createdAt).getTime();
+          break;
+        case 'email':
+          aValue = (a.email || '').toLowerCase();
+          bValue = (b.email || '').toLowerCase();
+          break;
+        case 'items':
+          aValue = Array.isArray(a.items) ? a.items.length : 0;
+          bValue = Array.isArray(b.items) ? b.items.length : 0;
+          break;
+        case 'total':
+          aValue = a.finalTotal;
+          bValue = b.finalTotal;
+          break;
+        case 'fulfillment':
+          aValue = a.fulfillmentType.toLowerCase();
+          bValue = b.fulfillmentType.toLowerCase();
+          break;
+        default:
+          aValue = new Date(a.createdAt).getTime();
+          bValue = new Date(b.createdAt).getTime();
+      }
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
 
   // Debounced search
   useEffect(() => {
@@ -206,12 +260,84 @@ export default function AdminOrdersPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-gray-100 text-gray-700">
-                <th className="font-semibold py-3 px-4 text-left">Order ID</th>
-                <th className="font-semibold py-3 px-4 text-left">Date</th>
-                <th className="font-semibold py-3 px-4 text-left">Email</th>
-                <th className="font-semibold py-3 px-4 text-left">Items</th>
-                <th className="font-semibold py-3 px-4 text-left">Total</th>
-                <th className="font-semibold py-3 px-4 text-left">Fulfillment</th>
+                <th 
+                  className="font-semibold py-3 px-4 text-left cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                  onClick={() => handleSort('id')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Order ID</span>
+                    {sortField === 'id' && (
+                      <span className="text-blue-500">
+                        {sortDirection === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="font-semibold py-3 px-4 text-left cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                  onClick={() => handleSort('createdAt')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Date</span>
+                    {sortField === 'createdAt' && (
+                      <span className="text-blue-500">
+                        {sortDirection === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="font-semibold py-3 px-4 text-left cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                  onClick={() => handleSort('email')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Email</span>
+                    {sortField === 'email' && (
+                      <span className="text-blue-500">
+                        {sortDirection === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="font-semibold py-3 px-4 text-left cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                  onClick={() => handleSort('items')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Items</span>
+                    {sortField === 'items' && (
+                      <span className="text-blue-500">
+                        {sortDirection === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="font-semibold py-3 px-4 text-left cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                  onClick={() => handleSort('total')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Total</span>
+                    {sortField === 'total' && (
+                      <span className="text-blue-500">
+                        {sortDirection === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="font-semibold py-3 px-4 text-left cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                  onClick={() => handleSort('fulfillment')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Fulfillment</span>
+                    {sortField === 'fulfillment' && (
+                      <span className="text-blue-500">
+                        {sortDirection === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </div>
+                </th>
                 <th className="font-semibold py-3 px-4 text-left">Actions</th>
               </tr>
             </thead>
@@ -223,7 +349,7 @@ export default function AdminOrdersPage() {
                   </td>
                 </tr>
               ) : (
-                orders.map((order, idx) => (
+                getSortedData(orders).map((order, idx) => (
                   <tr
                     key={order.id}
                     className={

@@ -36,6 +36,8 @@ export default function AdminPromoCodesPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [sortField, setSortField] = useState<string>('code');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Fetch promo codes
   useEffect(() => {
@@ -94,6 +96,70 @@ export default function AdminPromoCodesPage() {
       isActive: true,
     });
     setShowForm(true);
+  }
+
+  // Sorting function
+  function handleSort(field: string) {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  }
+
+  // Sort data based on current sort field and direction
+  function getSortedData(data: PromoCode[]) {
+    return [...data].sort((a, b) => {
+      let aValue: string | number | boolean;
+      let bValue: string | number | boolean;
+
+      switch (sortField) {
+        case 'code':
+          aValue = a.code.toLowerCase();
+          bValue = b.code.toLowerCase();
+          break;
+        case 'description':
+          aValue = a.description.toLowerCase();
+          bValue = b.description.toLowerCase();
+          break;
+        case 'discount':
+          aValue = a.discountValue;
+          bValue = b.discountValue;
+          break;
+        case 'minOrder':
+          aValue = a.minimumOrderAmount || 0;
+          bValue = b.minimumOrderAmount || 0;
+          break;
+        case 'usage':
+          aValue = a.currentUses;
+          bValue = b.currentUses;
+          break;
+        case 'status':
+          aValue = a.isActive ? 1 : 0;
+          bValue = b.isActive ? 1 : 0;
+          break;
+        case 'createdAt':
+          aValue = new Date(a.createdAt).getTime();
+          bValue = new Date(b.createdAt).getTime();
+          break;
+        case 'validFrom':
+          aValue = new Date(a.validFrom).getTime();
+          bValue = new Date(b.validFrom).getTime();
+          break;
+        case 'validUntil':
+          aValue = a.validUntil ? new Date(a.validUntil).getTime() : 0;
+          bValue = b.validUntil ? new Date(b.validUntil).getTime() : 0;
+          break;
+        default:
+          aValue = a.code.toLowerCase();
+          bValue = b.code.toLowerCase();
+      }
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
   }
 
   function handleFormChange(e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) {
@@ -419,12 +485,84 @@ export default function AdminPromoCodesPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-100 text-gray-700">
-              <th className="font-semibold py-3 px-2 text-left">Code</th>
-              <th className="font-semibold py-3 px-2 text-left">Description</th>
-              <th className="font-semibold py-3 px-2 text-left">Discount</th>
-              <th className="font-semibold py-3 px-2 text-left">Min Order</th>
-              <th className="font-semibold py-3 px-2 text-left">Usage</th>
-              <th className="font-semibold py-3 px-2 text-left">Status</th>
+              <th 
+                className="font-semibold py-3 px-2 text-left cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                onClick={() => handleSort('code')}
+              >
+                <div className="flex items-center space-x-1">
+                  <span>Code</span>
+                  {sortField === 'code' && (
+                    <span className="text-blue-500">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </div>
+              </th>
+              <th 
+                className="font-semibold py-3 px-2 text-left cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                onClick={() => handleSort('description')}
+              >
+                <div className="flex items-center space-x-1">
+                  <span>Description</span>
+                  {sortField === 'description' && (
+                    <span className="text-blue-500">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </div>
+              </th>
+              <th 
+                className="font-semibold py-3 px-2 text-left cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                onClick={() => handleSort('discount')}
+              >
+                <div className="flex items-center space-x-1">
+                  <span>Discount</span>
+                  {sortField === 'discount' && (
+                    <span className="text-blue-500">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </div>
+              </th>
+              <th 
+                className="font-semibold py-3 px-2 text-left cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                onClick={() => handleSort('minOrder')}
+              >
+                <div className="flex items-center space-x-1">
+                  <span>Min Order</span>
+                  {sortField === 'minOrder' && (
+                    <span className="text-blue-500">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </div>
+              </th>
+              <th 
+                className="font-semibold py-3 px-2 text-left cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                onClick={() => handleSort('usage')}
+              >
+                <div className="flex items-center space-x-1">
+                  <span>Usage</span>
+                  {sortField === 'usage' && (
+                    <span className="text-blue-500">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </div>
+              </th>
+              <th 
+                className="font-semibold py-3 px-2 text-left cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                onClick={() => handleSort('status')}
+              >
+                <div className="flex items-center space-x-1">
+                  <span>Status</span>
+                  {sortField === 'status' && (
+                    <span className="text-blue-500">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </div>
+              </th>
               <th className="font-semibold py-3 px-2 text-left">Actions</th>
             </tr>
           </thead>
@@ -436,7 +574,7 @@ export default function AdminPromoCodesPage() {
                 </td>
               </tr>
             ) : (
-              promoCodes.map((promoCode, idx) => (
+              getSortedData(promoCodes).map((promoCode, idx) => (
                 <tr
                   key={promoCode.id}
                   className={

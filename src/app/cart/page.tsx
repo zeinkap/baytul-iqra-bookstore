@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useCart } from '@/components/CartProvider';
 import { toast } from 'react-hot-toast';
 import { useState, useEffect } from 'react';
+import Button from '@/components/Button';
 
 // Add type for book stock information
 type BookStock = {
@@ -35,6 +36,8 @@ export default function CartPage() {
   const [isInPersonSale, setIsInPersonSale] = useState(false);
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const [showPaymentLink, setShowPaymentLink] = useState(false);
+  const [showQRCode, setShowQRCode] = useState(false);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string>('');
   
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -127,6 +130,19 @@ export default function CartPage() {
     return bookStock ? bookStock.stock : 0;
   };
 
+  // Generate QR code for payment link
+  const generateQRCode = async (url: string) => {
+    try {
+      // Simple QR code generation using a free API
+      const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+      setQrCodeDataUrl(qrApiUrl);
+      setShowQRCode(true);
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      toast.error('Failed to generate QR code');
+    }
+  };
+
   return (
     <>
       <main className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50">
@@ -161,17 +177,26 @@ export default function CartPage() {
           {cart.length > 0 && (
             <div className="mb-8 bg-white/90 rounded-xl shadow p-4 sm:p-6 border border-gray-100">
               <h2 className="text-lg font-semibold mb-4 text-gray-900">How would you like to receive your order?</h2>
+              {isInPersonSale && (
+                <div className="mb-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                  <p className="text-sm text-emerald-700">
+                    📍 <strong>In-Person Sale Mode:</strong> Automatically set to local pickup (no shipping charges)
+                  </p>
+                </div>
+              )}
               <div className="flex flex-col sm:flex-row gap-4 mb-4">
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className={`flex items-center gap-2 ${isInPersonSale ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                   <input
                     type="radio"
                     name="fulfillmentType"
                     value="shipping"
                     checked={fulfillmentType === 'shipping'}
                     onChange={() => setFulfillmentType('shipping')}
+                    disabled={isInPersonSale}
                     className="accent-emerald-600"
                   />
                   <span className="text-gray-900 font-semibold">Ship to my address</span>
+                  {isInPersonSale && <span className="text-xs text-gray-500">(disabled in-person mode)</span>}
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -183,6 +208,7 @@ export default function CartPage() {
                     className="accent-emerald-600"
                   />
                   <span className="text-gray-900 font-semibold">Local Pickup <span className="text-gray-600 font-normal">(Alpharetta, GA)</span></span>
+                  {isInPersonSale && <span className="text-xs text-emerald-600">✓ Selected for in-person sale</span>}
                 </label>
               </div>
               <div className="mb-2">
@@ -580,59 +606,96 @@ export default function CartPage() {
                     </div>
                     
                     {/* In-Person Sale Toggle */}
-                    <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="flex items-center gap-2 text-sm font-medium text-amber-800">
+                    <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
                           <input
                             type="checkbox"
                             checked={isInPersonSale}
-                            onChange={(e) => {
-                              setIsInPersonSale(e.target.checked);
-                              setPaymentLink(null);
-                              setShowPaymentLink(false);
-                            }}
-                            className="w-4 h-4 text-amber-600 border-amber-300 rounded focus:ring-amber-500"
+                                           onChange={(e) => {
+                 setIsInPersonSale(e.target.checked);
+                 // Automatically set to pickup when in-person mode is enabled
+                 if (e.target.checked) {
+                   setFulfillmentType('pickup');
+                 } else {
+                   // Reset to shipping when in-person mode is disabled
+                   setFulfillmentType('shipping');
+                 }
+                 setPaymentLink(null);
+                 setShowPaymentLink(false);
+                 setShowQRCode(false);
+               }}
+                            className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
                           />
-                          In-Person Sale (Bazaar/Event)
+                          <span className="font-medium">In-Person Sale Mode</span>
+                          <span className="text-xs text-gray-500">(for bazaars & events)</span>
                         </label>
                       </div>
-                      {isInPersonSale && (
-                        <p className="text-xs text-amber-700">
-                          Generate a payment link for customer to tap and pay with their phone
-                        </p>
-                      )}
                     </div>
 
                     {/* Payment Link Display */}
                     {showPaymentLink && paymentLink && (
-                      <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-                        <h3 className="text-sm font-semibold text-emerald-800 mb-2">Payment Link Generated!</h3>
-                        <p className="text-xs text-emerald-700 mb-3">
-                          Customer can tap this link to pay with Apple Pay, Google Pay, or card
-                        </p>
-                        <div className="flex gap-2">
+                      <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="text-sm font-semibold text-emerald-800">Payment Link Ready</h3>
                           <button
                             onClick={() => {
-                              navigator.clipboard.writeText(paymentLink);
-                              toast.success('Payment link copied to clipboard!');
+                              setShowPaymentLink(false);
+                              setShowQRCode(false);
                             }}
-                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                          >
-                            Copy Link
-                          </button>
-                          <button
-                            onClick={() => setShowPaymentLink(false)}
-                            className="px-3 py-2 text-emerald-600 hover:bg-emerald-100 rounded-lg text-sm font-medium transition-colors"
+                            className="text-emerald-600 hover:text-emerald-800 text-sm font-medium"
                           >
                             Hide
                           </button>
                         </div>
-                      </div>
+                        
+                          <div className="space-y-4">
+                            {/* Action Buttons */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <Button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(paymentLink);
+                                  toast.success('Payment link copied to clipboard!');
+                                }}
+                                className="w-full bg-emerald-600 hover:bg-emerald-700 px-3 py-2 text-sm"
+                              >
+                                <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                Copy Link
+                              </Button>
+                              
+                              <Button
+                                onClick={() => generateQRCode(paymentLink)}
+                                variant="secondary"
+                                className="w-full px-3 py-2 text-sm"
+                              >
+                                <svg className="w-3 h-3 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V6a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1zm12 0h2a1 1 0 001-1V6a1 1 0 00-1-1h-2a1 1 0 00-1 1v1a1 1 0 001 1zM5 20h2a1 1 0 001-1v-1a1 1 0 00-1-1H5a1 1 0 00-1 1v1a1 1 0 001 1z" />
+                                </svg>
+                                Show QR Code
+                              </Button>
+                            </div>
+
+                            {/* Hide Button */}
+                            <div className="text-center">
+                              <button
+                                onClick={() => {
+                                  setShowPaymentLink(false);
+                                  setShowQRCode(false);
+                                }}
+                                className="text-emerald-600 hover:text-emerald-800 text-sm font-medium hover:bg-emerald-100 px-3 py-2 rounded-lg transition-colors"
+                              >
+                                Hide Payment Link
+                              </button>
+                            </div>
+                          </div>
+                        </div>
                     )}
 
                     {/* Checkout Button */}
                     <button
-                      className={`w-full px-6 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none relative overflow-hidden group ${
+                      className={`w-full px-4 py-3 rounded-lg font-semibold text-base shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none relative overflow-hidden group ${
                         isInPersonSale 
                           ? 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white'
                           : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'
@@ -766,7 +829,7 @@ export default function CartPage() {
                           </>
                         ) : (
                           <>
-                            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
                             {isInPersonSale ? 'Generate Payment Link' : 'Proceed to Checkout'}
@@ -854,6 +917,66 @@ export default function CartPage() {
               >
                 Cancel
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Code Modal */}
+      {showQRCode && qrCodeDataUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900">Scan to Pay</h3>
+              <button
+                onClick={() => setShowQRCode(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <div className="bg-gray-50 rounded-xl p-6 inline-block">
+                <img 
+                  src={qrCodeDataUrl} 
+                  alt="Payment QR Code" 
+                  className="w-48 h-48 mx-auto"
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="text-sm text-gray-600">
+                <p className="font-medium mb-2">Customer Instructions:</p>
+                <ol className="text-left space-y-1 ml-4">
+                  <li>1. Open camera app on phone</li>
+                  <li>2. Point at QR code</li>
+                  <li>3. Tap notification to open payment link</li>
+                  <li>4. Complete payment with Apple Pay or card</li>
+                </ol>
+              </div>
+              
+              <div className="flex gap-3">
+                <Button
+                  onClick={() => {
+                    navigator.clipboard.writeText(paymentLink || '');
+                    toast.success('Payment link copied!');
+                  }}
+                  variant="secondary"
+                  className="flex-1 px-3 py-2 text-sm"
+                >
+                  Copy Link
+                </Button>
+                <Button
+                  onClick={() => setShowQRCode(false)}
+                  className="flex-1 px-3 py-2 text-sm"
+                >
+                  Close
+                </Button>
+              </div>
             </div>
           </div>
         </div>

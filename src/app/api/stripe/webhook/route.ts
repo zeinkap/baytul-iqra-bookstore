@@ -178,6 +178,8 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 }
 
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  
   // For payment links, we need to get the metadata from the payment intent
   const orderId = paymentIntent.metadata?.orderId as string | undefined;
   const promoCodeId = paymentIntent.metadata?.promoCodeId as string | undefined;
@@ -185,7 +187,38 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   const discountAmountCents = paymentIntent.metadata?.discountAmount ? Number(paymentIntent.metadata.discountAmount) : 0;
   const pickupLocation = paymentIntent.metadata?.pickupLocation || undefined;
 
-  console.log('Processing payment intent:', { orderId, promoCodeId, fulfillmentType });
+  console.log('Processing payment intent:', { orderId, promoCodeId, fulfillmentType, customerId: paymentIntent.customer });
+
+  // Try to get customer information from multiple sources
+  let customerEmail: string | undefined = undefined;
+  let customerName: string | undefined = undefined;
+
+  // First try to get customer information from the customer object
+  if (paymentIntent.customer) {
+    try {
+      const customerId = typeof paymentIntent.customer === 'string' 
+        ? paymentIntent.customer 
+        : paymentIntent.customer.id;
+      
+      const customer = await stripe.customers.retrieve(customerId);
+      if ('email' in customer && customer.email) {
+        customerEmail = customer.email;
+        console.log('Got customer email from customer object:', customerEmail);
+      }
+      if ('name' in customer && customer.name) {
+        customerName = customer.name;
+        console.log('Got customer name from customer object:', customerName);
+      }
+    } catch (error) {
+      console.error('Error retrieving customer:', error);
+    }
+  }
+
+  // Fallback to receipt_email if no customer email found
+  if (!customerEmail && paymentIntent.receipt_email) {
+    customerEmail = paymentIntent.receipt_email;
+    console.log('Using receipt_email as fallback:', customerEmail);
+  }
 
   // For payment links, we need to reconstruct the line items from the payment intent
   const totalCents = paymentIntent.amount;
@@ -228,12 +261,14 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   }
 
   // Try multiple sources for customer name in payment intent
-  let customerName = undefined;
-  
-  // First try shipping address name
-  if (shippingAddress?.name) {
-    customerName = shippingAddress.name;
+  if (!customerName) {
+    // First try shipping address name
+    if (shippingAddress?.name) {
+      customerName = shippingAddress.name;
+    }
   }
+
+  console.log('Final customer info for payment intent:', { email: customerEmail, name: customerName });
 
   await createOrder({
     orderId,
@@ -244,7 +279,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     productItems,
     totalCents,
     shippingAddress,
-    email: paymentIntent.receipt_email || undefined,
+    email: customerEmail,
     customerName: customerName,
   });
 }

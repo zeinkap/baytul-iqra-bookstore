@@ -18,7 +18,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No items provided' }, { status: 400 });
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || req.nextUrl.origin || 'http://localhost:3000';
+    
+    console.log('Base URL for image construction:', {
+      NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
+      requestOrigin: req.nextUrl.origin,
+      finalBaseUrl: baseUrl
+    });
+    
+    // Log important info about image URLs for payment links
+    if (createPaymentLink && (baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1'))) {
+      console.log('📋 PAYMENT LINK IMAGES NOTE:');
+      console.log('   Stripe cannot access localhost URLs for images.');
+      console.log('   Images will be skipped in payment links during local development.');
+      console.log('   To test with images:');
+      console.log('   1. Deploy to a public URL (Vercel, Netlify, etc.)');
+      console.log('   2. Set NEXT_PUBLIC_BASE_URL environment variable to your public URL');
+      console.log('   3. Or use a service like ngrok to expose localhost');
+    }
 
     // Create product line items first (without shipping)
     let product_line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = items.map((item: CartItem) => ({
@@ -155,8 +172,61 @@ export async function POST(req: NextRequest) {
         }, 0)
       });
 
+      // For payment links, we need to use the original line_items structure
+      // but we can enhance the product names and descriptions to show more details
+      const enhancedLineItems = line_items.map((item, index) => {
+        if (item.price_data && item.price_data.product_data) {
+          const originalItem = items[index];
+          
+          // Create proper absolute URL for images
+          let imageUrl: string | undefined;
+          if (originalItem.image) {
+            if (originalItem.image.startsWith('http://') || originalItem.image.startsWith('https://')) {
+              // Already absolute URL
+              imageUrl = originalItem.image;
+            } else {
+              // Relative path - convert to absolute
+              const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+              const cleanImagePath = originalItem.image.startsWith('/') ? originalItem.image : `/${originalItem.image}`;
+              const constructedUrl = `${cleanBaseUrl}${cleanImagePath}`;
+              
+              // Check if this is a localhost URL (Stripe can't access localhost)
+              if (constructedUrl.includes('localhost') || constructedUrl.includes('127.0.0.1')) {
+                console.log('⚠️  Localhost detected - Stripe cannot access localhost URLs for images');
+                console.log('💡 To see images in payment links, deploy to a public URL and set NEXT_PUBLIC_BASE_URL');
+                // For localhost, we'll skip the image but keep the detailed product info
+                imageUrl = undefined;
+              } else {
+                imageUrl = constructedUrl;
+              }
+            }
+            
+            console.log('Payment link image URL constructed:', {
+              originalImage: originalItem.image,
+              baseUrl,
+              constructedUrl: imageUrl || 'Skipped (localhost)',
+              isLocalhost: imageUrl === undefined
+            });
+          }
+          
+          return {
+            ...item,
+            price_data: {
+              ...item.price_data,
+              product_data: {
+                ...item.price_data.product_data,
+                name: `${originalItem.title} (Qty: ${originalItem.quantity})`,
+                description: `Quantity: ${originalItem.quantity} × $${originalItem.price.toFixed(2)} each`,
+                images: imageUrl ? [imageUrl] : undefined,
+              }
+            }
+          };
+        }
+        return item;
+      });
+
       const paymentLink = await stripe.paymentLinks.create({
-        line_items: line_items as Stripe.PaymentLinkCreateParams.LineItem[],
+        line_items: enhancedLineItems as Stripe.PaymentLinkCreateParams.LineItem[],
         after_completion: { type: 'redirect', redirect: { url: `${req.nextUrl.origin}/checkout/success?orderId=${orderId}` } },
         metadata: { 
           orderId, 
@@ -167,7 +237,12 @@ export async function POST(req: NextRequest) {
           shippingIncluded: fulfillmentType === 'shipping' ? 'true' : 'false',
           shippingCost: fulfillmentType === 'shipping' ? '500' : '0',
           customerPhone: phone || '',
-          cartItems: JSON.stringify(items),
+          // Store only essential cart info to stay under 500 character limit
+          itemCount: String(items.length),
+          totalItems: String(items.reduce((sum, item) => sum + item.quantity, 0)),
+          // Store just book IDs and quantities instead of full JSON
+          bookIds: items.map(item => item.id).join(','),
+          quantities: items.map(item => item.quantity).join(','),
         },
         // Add payment method types for payment links
         payment_method_types: ['card'],
@@ -177,6 +252,8 @@ export async function POST(req: NextRequest) {
         }),
         // Add billing address collection for customer information
         billing_address_collection: 'required',
+        // Add customer email collection for payment links
+        customer_creation: 'always',
       });
 
       console.log('Payment link created successfully:', {
@@ -184,8 +261,8 @@ export async function POST(req: NextRequest) {
         paymentLinkUrl: paymentLink.url,
         active: paymentLink.active,
         stripeMode: process.env.STRIPE_SECRET_KEY?.includes('sk_test_') ? 'test' : 'live',
-        lineItems: line_items.length,
-        totalAmount: line_items.reduce((sum, item) => {
+        lineItems: enhancedLineItems.length,
+        totalAmount: enhancedLineItems.reduce((sum, item) => {
           if (item.price_data && item.price_data.unit_amount && item.quantity) {
             return sum + (item.price_data.unit_amount * item.quantity);
           }
@@ -236,7 +313,12 @@ export async function POST(req: NextRequest) {
         shippingIncluded: fulfillmentType === 'shipping' ? 'true' : 'false',
         shippingCost: fulfillmentType === 'shipping' ? '500' : '0',
         customerPhone: phone || '',
-        cartItems: JSON.stringify(items),
+        // Store only essential cart info to stay under 500 character limit
+        itemCount: String(items.length),
+        totalItems: String(items.reduce((sum, item) => sum + item.quantity, 0)),
+        // Store just book IDs and quantities instead of full JSON
+        bookIds: items.map(item => item.id).join(','),
+        quantities: items.map(item => item.quantity).join(','),
       },
     });
 

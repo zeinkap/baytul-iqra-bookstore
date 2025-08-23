@@ -3,17 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import AdminNav from '@/components/AdminNav';
 import { toast } from 'react-hot-toast';
 
-// Debounce utility function for string parameters
-function debounceString(
-  func: (query: string) => void,
-  wait: number
-): (query: string) => void {
-  let timeout: NodeJS.Timeout;
-  return (query: string) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(query), wait);
-  };
-}
+
 
 interface Book {
   id: string;
@@ -43,10 +33,10 @@ export default function ProfitMarginsPage() {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
   const [editingCost, setEditingCost] = useState<{ [key: string]: string }>({});
-  const [searchQuery, setSearchQuery] = useState("");
-  const [bookSuggestions, setBookSuggestions] = useState<Book[]>([]);
-  const [showBookSuggestions, setShowBookSuggestions] = useState(false);
-  const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
+  const [editingShipping, setEditingShipping] = useState<{ [key: string]: string }>({});
+
+  const [sortField, setSortField] = useState<string>('title');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
   // Collapsible section states
   const [collapsedSections, setCollapsedSections] = useState({
@@ -59,6 +49,36 @@ export default function ProfitMarginsPage() {
     legend: false
   });
 
+  // Calculate profit data function (defined before useEffect that calls it)
+  const calculateProfitData = useCallback(() => {
+    if (!books || books.length === 0) {
+      setProfitData([]);
+      return;
+    }
+
+    const data: ProfitData[] = books.map(book => {
+      const costPrice = book.costPrice || 0;
+      const shippingCost = book.shippingCost || 0;
+      const sellingPrice = book.price;
+      const totalCost = costPrice + shippingCost;
+      const profitAmount = sellingPrice - totalCost;
+      const profitPercentage = totalCost > 0 ? (profitAmount / totalCost) * 100 : 0;
+      const profitMargin = sellingPrice > 0 ? (profitAmount / sellingPrice) * 100 : 0;
+
+      return {
+        book,
+        profitMargin,
+        profitAmount,
+        profitPercentage,
+        totalCost,
+        shippingCost,
+      };
+    });
+
+    // Don't sort here - let the user control sorting
+    setProfitData(data);
+  }, [books]);
+
   useEffect(() => {
     fetchBooks();
   }, []);
@@ -67,94 +87,98 @@ export default function ProfitMarginsPage() {
     if (books && Array.isArray(books)) {
       calculateProfitData();
     }
-  }, [books]);
+  }, [books, calculateProfitData]);
 
-  // Initialize filtered data when profitData changes
+  // Update filtered data when profitData changes
   useEffect(() => {
-    setFilteredProfitData(profitData);
-  }, [profitData]);
-
-  // Close book suggestions when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      const target = event.target as Element;
-      if (!target.closest('.book-search-container')) {
-        setShowBookSuggestions(false);
-        setBookSuggestions([]);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Debounced book search function
-  const debouncedBookSearch = useCallback(
-    debounceString(async (query: string) => {
-      if (!query || query.trim().length < 2) {
-        setBookSuggestions([]);
-        return;
-      }
-
-      try {
-        const res = await fetch(`/api/books/search?q=${encodeURIComponent(query)}&limit=10`);
-        if (res.ok) {
-          const books = await res.json();
-          setBookSuggestions(books);
-        }
-      } catch (error) {
-        console.error('Error searching books:', error);
-      }
-    }, 300),
-    []
-  );
-
-  async function searchBooks(query: string) {
-    debouncedBookSearch(query);
-  }
-
-  function selectBook(book: Book) {
-    setSelectedBookId(book.id);
-    setShowBookSuggestions(false);
-    setBookSuggestions([]);
-    
-    // Filter to show only this book
-    const filtered = profitData.filter(item => item.book.id === book.id);
-    setFilteredProfitData(filtered);
-  }
-
-  function clearBookSelection() {
-    setSelectedBookId(null);
-    setFilteredProfitData(profitData);
-  }
-
-
-
-
-
-
-
-
-
-  // Simple search handler - no complex logic
-  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchQuery(value);
-    
-    if (!value.trim()) {
+    if (profitData.length > 0) {
       setFilteredProfitData(profitData);
-    } else {
-      const searchQuery = value.toLowerCase().trim();
-      const filtered = profitData.filter(item => 
-        item.book.title.toLowerCase().includes(searchQuery) ||
-        item.book.author.toLowerCase().includes(searchQuery) ||
-        item.book.categories.some(category => category.toLowerCase().includes(searchQuery)) ||
-        (item.book.format && item.book.format.toLowerCase().includes(searchQuery))
-      );
-      
-      setFilteredProfitData(filtered);
     }
   }, [profitData]);
+
+
+
+  // Sorting function
+  function handleSort(field: string) {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  }
+
+  // Sort data based on current sort field and direction
+  function getSortedData(data: ProfitData[]) {
+    return [...data].sort((a, b) => {
+      let aValue: string | number;
+      let bValue: string | number;
+
+      switch (sortField) {
+        case 'title':
+          aValue = a.book.title.toLowerCase();
+          bValue = b.book.title.toLowerCase();
+          break;
+        case 'author':
+          aValue = a.book.author.toLowerCase();
+          bValue = b.book.author.toLowerCase();
+          break;
+        case 'costPrice':
+          aValue = a.book.costPrice || 0;
+          bValue = b.book.costPrice || 0;
+          break;
+        case 'shippingCost':
+          aValue = a.book.shippingCost || 0;
+          bValue = b.book.shippingCost || 0;
+          break;
+        case 'totalCost':
+          aValue = a.totalCost;
+          bValue = b.totalCost;
+          break;
+        case 'sellingPrice':
+          aValue = a.book.price;
+          bValue = b.book.price;
+          break;
+        case 'profitAmount':
+          aValue = a.profitAmount;
+          bValue = b.profitAmount;
+          break;
+        case 'profitMargin':
+          aValue = a.profitMargin;
+          bValue = b.profitMargin;
+          break;
+        case 'roi':
+          aValue = a.profitPercentage;
+          bValue = b.profitPercentage;
+          break;
+        case 'stock':
+          aValue = a.book.stock;
+          bValue = b.book.stock;
+          break;
+        case 'totalPotentialProfit':
+          aValue = a.profitAmount * a.book.stock;
+          bValue = b.profitAmount * b.book.stock;
+          break;
+        default:
+          aValue = a.book.title.toLowerCase();
+          bValue = b.book.title.toLowerCase();
+      }
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
+
+
+
+
+
+
+
+
+
 
   function toggleSection(section: keyof typeof collapsedSections) {
     setCollapsedSections(prev => ({
@@ -228,36 +252,6 @@ export default function ProfitMarginsPage() {
     }
   }
 
-  function calculateProfitData() {
-    if (!books || books.length === 0) {
-      setProfitData([]);
-      return;
-    }
-
-    const data: ProfitData[] = books.map(book => {
-      const costPrice = book.costPrice || 0;
-      const shippingCost = book.shippingCost || 0;
-      const sellingPrice = book.price;
-      const totalCost = costPrice + shippingCost;
-      const profitAmount = sellingPrice - totalCost;
-      const profitPercentage = totalCost > 0 ? (profitAmount / totalCost) * 100 : 0;
-      const profitMargin = sellingPrice > 0 ? (profitAmount / sellingPrice) * 100 : 0;
-
-      return {
-        book,
-        profitMargin,
-        profitAmount,
-        profitPercentage,
-        totalCost,
-        shippingCost,
-      };
-    });
-
-    // Sort by profit margin descending
-    data.sort((a, b) => b.profitMargin - a.profitMargin);
-    setProfitData(data);
-  }
-
   async function updateCostPrice(bookId: string, costPrice: number) {
     setSaving(bookId);
     try {
@@ -292,6 +286,40 @@ export default function ProfitMarginsPage() {
     }
   }
 
+  async function updateShippingCost(bookId: string, shippingCost: number) {
+    setSaving(bookId);
+    try {
+      const res = await fetch(`/api/books/${bookId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shippingCost }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to update shipping cost');
+      }
+
+      // Update local state
+      setBooks(prev => prev ? prev.map(book => 
+        book.id === bookId ? { ...book, shippingCost } : book
+      ) : []);
+
+      // Clear editing state
+      setEditingShipping(prev => {
+        const newState = { ...prev };
+        delete newState[bookId];
+        return newState;
+      });
+
+      toast.success('Shipping cost updated successfully');
+    } catch (error) {
+      console.error('Error updating shipping cost:', error);
+      toast.error('Failed to update shipping cost');
+    } finally {
+      setSaving(null);
+    }
+  }
+
   const handleCostPriceChange = useCallback((bookId: string, value: string) => {
     setEditingCost(prev => ({ ...prev, [bookId]: value }));
   }, []);
@@ -315,6 +343,56 @@ export default function ProfitMarginsPage() {
       return newState;
     });
   }, []);
+
+  const handleShippingCostChange = useCallback((bookId: string, value: string) => {
+    setEditingShipping(prev => ({ ...prev, [bookId]: value }));
+  }, []);
+
+  const handleShippingCostSubmit = useCallback((bookId: string) => {
+    const value = editingShipping[bookId];
+    if (value !== undefined) {
+      const shippingCost = parseFloat(value);
+      if (!isNaN(shippingCost) && shippingCost >= 0) {
+        updateShippingCost(bookId, shippingCost);
+      } else {
+        toast.error('Please enter a valid shipping cost');
+      }
+    }
+  }, [editingShipping]);
+
+  const handleShippingCostCancel = useCallback((bookId: string) => {
+    setEditingShipping(prev => {
+      const newState = { ...prev };
+      delete newState[bookId];
+      return newState;
+    });
+  }, []);
+
+  async function bulkUpdateShippingCost() {
+    setLoading(true);
+    try {
+      // Update all books to have $3.00 shipping cost
+      const updatePromises = books.map(book => 
+        fetch(`/api/books/${book.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shippingCost: 3.00 }),
+        })
+      );
+
+      await Promise.all(updatePromises);
+
+      // Update local state
+      setBooks(prev => prev ? prev.map(book => ({ ...book, shippingCost: 3.00 })) : []);
+
+      toast.success(`Updated shipping cost to $3.00 for all ${books.length} books`);
+    } catch (error) {
+      console.error('Error updating shipping costs:', error);
+      toast.error('Failed to update shipping costs');
+    } finally {
+      setLoading(false);
+    }
+  }
 
 
 
@@ -376,7 +454,7 @@ export default function ProfitMarginsPage() {
               </button>
               <button
                 onClick={() => setCollapsedSections({
-                  summary: false,
+                  summary: true,
                   topPerformers: true,
                   categoryAnalysis: true,
                   bulkShipping: true,
@@ -387,6 +465,14 @@ export default function ProfitMarginsPage() {
                 className="px-3 py-1 bg-gray-600 text-white text-sm rounded hover:bg-gray-700 transition-colors"
               >
                 Collapse All
+              </button>
+              <button
+                onClick={bulkUpdateShippingCost}
+                disabled={loading}
+                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                title="Set shipping cost to $3.00 for all books"
+              >
+                Set All Shipping to $3.00
               </button>
             </div>
           </div>
@@ -644,141 +730,7 @@ export default function ProfitMarginsPage() {
 
           {/* Search Bar and Books Table */}
           <CollapsibleSection title="📚 Books Profit Analysis Table" section="booksTable">
-            {/* Search Bar */}
-            {/* Book Selection Search */}
-          <div className="mb-6">
-            <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center justify-between">
-              <div className="flex-1 max-w-lg">
-                <label htmlFor="bookSearch" className="block text-sm font-semibold text-gray-800 mb-3">
-                  📚 Focus on Specific Book
-                </label>
-                <div className="relative book-search-container">
-                  <input
-                    id="bookSearch"
-                    type="text"
-                    placeholder="Type book title to search and focus on specific book..."
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value.trim().length >= 2) {
-                        searchBooks(value);
-                        setShowBookSuggestions(true);
-                      } else {
-                        setBookSuggestions([]);
-                        setShowBookSuggestions(false);
-                      }
-                    }}
-                    onFocus={() => {
-                      if (bookSuggestions.length > 0) {
-                        setShowBookSuggestions(true);
-                      }
-                    }}
-                    className="w-full px-6 py-4 pl-12 pr-12 border-2 border-gray-200 rounded-xl text-base text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 font-medium shadow-sm hover:border-gray-300 transition-all duration-200"
-                    autoComplete="off"
-                  />
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </div>
-                  
-                  {/* Book Suggestions */}
-                  {showBookSuggestions && bookSuggestions.length > 0 && (
-                    <div className="absolute z-20 w-full mt-1 bg-white border-2 border-gray-200 rounded-xl shadow-xl max-h-60 overflow-y-auto">
-                      {bookSuggestions.map((book) => (
-                        <button
-                          key={book.id}
-                          onClick={() => selectBook(book)}
-                          className="w-full px-4 py-3 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0 transition-colors"
-                        >
-                          <div className="font-medium text-gray-900">{book.title}</div>
-                          <div className="text-sm text-gray-600">
-                            by {book.author} • ${book.price.toFixed(2)} • {book.stock} in stock
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              {selectedBookId && (
-                <div className="flex items-center gap-3">
-                  <div className="text-sm text-gray-600 bg-blue-50 px-4 py-3 rounded-lg border border-blue-200">
-                    <span className="font-medium">
-                      🎯 Focused on specific book • <span className="text-blue-600">{filteredProfitData.length}</span> result
-                    </span>
-                  </div>
-                  <button
-                    onClick={clearBookSelection}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium"
-                  >
-                    Clear Focus
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
 
-          {/* General Search Bar */}
-          <div className="mb-6">
-            <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-center justify-between">
-              <div className="flex-1 max-w-lg">
-                <label htmlFor="search" className="block text-sm font-semibold text-gray-800 mb-3">
-                  🔍 Search Books
-                </label>
-                <div className="relative">
-                  <input
-                    id="search"
-                    type="text"
-                    placeholder="Type to search by title, author, category, or format..."
-                    value={searchQuery}
-                    onChange={handleSearchChange}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Escape') {
-                        setSearchQuery("");
-                        setFilteredProfitData(profitData);
-                      }
-                    }}
-                    className="w-full px-6 py-4 pl-12 pr-12 border-2 border-gray-200 rounded-xl text-base text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-4 focus:ring-blue-500/20 focus:border-blue-500 font-medium shadow-sm hover:border-gray-300 transition-all duration-200"
-                    autoComplete="off"
-                  />
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <svg className="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                  </div>
-                  {searchQuery && (
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setSearchQuery("");
-                        setFilteredProfitData(profitData);
-                      }}
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center group"
-                      title="Clear search (Esc)"
-                    >
-                      <div className="p-2 rounded-lg bg-gray-100 group-hover:bg-gray-200 transition-colors">
-                        <svg className="h-5 w-5 text-gray-500 group-hover:text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </div>
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="text-sm text-gray-600 bg-gray-50 px-4 py-3 rounded-lg border">
-                {searchQuery ? (
-                  <span className="font-medium">
-                    📚 Showing <span className="text-blue-600">{filteredProfitData.length}</span> of <span className="text-gray-800">{profitData.length}</span> books
-                  </span>
-                ) : (
-                  <span className="font-medium">
-                    📚 <span className="text-gray-800">{profitData.length}</span> books total
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
 
           {/* Books Table */}
           <div className="overflow-x-auto">
@@ -788,46 +740,146 @@ export default function ProfitMarginsPage() {
               <div className="text-center py-8 text-gray-500">No books found</div>
             ) : filteredProfitData.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
-                {searchQuery ? 'No books match your search criteria' : 'No profit data available'}
+                {'No profit data available'}
               </div>
             ) : (
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Book Details
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                      onClick={() => handleSort('title')}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Book Details</span>
+                        {sortField === 'title' && (
+                          <span className="text-blue-500">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Cost Price
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                      onClick={() => handleSort('costPrice')}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Cost Price</span>
+                        {sortField === 'costPrice' && (
+                          <span className="text-blue-500">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Shipping Cost
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                      onClick={() => handleSort('shippingCost')}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Shipping Cost</span>
+                        {sortField === 'shippingCost' && (
+                          <span className="text-blue-500">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total Cost
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                      onClick={() => handleSort('totalCost')}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Total Cost</span>
+                        {sortField === 'totalCost' && (
+                          <span className="text-blue-500">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Selling Price
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                      onClick={() => handleSort('sellingPrice')}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Selling Price</span>
+                        {sortField === 'sellingPrice' && (
+                          <span className="text-blue-500">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Profit Amount
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                      onClick={() => handleSort('profitAmount')}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Profit Amount</span>
+                        {sortField === 'profitAmount' && (
+                          <span className="text-blue-500">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Profit Margin
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                      onClick={() => handleSort('profitMargin')}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Profit Margin</span>
+                        {sortField === 'profitMargin' && (
+                          <span className="text-blue-500">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Return on Investment
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                      onClick={() => handleSort('roi')}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Return on Investment</span>
+                        {sortField === 'roi' && (
+                          <span className="text-blue-500">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Stock
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                      onClick={() => handleSort('stock')}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Stock</span>
+                        {sortField === 'stock' && (
+                          <span className="text-blue-500">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total Potential Profit
+                    <th 
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                      onClick={() => handleSort('totalPotentialProfit')}
+                    >
+                      <div className="flex items-center space-x-1">
+                        <span>Total Potential Profit</span>
+                        {sortField === 'totalPotentialProfit' && (
+                          <span className="text-blue-500">
+                            {sortDirection === 'asc' ? '↑' : '↓'}
+                          </span>
+                        )}
+                      </div>
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredProfitData && filteredProfitData.length > 0 && filteredProfitData.map((item) => (
+                  {filteredProfitData && filteredProfitData.length > 0 && getSortedData(filteredProfitData).map((item) => (
                     <tr key={item.book.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
@@ -901,13 +953,65 @@ export default function ProfitMarginsPage() {
                             </button>
                           </div>
                         )}
-                        {/* Shipping Cost Display */}
-                        <div className="text-xs text-gray-500 mt-2">
-                          Shipping: {item.book.shippingCost ? `$${item.book.shippingCost.toFixed(2)}` : 'Not set'}
-                        </div>
+
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {item.book.shippingCost ? `$${item.book.shippingCost.toFixed(2)}` : 'Not set'}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {editingShipping[item.book.id] !== undefined ? (
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="0.00"
+                              value={editingShipping[item.book.id]}
+                              onChange={(e) => handleShippingCostChange(item.book.id, e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  handleShippingCostSubmit(item.book.id);
+                                } else if (e.key === 'Escape') {
+                                  handleShippingCostCancel(item.book.id);
+                                }
+                              }}
+                              className="w-24 px-3 py-2 border-2 border-blue-300 rounded-lg text-sm text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium"
+                              autoFocus
+                            />
+                            <div className="flex space-x-1">
+                              <button
+                                onClick={() => handleShippingCostSubmit(item.book.id)}
+                                disabled={saving === item.book.id}
+                                className="px-3 py-2 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 disabled:bg-gray-400 font-medium"
+                                title="Save (Enter)"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={() => handleShippingCostCancel(item.book.id)}
+                                className="px-3 py-2 bg-gray-500 text-white text-xs rounded-lg hover:bg-gray-600 font-medium"
+                                title="Cancel (Esc)"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm text-gray-900 font-medium">
+                              {item.book.shippingCost ? `$${item.book.shippingCost.toFixed(2)}` : 'Not set'}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                setEditingShipping(prev => ({ 
+                                  ...prev, 
+                                  [item.book.id]: item.book.shippingCost?.toString() || '0' 
+                                }));
+                              }}
+                              className="px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-lg hover:bg-blue-200 font-medium transition-colors"
+                            >
+                              Edit
+                            </button>
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         ${item.totalCost.toFixed(2)}

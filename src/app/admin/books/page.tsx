@@ -41,6 +41,8 @@ export default function AdminBooksPage() {
   const formRef = useRef<HTMLFormElement | null>(null);
   const formAnchorRef = useRef<HTMLDivElement | null>(null);
   const [searchText, setSearchText] = useState("");
+  const [sortField, setSortField] = useState<string>('title');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   function isValidImageSrc(src: unknown): src is string {
     return (
@@ -87,6 +89,70 @@ export default function AdminBooksPage() {
     const res = await fetch("/api/books/categories?bypassCache=1", { cache: 'no-store' });
     const data = await res.json();
     setCategories(data);
+  }
+
+  // Sorting function
+  function handleSort(field: string) {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  }
+
+  // Sort data based on current sort field and direction
+  function getSortedData(data: Book[]) {
+    return [...data].sort((a, b) => {
+      let aValue: string | number | boolean;
+      let bValue: string | number | boolean;
+
+      switch (sortField) {
+        case 'title':
+          aValue = a.title.toLowerCase();
+          bValue = b.title.toLowerCase();
+          break;
+        case 'author':
+          aValue = a.author.toLowerCase();
+          bValue = b.author.toLowerCase();
+          break;
+        case 'format':
+          aValue = (a.format || '').toLowerCase();
+          bValue = (b.format || '').toLowerCase();
+          break;
+        case 'categories':
+          aValue = a.categories.join(', ').toLowerCase();
+          bValue = b.categories.join(', ').toLowerCase();
+          break;
+        case 'stock':
+          aValue = a.stock;
+          bValue = b.stock;
+          break;
+        case 'price':
+          aValue = a.price;
+          bValue = b.price;
+          break;
+        case 'bestseller':
+          aValue = a.isBestseller ? 1 : 0;
+          bValue = b.isBestseller ? 1 : 0;
+          break;
+        case 'createdAt':
+          aValue = new Date(a.createdAt).getTime();
+          bValue = new Date(b.createdAt).getTime();
+          break;
+        case 'updatedAt':
+          aValue = new Date(a.updatedAt).getTime();
+          bValue = new Date(b.updatedAt).getTime();
+          break;
+        default:
+          aValue = a.title.toLowerCase();
+          bValue = b.title.toLowerCase();
+      }
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
   }
 
   function startEdit(book: Book) {
@@ -420,13 +486,97 @@ export default function AdminBooksPage() {
         <table className="w-full text-sm md:text-base">
           <thead>
             <tr className="bg-gray-100 text-gray-700">
-              <th className="font-semibold py-3 px-2 text-left">Title</th>
-              <th className="font-semibold py-3 px-2 text-left hidden md:table-cell">Author</th>
-              <th className="font-semibold py-3 px-2 text-left hidden md:table-cell">Format</th>
-              <th className="font-semibold py-3 px-2 text-left hidden md:table-cell">Categories</th>
-              <th className="font-semibold py-3 px-2 text-left">Stock</th>
-              <th className="font-semibold py-3 px-2 text-left">Price</th>
-              <th className="font-semibold py-3 px-2 text-left">Bestseller</th>
+              <th 
+                className="font-semibold py-3 px-2 text-left cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                onClick={() => handleSort('title')}
+              >
+                <div className="flex items-center space-x-1">
+                  <span>Title</span>
+                  {sortField === 'title' && (
+                    <span className="text-blue-500">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </div>
+              </th>
+              <th 
+                className="font-semibold py-3 px-2 text-left hidden md:table-cell cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                onClick={() => handleSort('author')}
+              >
+                <div className="flex items-center space-x-1">
+                  <span>Author</span>
+                  {sortField === 'author' && (
+                    <span className="text-blue-500">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </div>
+              </th>
+              <th 
+                className="font-semibold py-3 px-2 text-left hidden md:table-cell cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                onClick={() => handleSort('format')}
+              >
+                <div className="flex items-center space-x-1">
+                  <span>Format</span>
+                  {sortField === 'format' && (
+                    <span className="text-blue-500">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </div>
+              </th>
+              <th 
+                className="font-semibold py-3 px-2 text-left hidden md:table-cell cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                onClick={() => handleSort('categories')}
+              >
+                <div className="flex items-center space-x-1">
+                  <span>Categories</span>
+                  {sortField === 'categories' && (
+                    <span className="text-blue-500">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </div>
+              </th>
+              <th 
+                className="font-semibold py-3 px-2 text-left cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                onClick={() => handleSort('stock')}
+              >
+                <div className="flex items-center space-x-1">
+                  <span>Stock</span>
+                  {sortField === 'stock' && (
+                    <span className="text-blue-500">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </div>
+              </th>
+              <th 
+                className="font-semibold py-3 px-2 text-left cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                onClick={() => handleSort('price')}
+              >
+                <div className="flex items-center space-x-1">
+                  <span>Price</span>
+                  {sortField === 'price' && (
+                    <span className="text-blue-500">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </div>
+              </th>
+              <th 
+                className="font-semibold py-3 px-2 text-left cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                onClick={() => handleSort('bestseller')}
+              >
+                <div className="flex items-center space-x-1">
+                  <span>Bestseller</span>
+                  {sortField === 'bestseller' && (
+                    <span className="text-blue-500">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </div>
+              </th>
               <th className="font-semibold py-3 px-2 text-left">Actions</th>
             </tr>
           </thead>
@@ -435,7 +585,7 @@ export default function AdminBooksPage() {
               <tr>
                 <td colSpan={6} className="text-center py-8 text-gray-400">No books found.</td>
               </tr>
-            ) : filteredBooks.map((book, idx) => (
+            ) : getSortedData(filteredBooks).map((book, idx) => (
               <tr
                 key={book.id}
                 className={

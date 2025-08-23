@@ -223,9 +223,16 @@ export default function SuccessClient() {
         <h1 className="text-3xl sm:text-4xl font-extrabold mb-2 text-emerald-700">Thank you for your order!</h1>
         <p className="text-gray-700">
           {order.fulfillmentType === 'pickup'
-            ? 'We will contact you shortly with local pickup instructions.'
+            ? 'This was an in-person sale. We will contact you shortly with local pickup instructions.'
             : 'Your order will be shipped soon. You will receive a confirmation email with tracking details.'}
         </p>
+        {order.fulfillmentType === 'pickup' && (
+          <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg inline-block">
+            <p className="text-sm text-emerald-700">
+              📍 <strong>In-Person Sale:</strong> Customer information collected during payment
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Content */}
@@ -309,11 +316,15 @@ export default function SuccessClient() {
                 </div>
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-gray-600">Name</span>
-                  <span className="text-gray-900">{order.customerName || 'N/A'}</span>
+                  <span className="text-gray-900">
+                    {order.customerName || (order.fulfillmentType === 'pickup' ? 'In-Person Sale' : 'N/A')}
+                  </span>
                 </div>
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-gray-600">Email</span>
-                  <span className="text-gray-900">{order.email || 'N/A'}</span>
+                  <span className="text-gray-900">
+                    {order.email || (order.fulfillmentType === 'pickup' ? 'Not collected (in-person sale)' : 'N/A')}
+                  </span>
                 </div>
                 <div className="border-t border-gray-100 pt-3">
                   <div className="text-gray-600 mb-1">{order.fulfillmentType === 'pickup' ? 'Pickup Details' : 'Shipping Address'}</div>
