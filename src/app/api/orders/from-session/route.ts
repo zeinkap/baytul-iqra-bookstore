@@ -26,7 +26,6 @@ export async function POST(req: NextRequest) {
     // Extract line items
     const lineItems = await stripe.checkout.sessions.listLineItems(sessionId);
     const productItems: { title: string; quantity: number; price: number }[] = [];
-    let totalCents = 0;
     let shippingCostCents = 0;
     
     for (const li of lineItems.data) {
@@ -37,7 +36,6 @@ export async function POST(req: NextRequest) {
       
       if (name?.toLowerCase() === 'shipping') {
         shippingCostCents += lineTotal;
-        totalCents += lineTotal;
         continue;
       }
       
@@ -55,16 +53,27 @@ export async function POST(req: NextRequest) {
         const originalPrice = Math.max(originalUnitPrice, unit * 0.8); // Prevent going below 80% of current price
         
         productItems.push({ title: name || 'Item', quantity: qty, price: originalPrice / 100 });
-        totalCents += (originalPrice * qty);
         shippingCostCents += embeddedShippingCost;
       } else {
         // Regular line item without embedded shipping
         productItems.push({ title: name || 'Item', quantity: qty, price: unit / 100 });
-        totalCents += lineTotal;
       }
     }
     
     const customerDetails = session.customer_details;
+    const sessionWithShipping = session as Stripe.Checkout.Session & { 
+      shipping_details?: { 
+        name?: string; 
+        address?: { 
+          line1?: string; 
+          line2?: string; 
+          city?: string; 
+          state?: string; 
+          postal_code?: string; 
+          country?: string; 
+        } 
+      } 
+    };
     
     // Log customer details for debugging
     console.log('Customer details from session (from-session):', {
@@ -72,9 +81,9 @@ export async function POST(req: NextRequest) {
       sessionId: session.id,
       customerEmail: customerDetails?.email || session.customer_email,
       customerName: customerDetails?.name,
-      hasShippingDetails: !!session.shipping_details,
+      hasShippingDetails: !!sessionWithShipping.shipping_details,
       hasCustomerAddress: !!customerDetails?.address,
-      shippingDetailsName: session.shipping_details?.name,
+      shippingDetailsName: sessionWithShipping.shipping_details?.name,
       fulfillmentType
     });
     
@@ -90,16 +99,17 @@ export async function POST(req: NextRequest) {
     
     if (fulfillmentType === 'shipping') {
       // First try to get shipping info from session.shipping_details (Stripe's dedicated shipping field)
-      if (session.shipping_details?.address) {
-        const shipDetails = session.shipping_details;
+      if (sessionWithShipping.shipping_details?.address) {
+        const shipDetails = sessionWithShipping.shipping_details;
+        const address = shipDetails.address!;
         shippingAddress = {
           name: shipDetails.name ?? undefined,
-          line1: shipDetails.address.line1 ?? undefined,
-          line2: shipDetails.address.line2 ?? undefined,
-          city: shipDetails.address.city ?? undefined,
-          state: shipDetails.address.state ?? undefined,
-          postal_code: shipDetails.address.postal_code ?? undefined,
-          country: shipDetails.address.country ?? undefined,
+          line1: address.line1 ?? undefined,
+          line2: address.line2 ?? undefined,
+          city: address.city ?? undefined,
+          state: address.state ?? undefined,
+          postal_code: address.postal_code ?? undefined,
+          country: address.country ?? undefined,
         };
         console.log('Shipping address retrieved from session.shipping_details (from-session):', shippingAddress);
       }
@@ -150,7 +160,7 @@ export async function POST(req: NextRequest) {
         console.error('WARNING: Shipping address not found in from-session!', {
           orderId,
           sessionId: session.id,
-          hasShippingDetails: !!session.shipping_details,
+          hasShippingDetails: !!sessionWithShipping.shipping_details,
           hasCustomerDetails: !!customerDetails,
           hasCustomerAddress: !!customerDetails?.address
         });

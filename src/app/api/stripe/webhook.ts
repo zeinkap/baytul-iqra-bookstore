@@ -86,7 +86,6 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   // Build order items from line_items
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
   const productItems: { title: string; quantity: number; price: number }[] = [];
-  let totalCents = 0;
   let shippingCostCents = 0;
   
   for (const li of lineItems.data) {
@@ -97,7 +96,6 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     
     if (name?.toLowerCase() === 'shipping') {
       shippingCostCents += lineTotal;
-      totalCents += lineTotal;
       continue;
     }
     
@@ -115,17 +113,28 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       const originalPrice = Math.max(originalUnitPrice, unit * 0.8); // Prevent going below 80% of current price
       
       productItems.push({ title: name || 'Item', quantity: qty, price: originalPrice / 100 });
-      totalCents += (originalPrice * qty);
       shippingCostCents += embeddedShippingCost;
     } else {
       // Regular line item without embedded shipping
       productItems.push({ title: name || 'Item', quantity: qty, price: (unit / 100) });
-      totalCents += lineTotal;
     }
   }
 
   // Map shipping address
   const customerDetails = session.customer_details;
+  const sessionWithShipping = session as Stripe.Checkout.Session & { 
+    shipping_details?: { 
+      name?: string; 
+      address?: { 
+        line1?: string; 
+        line2?: string; 
+        city?: string; 
+        state?: string; 
+        postal_code?: string; 
+        country?: string; 
+      } 
+    } 
+  };
   
   // Log customer details for debugging
   console.log('Customer details from session (webhook.ts):', {
@@ -133,9 +142,9 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     sessionId: session.id,
     customerEmail: customerDetails?.email || session.customer_email,
     customerName: customerDetails?.name,
-    hasShippingDetails: !!session.shipping_details,
+    hasShippingDetails: !!sessionWithShipping.shipping_details,
     hasCustomerAddress: !!customerDetails?.address,
-    shippingDetailsName: session.shipping_details?.name,
+    shippingDetailsName: sessionWithShipping.shipping_details?.name,
     fulfillmentType
   });
   
@@ -151,16 +160,17 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   
   if (fulfillmentType === 'shipping') {
     // First try to get shipping info from session.shipping_details (Stripe's dedicated shipping field)
-    if (session.shipping_details?.address) {
-      const shipDetails = session.shipping_details;
+    if (sessionWithShipping.shipping_details?.address) {
+      const shipDetails = sessionWithShipping.shipping_details;
+      const address = shipDetails.address!;
       shippingAddress = {
         name: shipDetails.name ?? undefined,
-        line1: shipDetails.address.line1 ?? undefined,
-        line2: shipDetails.address.line2 ?? undefined,
-        city: shipDetails.address.city ?? undefined,
-        state: shipDetails.address.state ?? undefined,
-        postal_code: shipDetails.address.postal_code ?? undefined,
-        country: shipDetails.address.country ?? undefined,
+        line1: address.line1 ?? undefined,
+        line2: address.line2 ?? undefined,
+        city: address.city ?? undefined,
+        state: address.state ?? undefined,
+        postal_code: address.postal_code ?? undefined,
+        country: address.country ?? undefined,
       };
       console.log('Shipping address retrieved from session.shipping_details (webhook.ts):', shippingAddress);
     }
@@ -211,7 +221,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       console.error('WARNING: Shipping address not found in webhook.ts!', {
         orderId,
         sessionId: session.id,
-        hasShippingDetails: !!session.shipping_details,
+        hasShippingDetails: !!sessionWithShipping.shipping_details,
         hasCustomerDetails: !!customerDetails,
         hasCustomerAddress: !!customerDetails?.address
       });
@@ -240,7 +250,6 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     discountAmountCents,
     pickupLocation,
     productItems,
-    totalCents,
     shippingCostCents,
     shippingAddress,
     email: customerDetails?.email || session.customer_email || undefined,
@@ -270,18 +279,17 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   // For payment links, we need to reconstruct the line items from the payment intent
   // Since payment links don't provide line items directly, we'll need to store this info differently
   // For now, we'll create a basic order with the amount from the payment intent
-  const totalCents = paymentIntent.amount;
   
   // Try to get line items from the payment link if possible
   const productItems: { title: string; quantity: number; price: number }[] = [];
   
   // If we have orderId, we might be able to get the original cart items from the database
   // For now, create a generic item entry
-  if (totalCents > 0) {
+  if (paymentIntent.amount > 0) {
     productItems.push({ 
       title: 'Book Purchase', 
       quantity: 1, 
-      price: (totalCents / 100) 
+      price: (paymentIntent.amount / 100) 
     });
   }
 
@@ -326,7 +334,6 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     discountAmountCents,
     pickupLocation,
     productItems,
-    totalCents,
     shippingCostCents: 0, // Payment links typically don't have separate shipping line items
     shippingAddress,
     email: paymentIntent.receipt_email || undefined,
@@ -341,7 +348,6 @@ async function createOrder({
   discountAmountCents,
   pickupLocation,
   productItems,
-  totalCents,
   shippingCostCents,
   shippingAddress,
   email,
@@ -353,7 +359,6 @@ async function createOrder({
   discountAmountCents: number;
   pickupLocation?: string;
   productItems: { title: string; quantity: number; price: number }[];
-  totalCents: number;
   shippingCostCents?: number;
   shippingAddress?: {
     name?: string;
