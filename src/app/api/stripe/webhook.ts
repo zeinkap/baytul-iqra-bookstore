@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
-import { sendOrderConfirmationEmail } from '@/lib/sendEmail';
+import { sendOrderConfirmationEmail, sendOrderNotificationToSales } from '@/lib/sendEmail';
 
 // Test endpoint to verify webhook connectivity
 export async function GET() {
@@ -87,25 +87,58 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
   const productItems: { title: string; quantity: number; price: number }[] = [];
   let totalCents = 0;
+  let shippingCostCents = 0;
+  
   for (const li of lineItems.data) {
     const name = li.description || li.price?.product as unknown as string;
     const qty = li.quantity || 1;
     const unit = (li.price?.unit_amount ?? 0);
     const lineTotal = unit * qty;
     
-    // For payment links, shipping costs are embedded in product prices
-    // For regular checkout sessions, we still need to exclude shipping line items
     if (name?.toLowerCase() === 'shipping') {
-      totalCents += lineTotal; // still count for finalTotal
+      shippingCostCents += lineTotal;
+      totalCents += lineTotal;
       continue;
     }
     
-    productItems.push({ title: name || 'Item', quantity: qty, price: (unit / 100) });
-    totalCents += lineTotal;
+    // Check if this is a regular checkout session (where shipping is embedded) or payment link
+    // For regular checkout, shipping might be embedded in product prices
+    const isEmbeddedShipping = fulfillmentType === 'shipping' && !lineItems.data.some(item => 
+      (item.description || '').toLowerCase() === 'shipping'
+    );
+    
+    if (isEmbeddedShipping) {
+      // For embedded shipping, we need to extract the original product price
+      // The shipping cost is embedded proportionally, so we need to reverse-calculate
+      const embeddedShippingCost = 500; // $5.00 in cents
+      const originalUnitPrice = unit - Math.round(embeddedShippingCost / lineItems.data.length / qty);
+      const originalPrice = Math.max(originalUnitPrice, unit * 0.8); // Prevent going below 80% of current price
+      
+      productItems.push({ title: name || 'Item', quantity: qty, price: originalPrice / 100 });
+      totalCents += (originalPrice * qty);
+      shippingCostCents += embeddedShippingCost;
+    } else {
+      // Regular line item without embedded shipping
+      productItems.push({ title: name || 'Item', quantity: qty, price: (unit / 100) });
+      totalCents += lineTotal;
+    }
   }
 
-  // Map shipping address: fetch from PaymentIntent.shipping if available; fall back to customer_details.address
+  // Map shipping address
   const customerDetails = session.customer_details;
+  
+  // Log customer details for debugging
+  console.log('Customer details from session (webhook.ts):', {
+    orderId,
+    sessionId: session.id,
+    customerEmail: customerDetails?.email || session.customer_email,
+    customerName: customerDetails?.name,
+    hasShippingDetails: !!session.shipping_details,
+    hasCustomerAddress: !!customerDetails?.address,
+    shippingDetailsName: session.shipping_details?.name,
+    fulfillmentType
+  });
+  
   let shippingAddress: {
     name?: string;
     line1?: string;
@@ -115,29 +148,51 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     postal_code?: string;
     country?: string;
   } | undefined = undefined;
+  
   if (fulfillmentType === 'shipping') {
-    try {
-      const paymentIntentId = typeof session.payment_intent === 'string'
-        ? session.payment_intent
-        : (session.payment_intent && 'id' in session.payment_intent ? (session.payment_intent as { id: string }).id : undefined);
-      if (paymentIntentId) {
-        const pi = await stripe.paymentIntents.retrieve(paymentIntentId as string);
-        const ship = (pi as Stripe.PaymentIntent).shipping;
-        if (ship?.address) {
-          shippingAddress = {
-            name: ship.name ?? undefined,
-            line1: ship.address.line1 ?? undefined,
-            line2: ship.address.line2 ?? undefined,
-            city: ship.address.city ?? undefined,
-            state: ship.address.state ?? undefined,
-            postal_code: ship.address.postal_code ?? undefined,
-            country: ship.address.country ?? undefined,
-          };
-        }
-      }
-    } catch {
-      // ignore and fall back to billing
+    // First try to get shipping info from session.shipping_details (Stripe's dedicated shipping field)
+    if (session.shipping_details?.address) {
+      const shipDetails = session.shipping_details;
+      shippingAddress = {
+        name: shipDetails.name ?? undefined,
+        line1: shipDetails.address.line1 ?? undefined,
+        line2: shipDetails.address.line2 ?? undefined,
+        city: shipDetails.address.city ?? undefined,
+        state: shipDetails.address.state ?? undefined,
+        postal_code: shipDetails.address.postal_code ?? undefined,
+        country: shipDetails.address.country ?? undefined,
+      };
+      console.log('Shipping address retrieved from session.shipping_details (webhook.ts):', shippingAddress);
     }
+    
+    // Fallback to payment intent shipping details
+    if (!shippingAddress) {
+      try {
+        const paymentIntentId = typeof session.payment_intent === 'string'
+          ? session.payment_intent
+          : (session.payment_intent && 'id' in session.payment_intent ? (session.payment_intent as { id: string }).id : undefined);
+        if (paymentIntentId) {
+          const pi = await stripe.paymentIntents.retrieve(paymentIntentId as string);
+          const ship = (pi as Stripe.PaymentIntent).shipping;
+          if (ship?.address) {
+            shippingAddress = {
+              name: ship.name ?? undefined,
+              line1: ship.address.line1 ?? undefined,
+              line2: ship.address.line2 ?? undefined,
+              city: ship.address.city ?? undefined,
+              state: ship.address.state ?? undefined,
+              postal_code: ship.address.postal_code ?? undefined,
+              country: ship.address.country ?? undefined,
+            };
+            console.log('Shipping address retrieved from payment intent (webhook.ts):', shippingAddress);
+          }
+        }
+      } catch {
+        // ignore and fall back to billing
+      }
+    }
+    
+    // Last resort: use billing address
     if (!shippingAddress && customerDetails?.address) {
       const billingAddr = customerDetails.address;
       shippingAddress = {
@@ -149,8 +204,34 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         postal_code: billingAddr.postal_code ?? undefined,
         country: billingAddr.country ?? undefined,
       };
+      console.log('Shipping address fallback to billing address (webhook.ts):', shippingAddress);
+    }
+    
+    if (!shippingAddress) {
+      console.error('WARNING: Shipping address not found in webhook.ts!', {
+        orderId,
+        sessionId: session.id,
+        hasShippingDetails: !!session.shipping_details,
+        hasCustomerDetails: !!customerDetails,
+        hasCustomerAddress: !!customerDetails?.address
+      });
     }
   }
+
+  // Determine customer name with priority fallback
+  // Priority: shipping name > customer details name
+  const customerName = 
+    (fulfillmentType === 'shipping' ? shippingAddress?.name : undefined) || 
+    customerDetails?.name || 
+    undefined;
+  
+  console.log('Final customer data for order creation (webhook.ts):', {
+    orderId,
+    customerName,
+    email: customerDetails?.email || session.customer_email,
+    hasShippingAddress: !!shippingAddress,
+    shippingAddressName: shippingAddress?.name
+  });
 
   await createOrder({
     orderId,
@@ -160,9 +241,10 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     pickupLocation,
     productItems,
     totalCents,
+    shippingCostCents,
     shippingAddress,
-    email: session.customer_details?.email || session.customer_email || undefined,
-    customerName: shippingAddress?.name || session.customer_details?.name || undefined,
+    email: customerDetails?.email || session.customer_email || undefined,
+    customerName: customerName,
   });
 }
 
@@ -174,6 +256,16 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   const fulfillmentType = paymentIntent.metadata?.fulfillmentType as 'shipping' | 'pickup' | undefined;
   const discountAmountCents = paymentIntent.metadata?.discountAmount ? Number(paymentIntent.metadata.discountAmount) : 0;
   const pickupLocation = paymentIntent.metadata?.pickupLocation || undefined;
+
+  // Log payment intent details for debugging
+  console.log('Payment intent details (payment link):', {
+    orderId,
+    paymentIntentId: paymentIntent.id,
+    hasShipping: !!paymentIntent.shipping,
+    shippingName: paymentIntent.shipping?.name,
+    receiptEmail: paymentIntent.receipt_email,
+    fulfillmentType
+  });
 
   // For payment links, we need to reconstruct the line items from the payment intent
   // Since payment links don't provide line items directly, we'll need to store this info differently
@@ -215,7 +307,17 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
       postal_code: address.postal_code ?? undefined,
       country: address.country ?? undefined,
     };
+    console.log('Shipping address from payment intent:', shippingAddress);
   }
+
+  const customerName = shippingAddress?.name || undefined;
+  
+  console.log('Final customer data for order creation (payment link):', {
+    orderId,
+    customerName,
+    email: paymentIntent.receipt_email,
+    hasShippingAddress: !!shippingAddress
+  });
 
   await createOrder({
     orderId,
@@ -225,9 +327,10 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     pickupLocation,
     productItems,
     totalCents,
+    shippingCostCents: 0, // Payment links typically don't have separate shipping line items
     shippingAddress,
     email: paymentIntent.receipt_email || undefined,
-    customerName: shippingAddress?.name || undefined,
+    customerName: customerName,
   });
 }
 
@@ -239,6 +342,7 @@ async function createOrder({
   pickupLocation,
   productItems,
   totalCents,
+  shippingCostCents,
   shippingAddress,
   email,
   customerName,
@@ -250,6 +354,7 @@ async function createOrder({
   pickupLocation?: string;
   productItems: { title: string; quantity: number; price: number }[];
   totalCents: number;
+  shippingCostCents?: number;
   shippingAddress?: {
     name?: string;
     line1?: string;
@@ -274,14 +379,27 @@ async function createOrder({
     }
   }
 
+  // Calculate proper totals
+  const subtotal = productItems.reduce((s, it) => s + (it.price * it.quantity), 0);
+  const finalTotal = subtotal + ((shippingCostCents || 0) / 100) - ((discountAmountCents || 0) / 100);
+  
+  console.log('Order totals calculation (webhook):', {
+    orderId,
+    subtotal,
+    shippingCost: (shippingCostCents || 0) / 100,
+    discountAmount: (discountAmountCents || 0) / 100,
+    finalTotal,
+    fulfillmentType
+  });
+
   // Create order after successful payment
   const created = await prisma.order.create({
     data: {
       id: orderId, // use pre-generated id if present
       items: productItems,
-      total: productItems.reduce((s, it) => s + (it.price * it.quantity), 0),
+      total: subtotal, // This should be the subtotal without shipping
       discountAmount: (discountAmountCents || 0) / 100,
-      finalTotal: (totalCents || 0) / 100,
+      finalTotal: finalTotal, // This should include shipping and subtract discount
       promoCodeId: promoCodeId || null,
       fulfillmentType: fulfillmentType || 'shipping',
       pickupLocation: fulfillmentType === 'pickup' ? (pickupLocation || 'Alpharetta, GA') : null,
@@ -316,6 +434,21 @@ async function createOrder({
     } catch (error) {
       console.error('Error sending order confirmation email:', error);
     }
+  }
+
+  // Send sales notification email (always, even if customer email is missing)
+  try {
+    await sendOrderNotificationToSales({
+      orderId: created.id,
+      items: productItems,
+      total: created.total,
+      fulfillmentType: created.fulfillmentType,
+      customerEmail: created.email || 'No email provided',
+      shippingAddress: shippingAddress,
+    });
+    console.log('Sales notification email sent for order:', created.id);
+  } catch (error) {
+    console.error('Error sending sales notification email:', error);
   }
 
   return created;

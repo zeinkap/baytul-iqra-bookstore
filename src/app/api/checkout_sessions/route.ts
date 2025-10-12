@@ -18,23 +18,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No items provided' }, { status: 400 });
     }
 
+    // For payment links, we need a publicly accessible URL
+    // Prioritize NEXT_PUBLIC_BASE_URL for production, fallback to request origin
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || req.nextUrl.origin || 'http://localhost:3000';
     
     console.log('Base URL for image construction:', {
       NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
       requestOrigin: req.nextUrl.origin,
-      finalBaseUrl: baseUrl
+      finalBaseUrl: baseUrl,
+      isLocalhost: baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1')
     });
     
     // Log important info about image URLs for payment links
     if (createPaymentLink && (baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1'))) {
-      console.log('📋 PAYMENT LINK IMAGES NOTE:');
+      console.log('⚠️  PAYMENT LINK IMAGES WARNING:');
       console.log('   Stripe cannot access localhost URLs for images.');
       console.log('   Images will be skipped in payment links during local development.');
-      console.log('   To test with images:');
-      console.log('   1. Deploy to a public URL (Vercel, Netlify, etc.)');
-      console.log('   2. Set NEXT_PUBLIC_BASE_URL environment variable to your public URL');
-      console.log('   3. Or use a service like ngrok to expose localhost');
+      console.log('   To fix this:');
+      console.log('   1. Set NEXT_PUBLIC_BASE_URL=https://www.baytuliqra.com in your .env file');
+      console.log('   2. Or deploy to production and create payment links from there');
+      console.log('   3. Or use ngrok to expose localhost');
     }
 
     // Create product line items first (without shipping)
@@ -225,6 +228,22 @@ export async function POST(req: NextRequest) {
         return item;
       });
 
+      // Prepare cart items JSON (with truncated titles if needed)
+      const cartItemsForMetadata = items.map(item => ({
+        title: item.title.length > 50 ? item.title.substring(0, 47) + '...' : item.title,
+        price: item.price,
+        quantity: item.quantity
+      }));
+      const cartItemsJson = JSON.stringify(cartItemsForMetadata);
+
+      // Log what images are being sent to Stripe
+      console.log('Creating payment link with line items:', enhancedLineItems.map((item, idx) => ({
+        index: idx,
+        name: item.price_data?.product_data?.name,
+        images: item.price_data?.product_data?.images,
+        hasImage: !!(item.price_data?.product_data?.images && item.price_data?.product_data?.images.length > 0)
+      })));
+
       const paymentLink = await stripe.paymentLinks.create({
         line_items: enhancedLineItems as Stripe.PaymentLinkCreateParams.LineItem[],
         after_completion: { type: 'redirect', redirect: { url: `${req.nextUrl.origin}/checkout/success?orderId=${orderId}` } },
@@ -234,15 +253,11 @@ export async function POST(req: NextRequest) {
           fulfillmentType,
           discountAmount: discountAmount ? String(discountAmount) : '0',
           pickupLocation: pickupLocation || '',
-          shippingIncluded: fulfillmentType === 'shipping' ? 'true' : 'false',
-          shippingCost: fulfillmentType === 'shipping' ? '500' : '0',
           customerPhone: phone || '',
-          // Store only essential cart info to stay under 500 character limit
+          // Store cart items as JSON for display in admin panel
+          cartItems: cartItemsJson,
           itemCount: String(items.length),
           totalItems: String(items.reduce((sum, item) => sum + item.quantity, 0)),
-          // Store just book IDs and quantities instead of full JSON
-          bookIds: items.map(item => item.id).join(','),
-          quantities: items.map(item => item.quantity).join(','),
         },
         // Add payment method types for payment links
         payment_method_types: ['card'],
@@ -254,6 +269,10 @@ export async function POST(req: NextRequest) {
         billing_address_collection: 'required',
         // Add customer email collection for payment links
         customer_creation: 'always',
+        // Add phone number collection for payment links
+        phone_number_collection: {
+          enabled: true
+        },
       });
 
       console.log('Payment link created successfully:', {
@@ -294,6 +313,14 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Prepare cart items JSON for regular checkout (with truncated titles if needed)
+    const cartItemsForMetadata = items.map(item => ({
+      title: item.title.length > 50 ? item.title.substring(0, 47) + '...' : item.title,
+      price: item.price,
+      quantity: item.quantity
+    }));
+    const cartItemsJson = JSON.stringify(cartItemsForMetadata);
+
     // Regular Stripe Checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -301,24 +328,26 @@ export async function POST(req: NextRequest) {
       mode: 'payment',
       success_url: `${req.nextUrl.origin}/checkout/success?orderId=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.nextUrl.origin}/cart`,
-      shipping_address_collection: { allowed_countries: ['US', 'CA'] },
+      // Only collect shipping address if fulfillment type is shipping
+      ...(fulfillmentType === 'shipping' && {
+        shipping_address_collection: { allowed_countries: ['US', 'CA'] }
+      }),
       customer_email: email,
       billing_address_collection: 'required', // This will collect customer name
+      phone_number_collection: {
+        enabled: true // Collect phone number for better customer support
+      },
       metadata: { 
         orderId, 
         promoCodeId: promoCodeId || '',
         fulfillmentType,
         discountAmount: discountAmount ? String(discountAmount) : '0',
         pickupLocation: pickupLocation || '',
-        shippingIncluded: fulfillmentType === 'shipping' ? 'true' : 'false',
-        shippingCost: fulfillmentType === 'shipping' ? '500' : '0',
         customerPhone: phone || '',
-        // Store only essential cart info to stay under 500 character limit
+        // Store cart items as JSON for display in admin panel
+        cartItems: cartItemsJson,
         itemCount: String(items.length),
         totalItems: String(items.reduce((sum, item) => sum + item.quantity, 0)),
-        // Store just book IDs and quantities instead of full JSON
-        bookIds: items.map(item => item.id).join(','),
-        quantities: items.map(item => item.quantity).join(','),
       },
     });
 
