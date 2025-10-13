@@ -267,6 +267,9 @@ export async function POST(req: NextRequest) {
         // Don't fail the request if email fails
       }
 
+      // Note: Stock updates are handled after successful payment in webhooks
+      // This endpoint creates orders from completed Stripe sessions
+
       return NextResponse.json(created);
     } catch (err: unknown) {
       // If already created by webhook, return existing idempotently

@@ -203,13 +203,6 @@ export async function POST(req: NextRequest) {
                 imageUrl = constructedUrl;
               }
             }
-            
-            console.log('Payment link image URL constructed:', {
-              originalImage: originalItem.image,
-              baseUrl,
-              constructedUrl: imageUrl || 'Skipped (localhost)',
-              isLocalhost: imageUrl === undefined
-            });
           }
           
           return {

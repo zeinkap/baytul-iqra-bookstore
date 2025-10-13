@@ -84,6 +84,10 @@ export async function POST(req: NextRequest) {
         email,
       },
     });
+
+    // Note: Stock updates are handled after successful payment in webhooks
+    // This endpoint creates orders before payment completion
+
     return NextResponse.json({ id: order.id }, { status: 201 });
   } catch (error) {
     console.error('Failed to create order:', error);
@@ -144,6 +148,10 @@ export async function PUT(req: NextRequest) {
         email: session.customer_details?.email || session.customer_email || undefined,
       },
     });
+
+    // Note: Stock updates are handled after successful payment in webhooks
+    // This endpoint creates orders from completed Stripe sessions
+
     return NextResponse.json(created);
   } catch (error) {
     console.error('Failed to create order from session:', error);

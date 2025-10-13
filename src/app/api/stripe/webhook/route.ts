@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
+import { updateBookStock, extractBookItems, extractBookItemsFromMetadata } from '@/lib/stockManager';
 import { sendOrderConfirmationEmail } from '@/lib/sendEmail';
 
 
@@ -246,18 +247,67 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     country?: string;
   } | undefined = undefined;
 
-  if (fulfillmentType === 'shipping' && paymentIntent.shipping?.address) {
-    const ship = paymentIntent.shipping;
-    const address = ship.address!;
-    shippingAddress = {
-      name: ship.name ?? undefined,
-      line1: address.line1 ?? undefined,
-      line2: address.line2 ?? undefined,
-      city: address.city ?? undefined,
-      state: address.state ?? undefined,
-      postal_code: address.postal_code ?? undefined,
-      country: address.country ?? undefined,
-    };
+  if (fulfillmentType === 'shipping') {
+    console.log('Looking for shipping address in payment intent:', {
+      hasShipping: !!paymentIntent.shipping,
+      shippingData: paymentIntent.shipping,
+      hasCustomer: !!paymentIntent.customer,
+      customerId: paymentIntent.customer
+    });
+
+    // Try to get shipping address from payment intent
+    if (paymentIntent.shipping?.address) {
+      const ship = paymentIntent.shipping;
+      const address = ship.address!;
+      shippingAddress = {
+        name: ship.name ?? undefined,
+        line1: address.line1 ?? undefined,
+        line2: address.line2 ?? undefined,
+        city: address.city ?? undefined,
+        state: address.state ?? undefined,
+        postal_code: address.postal_code ?? undefined,
+        country: address.country ?? undefined,
+      };
+      console.log('Found shipping address in payment intent:', shippingAddress);
+    } else {
+      console.log('No shipping address found in payment intent');
+      
+      // For payment links, try to get shipping address from customer object
+      if (paymentIntent.customer) {
+        try {
+          const customerId = typeof paymentIntent.customer === 'string' 
+            ? paymentIntent.customer 
+            : paymentIntent.customer.id;
+          
+          const customer = await stripe.customers.retrieve(customerId);
+          console.log('Retrieved customer for shipping address:', {
+            hasAddress: !!customer.address,
+            address: customer.address,
+            hasName: !!customer.name,
+            name: customer.name
+          });
+          
+          if (customer.address) {
+            shippingAddress = {
+              name: customer.name ?? undefined,
+              line1: customer.address.line1 ?? undefined,
+              line2: customer.address.line2 ?? undefined,
+              city: customer.address.city ?? undefined,
+              state: customer.address.state ?? undefined,
+              postal_code: customer.address.postal_code ?? undefined,
+              country: customer.address.country ?? undefined,
+            };
+            console.log('Found shipping address in customer object:', shippingAddress);
+          } else {
+            console.log('Customer has no address information');
+          }
+        } catch (error) {
+          console.error('Error retrieving customer for shipping address:', error);
+        }
+      } else {
+        console.log('No customer object in payment intent');
+      }
+    }
   }
 
   // Try multiple sources for customer name in payment intent
@@ -269,6 +319,12 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   }
 
   console.log('Final customer info for payment intent:', { email: customerEmail, name: customerName });
+  console.log('Creating order with shipping address:', {
+    orderId,
+    fulfillmentType,
+    shippingAddress,
+    hasShippingAddress: !!shippingAddress
+  });
 
   await createOrder({
     orderId,
@@ -359,6 +415,15 @@ async function createOrder({
     } catch (error) {
       console.error('Error updating promo code usage:', error);
     }
+  }
+
+  // Update book stock after successful order creation
+  try {
+    const bookItems = extractBookItems(productItems);
+    await updateBookStock(bookItems, created.id);
+  } catch (stockError) {
+    console.error('Failed to update stock for order:', created.id, stockError);
+    // Note: Order is already created, so we log the error but don't fail the request
   }
 
   if (created.email) {

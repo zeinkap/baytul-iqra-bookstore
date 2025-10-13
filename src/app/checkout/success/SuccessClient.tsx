@@ -43,6 +43,31 @@ export default function SuccessClient() {
   const { clearCart } = useCart();
   const clearedRef = useRef(false);
   const notificationSentRef = useRef(false);
+  const stockUpdateAttemptedRef = useRef(false);
+
+  // Backup stock update function
+  const updateStockBackup = async (orderId: string) => {
+    if (stockUpdateAttemptedRef.current) return;
+    stockUpdateAttemptedRef.current = true;
+
+    try {
+      const response = await fetch(`/api/orders/${orderId}/update-stock`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Backup stock update successful:', result);
+      } else {
+        console.warn('Backup stock update failed:', await response.text());
+      }
+    } catch (error) {
+      console.error('Backup stock update error:', error);
+    }
+  };
 
   useEffect(() => {
     if (!orderId) return;
@@ -85,6 +110,8 @@ export default function SuccessClient() {
                 }),
               }).catch((err) => console.error('Failed to send sales notification:', err));
             }
+            // Trigger backup stock update
+            updateStockBackup(data.id);
             return; // success
           }
           // If not found yet and we have a Stripe session id, ask server to create order from session (idempotent)
@@ -118,6 +145,8 @@ export default function SuccessClient() {
                   }),
                 }).catch((err) => console.error('Failed to send sales notification:', err));
               }
+              // Trigger backup stock update
+              updateStockBackup(data.id);
               return; // success after creation
             }
           }
@@ -184,19 +213,29 @@ export default function SuccessClient() {
 
   const formatCurrency = (n: number) => `$${Number(n || 0).toFixed(2)}`;
   const formatAddress = (addr?: Order['shippingAddress']) => {
-    if (!addr) return 'N/A';
+    console.log('Formatting address:', { addr, type: typeof addr });
+    
+    if (!addr) {
+      console.log('No address provided');
+      return 'N/A';
+    }
     
     // Handle case where shippingAddress might be a JSON string
     let address = addr;
     if (typeof addr === 'string') {
       try {
         address = JSON.parse(addr);
-      } catch {
+        console.log('Parsed address from string:', address);
+      } catch (error) {
+        console.error('Failed to parse address string:', error);
         return 'N/A';
       }
     }
     
-    if (!address || typeof address !== 'object') return 'N/A';
+    if (!address || typeof address !== 'object') {
+      console.log('Address is not a valid object:', address);
+      return 'N/A';
+    }
     
     const parts = [
       address.name, 
@@ -208,7 +247,11 @@ export default function SuccessClient() {
       address.country
     ].filter(Boolean);
     
-    return parts.length > 0 ? parts.join(', ') : 'N/A';
+    console.log('Address parts:', parts);
+    const result = parts.length > 0 ? parts.join(', ') : 'N/A';
+    console.log('Formatted address result:', result);
+    
+    return result;
   };
 
   return (
@@ -223,7 +266,7 @@ export default function SuccessClient() {
         <h1 className="text-3xl sm:text-4xl font-extrabold mb-2 text-emerald-700">Thank you for your order!</h1>
         <p className="text-gray-700">
           {order.fulfillmentType === 'pickup'
-            ? 'This was an in-person sale. We will contact you shortly with local pickup instructions.'
+            ? 'This was an in-person sale.'
             : 'Your order will be shipped soon. You will receive a confirmation email with tracking details.'}
         </p>
         {order.fulfillmentType === 'pickup' && (
