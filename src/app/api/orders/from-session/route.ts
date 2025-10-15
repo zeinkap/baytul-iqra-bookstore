@@ -236,6 +236,7 @@ export async function POST(req: NextRequest) {
         shippingCost: shippingCostCents / 100,
         discountAmount: (discountAmountCents || 0) / 100,
         finalTotal,
+        stripeTotalCents: totalCents,
         fulfillmentType
       });
 

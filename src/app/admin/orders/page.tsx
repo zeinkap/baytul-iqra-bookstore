@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import AdminNav from '@/components/AdminNav';
 
 // Order types
 interface OrderItem {
@@ -203,7 +202,6 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="max-w-7xl mx-auto p-6 text-gray-900 bg-white min-h-screen">
-      <AdminNav />
       <h1 className="text-3xl font-bold mb-6">Admin: Orders</h1>
       
       {/* Search and Filters */}

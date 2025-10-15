@@ -11,11 +11,17 @@ interface SearchSectionProps {
 export default function SearchSection({
   categories,
   onSearch,
-  onCategoryChange
-}: SearchSectionProps) {
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  onCategoryChange,
+  initialSelectedCategories = []
+}: SearchSectionProps & { initialSelectedCategories?: string[] }) {
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(initialSelectedCategories);
   const [searchQuery, setSearchQuery] = useState('');
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync with parent when initialSelectedCategories changes
+  useEffect(() => {
+    setSelectedCategories(initialSelectedCategories);
+  }, [initialSelectedCategories]);
 
   const toggleCategory = (category: string) => {
     const newCategories = selectedCategories.includes(category)

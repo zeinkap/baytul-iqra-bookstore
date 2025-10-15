@@ -3,6 +3,32 @@ import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
 import { sendOrderConfirmationEmail } from '@/lib/sendEmail';
 
+// Extended Stripe session type to include shipping_details which may not be in all TypeScript definitions
+interface StripeSessionWithShipping extends Stripe.Checkout.Session {
+  shipping_details?: {
+    name?: string | null;
+    address?: {
+      line1?: string | null;
+      line2?: string | null;
+      city?: string | null;
+      state?: string | null;
+      postal_code?: string | null;
+      country?: string | null;
+    } | null;
+  } | null;
+  shipping?: {
+    name?: string | null;
+    address?: {
+      line1?: string | null;
+      line2?: string | null;
+      city?: string | null;
+      state?: string | null;
+      postal_code?: string | null;
+      country?: string | null;
+    } | null;
+  } | null;
+}
+
 
 
 export async function POST(req: NextRequest) {
@@ -111,8 +137,40 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   } | undefined = undefined;
   
   if (fulfillmentType === 'shipping') {
-    // First try to get shipping info from customer_details directly
-    if (customerDetails?.address) {
+    // First try to get shipping address from session.shipping_details (preferred for checkout sessions)
+    // Note: shipping_details is available in newer Stripe API versions but may not be in all TypeScript definitions
+    const sessionWithShipping = session as StripeSessionWithShipping;
+    if (sessionWithShipping.shipping_details?.address) {
+      shippingAddress = {
+        name: sessionWithShipping.shipping_details.name ?? undefined,
+        line1: sessionWithShipping.shipping_details.address.line1 ?? undefined,
+        line2: sessionWithShipping.shipping_details.address.line2 ?? undefined,
+        city: sessionWithShipping.shipping_details.address.city ?? undefined,
+        state: sessionWithShipping.shipping_details.address.state ?? undefined,
+        postal_code: sessionWithShipping.shipping_details.address.postal_code ?? undefined,
+        country: sessionWithShipping.shipping_details.address.country ?? undefined,
+      };
+      console.log('Got shipping address from session.shipping_details');
+    }
+    // Fallback to deprecated session.shipping (older Stripe API versions)
+    else if (sessionWithShipping.shipping?.address) {
+      const shipping = sessionWithShipping.shipping;
+      const address = shipping.address;
+      if (address) {
+        shippingAddress = {
+          name: shipping.name ?? undefined,
+          line1: address.line1 ?? undefined,
+          line2: address.line2 ?? undefined,
+          city: address.city ?? undefined,
+          state: address.state ?? undefined,
+          postal_code: address.postal_code ?? undefined,
+          country: address.country ?? undefined,
+        };
+        console.log('Got shipping address from session.shipping (deprecated)');
+      }
+    }
+    // Fallback to customer_details.address (billing address - not ideal but better than nothing)
+    else if (customerDetails?.address) {
       shippingAddress = {
         name: customerDetails?.name ?? undefined,
         line1: customerDetails.address.line1 ?? undefined,
@@ -122,10 +180,10 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
         postal_code: customerDetails.address.postal_code ?? undefined,
         country: customerDetails.address.country ?? undefined,
       };
+      console.log('Got shipping address from customer_details.address (billing address fallback)');
     }
-    
-    // If no shipping address from customer_details, try payment intent
-    if (!shippingAddress) {
+    // Last resort: try payment intent
+    else {
       try {
         const paymentIntentId = typeof session.payment_intent === 'string'
           ? session.payment_intent
@@ -143,11 +201,17 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
               postal_code: ship.address.postal_code ?? undefined,
               country: ship.address.country ?? undefined,
             };
+            console.log('Got shipping address from payment intent');
           }
         }
       } catch (error) {
         console.error('Error getting shipping from payment intent:', error);
       }
+    }
+    
+    // Log if no shipping address was found
+    if (!shippingAddress) {
+      console.warn('No shipping address found for shipping order:', session.id);
     }
   }
 
@@ -331,19 +395,19 @@ async function createOrder({
 
   // Create order after successful payment
   const created = await prisma.order.create({
-    data: {
-      id: orderId, // use pre-generated id if present
-      items: productItems,
-      total: productItems.reduce((s, it) => s + (it.price * it.quantity), 0),
-      discountAmount: (discountAmountCents || 0) / 100,
-      finalTotal: (totalCents || 0) / 100,
-      promoCodeId: promoCodeId || null,
-      fulfillmentType: fulfillmentType || 'shipping',
-      pickupLocation: fulfillmentType === 'pickup' ? (pickupLocation || 'Alpharetta, GA') : null,
-      ...(shippingAddress ? { shippingAddress } : {}),
-      email: email,
-      customerName: customerName,
-    },
+      data: {
+        id: orderId, // use pre-generated id if present
+        items: productItems,
+        total: productItems.reduce((s, it) => s + (it.price * it.quantity), 0),
+        discountAmount: (discountAmountCents || 0) / 100,
+        finalTotal: (totalCents || 0) / 100,
+        promoCodeId: promoCodeId || null,
+        fulfillmentType: fulfillmentType || 'shipping',
+        pickupLocation: fulfillmentType === 'pickup' ? (pickupLocation || 'Alpharetta, GA') : null,
+        shippingAddress: shippingAddress || undefined,
+        email: email,
+        customerName: customerName,
+      },
   });
 
   console.log('Order created successfully:', created.id);

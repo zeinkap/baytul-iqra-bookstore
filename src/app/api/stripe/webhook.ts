@@ -330,7 +330,8 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     orderId,
     customerName,
     email: paymentIntent.receipt_email,
-    hasShippingAddress: !!shippingAddress
+    hasShippingAddress: !!shippingAddress,
+    stripeTotalCents: totalCents
   });
 
   await createOrder({
@@ -403,6 +404,7 @@ async function createOrder({
     shippingCost: (shippingCostCents || 0) / 100,
     discountAmount: (discountAmountCents || 0) / 100,
     finalTotal,
+    stripeTotalCents: totalCents,
     fulfillmentType
   });
 

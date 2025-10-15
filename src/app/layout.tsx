@@ -2,8 +2,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Inter, Merriweather } from 'next/font/google';
 import { CartProvider } from '@/components/CartProvider';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
+import ConditionalLayout from '@/components/ConditionalLayout';
 import { Toaster } from 'react-hot-toast';
 import { headers } from 'next/headers';
 import { SpeedInsights } from '@vercel/speed-insights/next';
@@ -21,10 +20,17 @@ async function getCategories() {
   const host = h.get('host') || 'localhost:3000';
   const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
   const baseUrl = `${protocol}://${host}`;
-  const res = await fetch(`${baseUrl}/api/books/categories`, { 
-    cache: 'force-cache',
-    next: { revalidate: 3600, tags: ['categories'] } // Cache for 1 hour
-  });
+  
+  // In development, don't cache. In production, cache with revalidation
+  const fetchOptions = process.env.NODE_ENV === 'production' 
+    ? { 
+        next: { revalidate: 300, tags: ['categories'] } // Cache for 5 minutes in production
+      }
+    : { 
+        cache: 'no-store' as RequestCache // No cache in development
+      };
+  
+  const res = await fetch(`${baseUrl}/api/books/categories`, fetchOptions);
   if (!res.ok) return [];
   return res.json();
 }
@@ -35,6 +41,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const categories: string[] = await getCategories();
+  
   return (
     <html lang="en" className={`${inter.variable} ${merriweather.variable} bg-white`}>
       <head>
@@ -57,11 +64,9 @@ export default async function RootLayout({
               },
             }}
           />
-          <Header categories={categories} />
-          <div className="min-h-screen flex flex-col bg-white">
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </div>
+          <ConditionalLayout categories={categories}>
+            {children}
+          </ConditionalLayout>
         </CartProvider>
         <SpeedInsights />
       </body>

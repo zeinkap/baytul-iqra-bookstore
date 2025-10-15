@@ -17,7 +17,7 @@ model Book {
   price       Float
   costPrice   Float?   // Cost price for profit margin calculation
   shippingCost Float?   // Shipping cost per book for bulk orders
-  images      String[]
+  images      String[] @db.Text
   stock       Int
   isBestseller Boolean  @default(false)
   format      String?  // Book format: Paperback, Hardcover, etc.

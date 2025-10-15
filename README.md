@@ -64,6 +64,50 @@ The system comes with three sample promo codes for testing:
 - **Minimum order validation**: Based on product total before shipping
 - **Proportional distribution**: Discounts are distributed proportionally across all products
 
+## 🔐 Admin Authentication
+
+The admin panel is password-protected to secure access to book management, orders, promo codes, and other administrative features.
+
+### Setup
+
+1. **Set Admin Password** in your environment variables:
+   ```bash
+   # .env (local development)
+   ADMIN_PASSWORD=your_secure_password_here
+   ```
+
+2. **For Production** (e.g., Vercel), set the environment variable:
+   - Go to your project settings
+   - Add `ADMIN_PASSWORD` with a strong password
+   - Redeploy your application
+
+### Access Admin Panel
+
+1. Navigate to `/admin` or any admin route (e.g., `/admin/books`, `/admin/orders`)
+2. You'll be redirected to `/admin/login` if not authenticated
+3. Enter the password set in `ADMIN_PASSWORD`
+4. Session lasts 24 hours
+5. Use the "Logout" button to end your session
+
+### Security Features
+
+- ✅ **Password-protected**: All admin routes require authentication
+- ✅ **Secure cookies**: HttpOnly cookies prevent XSS attacks
+- ✅ **Session management**: Auto-logout after 24 hours
+- ✅ **Server-side validation**: Password verification on the server
+- ✅ **Client-side guard**: Quick redirect for unauthenticated access
+
+### Admin Routes
+
+All routes under `/admin` are protected:
+- `/admin/books` - Book management (add, edit, delete)
+- `/admin/orders` - Order management and tracking
+- `/admin/promo-codes` - Promo code management
+- `/admin/payment-links` - Payment link generation
+- `/admin/profit-margins` - Profit margin analysis
+
+**Important**: Choose a strong password and never commit `.env` files to version control!
+
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -90,6 +134,8 @@ The system comes with three sample promo codes for testing:
    DATABASE_URL="postgresql://username:password@localhost:5432/bookstore"
    STRIPE_PUBLISHABLE_KEY="your_stripe_publishable_key"
    STRIPE_SECRET_KEY="your_stripe_secret_key"
+   ADMIN_PASSWORD="your_secure_admin_password"
+   NEXT_PUBLIC_BASE_URL="http://localhost:3000"
    ```
 
 4. **Initialize the database**
@@ -119,6 +165,7 @@ npm run dev
 - `npm run db:migrate` - Run database migrations
 - `npm run db:reset` - Reset database (⚠️ destructive)
 - `npm run db:seed` - Seed database with books from CSV
+- `npx ts-node --project tsconfig.scripts.json scripts/syncProdToLocal.ts` - **Sync production data to local database**
 
 ### Promo Code Management
 - `npx tsx scripts/addPromoCodes.ts` - Add sample promo codes to database
@@ -163,6 +210,29 @@ The restoration script will:
 - ✅ **Backup before major changes:** Always create a backup before running a database migration or making significant changes to your data.
 - ✅ **Keep multiple versions:** The system automatically stores timestamped backups.
 - ✅ **Store backups securely:** Consider committing your `backups/` directory to your Git repository or storing them in a secure cloud location.
+
+### Sync Production to Local Development
+
+To work with production data in your local development environment without affecting the live database:
+
+```bash
+npx ts-node --project tsconfig.scripts.json scripts/syncProdToLocal.ts
+```
+
+This script will:
+1. 📦 **Export data** from your production database (Neon)
+2. 🧹 **Clear** your local PostgreSQL database
+3. 📥 **Import** all production data (books, categories, promo codes, orders)
+4. ✅ **Verify** the import was successful
+5. 🎉 Provide summary statistics
+
+**Benefits:**
+- ✅ Safe development with real data
+- ✅ No risk of affecting production
+- ✅ Work offline once synced
+- ✅ Faster queries (local database)
+
+**Note:** After syncing, restart your dev server to clear Next.js cache and see the new data.
 
 ## 🔧 Tech Stack
 

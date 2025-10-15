@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import AdminNav from '@/components/AdminNav';
 import { toast } from 'react-hot-toast';
 
 
@@ -431,7 +430,6 @@ export default function ProfitMarginsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <AdminNav />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white shadow rounded-lg p-6" style={{ position: 'relative' }}>

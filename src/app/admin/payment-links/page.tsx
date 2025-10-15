@@ -1,6 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
-import AdminNav from '@/components/AdminNav';
+import { useEffect, useState, useMemo } from "react";
 import { toast } from 'react-hot-toast';
 
 // Debounce utility function for string parameters
@@ -80,13 +79,18 @@ export default function AdminPaymentLinksPage() {
     try {
       const res = await fetch('/api/admin/payment-links');
       if (!res.ok) {
-        throw new Error('Failed to fetch payment links');
+        const errorData = await res.json();
+        const errorMessage = errorData.details 
+          ? `${errorData.error}: ${errorData.details}`
+          : errorData.error || 'Failed to fetch payment links';
+        throw new Error(errorMessage);
       }
       const data = await res.json();
       setPaymentLinks(data);
     } catch (error) {
       console.error('Error fetching payment links:', error);
-      toast.error('Failed to fetch payment links');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch payment links';
+      toast.error(errorMessage, { duration: 6000 });
     } finally {
       setLoading(false);
     }
@@ -150,30 +154,28 @@ export default function AdminPaymentLinksPage() {
     }));
   }
 
-  // Debounced search function
-  const debouncedSearch = useCallback(
-    debounce(async (query: string) => {
+  // Debounced search function - using useMemo since debounce already handles memoization
+  const searchBooks = useMemo(
+    () => debounce((query: string) => {
       if (!query || query.trim().length < 2) {
         setSuggestions([]);
         return;
       }
 
-      try {
-        const res = await fetch(`/api/books/search?q=${encodeURIComponent(query)}&limit=5`);
-        if (res.ok) {
-          const books = await res.json();
-          setSuggestions(books);
-        }
-      } catch (error) {
-        console.error('Error searching books:', error);
-      }
+      fetch(`/api/books/search?q=${encodeURIComponent(query)}&limit=5`)
+        .then(res => {
+          if (res.ok) {
+            return res.json();
+          }
+          return [];
+        })
+        .then(books => setSuggestions(books))
+        .catch(error => {
+          console.error('Error searching books:', error);
+        });
     }, 300),
-    [setSuggestions]
+    []
   );
-
-  async function searchBooks(query: string) {
-    debouncedSearch(query);
-  }
 
   function updateItem(index: number, field: keyof CartItem, value: string | number) {
     setForm(prev => ({
@@ -339,7 +341,6 @@ export default function AdminPaymentLinksPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <AdminNav />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white shadow rounded-lg p-6 mb-6">
