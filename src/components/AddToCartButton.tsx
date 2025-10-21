@@ -60,6 +60,7 @@ export default function AddToCartButton({
       }`}
       onClick={handleAddToCart}
       disabled={isOutOfStock}
+      data-testid={`add-to-cart-button-${id}`}
     >
       {/* Shine effect overlay - only show when not out of stock */}
       {!isOutOfStock && (

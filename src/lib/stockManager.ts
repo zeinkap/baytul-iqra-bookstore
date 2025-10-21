@@ -94,14 +94,21 @@ export function hasStockBeenUpdated(orderId: string): boolean {
  * @param items - Order items (can be from cart or Stripe line items)
  * @returns Array of items with book IDs and quantities
  */
-export function extractBookItems(items: any[]): OrderItem[] {
+export function extractBookItems(items: unknown): OrderItem[] {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+  
   return items
-    .filter(item => item.id) // Only include items with book IDs
+    .filter((item): item is Record<string, unknown> => 
+      typeof item === 'object' && item !== null && 'id' in item
+    )
     .map(item => ({
-      id: item.id,
-      title: item.title || item.name || 'Unknown Item',
-      quantity: item.quantity || 1,
-      price: item.price || 0
+      id: typeof item.id === 'string' ? item.id : undefined,
+      title: typeof item.title === 'string' ? item.title : 
+             typeof item.name === 'string' ? item.name : 'Unknown Item',
+      quantity: typeof item.quantity === 'number' ? item.quantity : 1,
+      price: typeof item.price === 'number' ? item.price : 0
     }));
 }
 

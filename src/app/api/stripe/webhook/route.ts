@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
-import { updateBookStock, extractBookItems, extractBookItemsFromMetadata } from '@/lib/stockManager';
+import { updateBookStock, extractBookItems } from '@/lib/stockManager';
 import { sendOrderConfirmationEmail } from '@/lib/sendEmail';
 
 // Extended Stripe session type to include shipping_details which may not be in all TypeScript definitions
@@ -344,26 +344,32 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
             : paymentIntent.customer.id;
           
           const customer = await stripe.customers.retrieve(customerId);
-          console.log('Retrieved customer for shipping address:', {
-            hasAddress: !!customer.address,
-            address: customer.address,
-            hasName: !!customer.name,
-            name: customer.name
-          });
           
-          if (customer.address) {
-            shippingAddress = {
-              name: customer.name ?? undefined,
-              line1: customer.address.line1 ?? undefined,
-              line2: customer.address.line2 ?? undefined,
-              city: customer.address.city ?? undefined,
-              state: customer.address.state ?? undefined,
-              postal_code: customer.address.postal_code ?? undefined,
-              country: customer.address.country ?? undefined,
-            };
-            console.log('Found shipping address in customer object:', shippingAddress);
+          // Type guard: Check if customer is not deleted
+          if (!customer.deleted) {
+            console.log('Retrieved customer for shipping address:', {
+              hasAddress: !!customer.address,
+              address: customer.address,
+              hasName: !!customer.name,
+              name: customer.name
+            });
+            
+            if (customer.address) {
+              shippingAddress = {
+                name: customer.name ?? undefined,
+                line1: customer.address.line1 ?? undefined,
+                line2: customer.address.line2 ?? undefined,
+                city: customer.address.city ?? undefined,
+                state: customer.address.state ?? undefined,
+                postal_code: customer.address.postal_code ?? undefined,
+                country: customer.address.country ?? undefined,
+              };
+              console.log('Found shipping address in customer object:', shippingAddress);
+            } else {
+              console.log('Customer has no address information');
+            }
           } else {
-            console.log('Customer has no address information');
+            console.log('Customer has been deleted');
           }
         } catch (error) {
           console.error('Error retrieving customer for shipping address:', error);

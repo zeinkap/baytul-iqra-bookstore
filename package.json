@@ -17,7 +17,13 @@
     "typecheck": "tsc --noEmit",
     "lintcheck": "npm run lint",
     "start:prod": "npm run build && npm run start",
-    "test": "playwright test"
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "test:report": "playwright show-report test-results/html-report",
+    "test:codegen": "playwright codegen http://localhost:3000",
+    "test:prod": "NODE_ENV=production playwright test"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1",

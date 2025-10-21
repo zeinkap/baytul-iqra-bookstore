@@ -1,17 +1,17 @@
 # Baytul Iqra Bookstore
 
-A modern Islamic bookstore built with Next.js, featuring a comprehensive collection of Islamic literature, children's books, games, and educational materials.
+An online bookstore for Islamic literature built with Next.js, Prisma, and Stripe.
 
-🌐 **Live Site**: [https://www.baytuliqra.com](https://www.baytuliqra.com/)
-
-## 📚 About
+## Features
 
 Baytul Iqra Bookstore is an online Islamic bookstore offering:
 - **84+ Books** across multiple Islamic categories
 - **Smart categorization** - Hadith & Sunnah, Quran & Tafsir, Children's Books, Biography & Seerah, and more
 - **Author management** - Proper attribution for Islamic scholars and contemporary authors
-- **E-commerce features** - Shopping cart, checkout, order management, and inventory management
-- **Order Management** - Orders are created via the `/api/orders` endpoint and stored in the `Order` table (PostgreSQL, Prisma). Supports both shipping and pickup fulfillment types. Order data includes cart items, total, fulfillment type, pickup location, shipping address, and customer email.
+- **Shopping cart & checkout** - Full e-commerce functionality with Stripe payment integration
+- **Order Management** - Orders are created via the `/api/orders` endpoint and stored in the `Order` table (PostgreSQL, Prisma). Supports both shipping and pickup fulfillment types
+- **Promo code support** - Flexible discount system with validation rules
+- **Admin panel** - Complete inventory, order, and promo code management
 - **Responsive design** - Works on desktop and mobile devices
 
 ## 🛒 Order Management
@@ -111,9 +111,9 @@ All routes under `/admin` are protected:
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - Node.js 18+ 
-- PostgreSQL database
-- npm
+- npm or yarn
 
 ### Installation
 
@@ -141,12 +141,15 @@ All routes under `/admin` are protected:
 4. **Initialize the database**
    ```bash
    npm run db:migrate
+   
+   # (Optional) Seed database with sample data
+   npm run db:seed
    ```
 
 5. **Start the development server**
-```bash
-npm run dev
-```
+   ```bash
+   npm run dev
+   ```
 
 6. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
@@ -262,64 +265,159 @@ This script will:
 ### Manual Deployment
 ```bash
 npm run build
-npm run start
+npm start
 ```
 
-## 📡 API Endpoints
+## Testing
 
-- `GET /api/books` — List all books
-- `GET /api/books/categories` — List all categories
-- `GET /api/books/category/[category]` — List books by category
-- `GET /api/books/[id]` — Get book details
-- `POST /api/orders` — Create a new order
-- `POST /api/checkout_sessions` — Create a Stripe checkout session
-- `POST /api/stripe/webhook` — Stripe webhook for payment events
+This project uses Playwright for end-to-end testing with a comprehensive test suite following best practices.
 
-### Promo Code Endpoints
-- `GET /api/promo-codes` — List all promo codes
-- `POST /api/promo-codes` — Create a new promo code
-- `PUT /api/promo-codes/[id]` — Update a promo code
-- `PATCH /api/promo-codes/[id]` — Update promo code status
-- `DELETE /api/promo-codes/[id]` — Delete a promo code
-- `POST /api/promo-codes/validate` — Validate a promo code for checkout
+### Test Structure
 
-## 📞 Support
+```
+tests/
+├── e2e/                    # End-to-end test files
+│   ├── book-purchase.spec.ts
+│   ├── search-functionality.spec.ts
+│   └── cart-management.spec.ts
+├── pages/                  # Page Object Models
+│   ├── base.page.ts
+│   ├── home.page.ts
+│   ├── cart.page.ts
+│   └── checkout-success.page.ts
+├── fixtures/               # Test fixtures and setup
+│   ├── base-test.ts
+│   └── test-data.ts
+└── helpers/                # Helper utilities
+    ├── api.helper.ts
+    └── wait.helper.ts
+```
 
-For issues or questions:
-- Check existing backup files in `backups/` directory
-- Review database scripts in `scripts/` directory
-- Ensure environment variables are properly configured
+### Running Tests
 
-## 🤝 Contributing
+```bash
+# Run all tests (local config)
+npm test
 
-1. Create backups before making changes
-2. Follow existing code patterns
-3. Test database operations thoroughly
-4. Update documentation as needed
+# Run tests in headed mode
+npx playwright test --headed
 
-## 📧 Order Confirmation Emails
+# Run specific test file
+npx playwright test tests/e2e/book-purchase.spec.ts
 
-This project uses [Resend](https://resend.com/) to send order confirmation emails to customers after a successful payment.
+# Run tests with UI
+npx playwright test --ui
 
-### How it works
-- When a customer completes checkout and payment via Stripe, a webhook (`/api/stripe/webhook`) listens for the `checkout.session.completed` event.
-- The webhook fetches the order details from the database and sends a confirmation email using Resend.
-- Emails are only sent after payment is confirmed (not before or if payment fails/abandoned).
+# Generate test report
+npx playwright show-report test-results/html-report
+```
 
-### Setup
-1. **Sign up for a Resend account** at [resend.com](https://resend.com/) and obtain your API key.
-2. **Add the following environment variable** to your `.env` file:
-   ```bash
-   RESEND_API_KEY="your_resend_api_key"
-   ```
-3. (Optional) Update the `from` address in `src/lib/sendEmail.ts` to match your verified sender domain.
+### Test Configuration
 
-### Customization
-- The email content and logic can be found in `src/lib/sendEmail.ts`.
-- The webhook handler is in `src/app/api/stripe/webhook.ts`.
+Two configurations are provided:
 
-**Note:** You must also set up your Stripe webhook endpoint in the Stripe dashboard to point to `/api/stripe/webhook` and provide the `STRIPE_WEBHOOK_SECRET` in your environment variables.
+- **Local** (`playwright.config.local.ts`): For development with local server
+- **Production** (`playwright.config.prod.ts`): For CI/CD and production testing
 
----
+Use production config:
+```bash
+NODE_ENV=production npm test
+```
 
-Built with ❤️ for the Islamic community
+### Writing Tests
+
+Tests follow these best practices:
+
+1. **Page Object Model**: All page interactions through page objects
+2. **Test-ID Locators**: Uses `data-testid` attributes for reliable selectors
+3. **Descriptive Names**: Clear test descriptions following user intent
+4. **Single Assertion**: One test per specific behavior/outcome
+5. **Test Isolation**: Each test is independent and can run in parallel
+6. **API Test Data**: Uses API helper to create test data
+
+Example test:
+
+```typescript
+test('should add a book to cart from search results', async ({ homePage }) => {
+  await homePage.navigate();
+  await homePage.searchForBook('The Sealed Nectar');
+  await homePage.addBookToCart(bookId);
+  
+  const toastVisible = await homePage.isToastVisible('Added to cart!');
+  expect(toastVisible).toBe(true);
+});
+```
+
+### Debugging Tests
+
+```bash
+# Debug mode
+npx playwright test --debug
+
+# Generate trace
+npx playwright test --trace on
+
+# View trace
+npx playwright show-trace test-results/trace.zip
+```
+
+## Project Structure
+
+```
+src/
+├── app/                    # Next.js app directory
+│   ├── api/               # API routes
+│   ├── admin/             # Admin pages
+│   ├── books/             # Book pages
+│   ├── cart/              # Cart page
+│   └── checkout/          # Checkout pages
+├── components/            # React components
+├── lib/                   # Utility libraries
+└── generated/             # Generated Prisma client
+
+prisma/
+├── schema.prisma          # Database schema
+└── migrations/            # Database migrations
+
+tests/                     # Test files
+scripts/                   # Utility scripts
+```
+
+## Database Scripts
+
+```bash
+# Create backup
+npm run db:backup
+
+# Restore from backup
+npm run db:restore
+
+# Update book images
+npm run db:update-images
+
+# View database in browser
+npm run studio
+```
+
+## Admin Panel
+
+Access the admin panel at `/admin` to:
+- Manage books and inventory
+- View and manage orders
+- Create promo codes
+- Generate payment links for in-person sales
+
+## Technologies
+
+- **Framework**: Next.js 15
+- **Database**: PostgreSQL (Production) / SQLite (Development)
+- **ORM**: Prisma
+- **Payments**: Stripe
+- **Email**: Resend
+- **Styling**: Tailwind CSS
+- **Testing**: Playwright
+- **Language**: TypeScript
+
+## License
+
+Private - All rights reserved

@@ -44,7 +44,7 @@ export async function POST(
     }
 
     // Extract book items from order
-    const bookItems = extractBookItems(order.items as any[]);
+    const bookItems = extractBookItems(order.items);
 
     if (bookItems.length === 0) {
       return NextResponse.json({ 

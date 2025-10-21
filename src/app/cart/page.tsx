@@ -194,6 +194,7 @@ export default function CartPage() {
                     onChange={() => setFulfillmentType('shipping')}
                     disabled={isInPersonSale}
                     className="accent-emerald-600"
+                    data-testid="fulfillment-type-shipping"
                   />
                   <span className="text-gray-900 font-semibold">Ship to my address</span>
                   {isInPersonSale && <span className="text-xs text-gray-500">(disabled in-person mode)</span>}
@@ -206,6 +207,7 @@ export default function CartPage() {
                     checked={fulfillmentType === 'pickup'}
                     onChange={() => setFulfillmentType('pickup')}
                     className="accent-emerald-600"
+                    data-testid="fulfillment-type-pickup"
                   />
                   <span className="text-gray-900 font-semibold">Local Pickup <span className="text-gray-600 font-normal">(Alpharetta, GA)</span></span>
                   {isInPersonSale && <span className="text-xs text-emerald-600">✓ Selected for in-person sale</span>}
@@ -227,6 +229,7 @@ export default function CartPage() {
                   placeholder={isInPersonSale ? "customer@email.com (optional)" : "you@example.com"}
                   className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 placeholder-gray-700 text-gray-900"
                   onBlur={() => setEmailTouched(true)}
+                  data-testid="cart-email-input"
                 />
                 {emailTouched && !email && !isInPersonSale && (
                   <p className="text-red-600 text-sm mt-1">Email is required.</p>
@@ -262,6 +265,7 @@ export default function CartPage() {
                     placeholder="Enter promo code"
                     className="flex-1 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 placeholder-gray-700 text-gray-900"
                     disabled={validatingPromoCode}
+                    data-testid="promo-code-input"
                   />
                   <button
                     onClick={async () => {
@@ -302,6 +306,7 @@ export default function CartPage() {
                     }}
                     disabled={validatingPromoCode || !promoCode.trim()}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded font-semibold transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    data-testid="apply-promo-code-button"
                   >
                     {validatingPromoCode ? 'Validating...' : 'Apply'}
                   </button>
@@ -413,7 +418,7 @@ export default function CartPage() {
                           <div className="flex-1 flex flex-col justify-between min-w-0">
                             <div>
                               <Link href={`/books/${item.id}`} className="block group">
-                                <h3 className="font-bold text-base sm:text-lg text-gray-900 mb-2 line-clamp-2 leading-tight group-hover:text-emerald-700 transition-colors duration-200">
+                                <h3 className="font-bold text-base sm:text-lg text-gray-900 mb-2 line-clamp-2 leading-tight group-hover:text-emerald-700 transition-colors duration-200" data-testid={`cart-item-title-${item.id}`}>
                                   {item.title}
                                 </h3>
                               </Link>
@@ -701,6 +706,7 @@ export default function CartPage() {
                           : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'
                       }`}
                       disabled={loading}
+                      data-testid="checkout-button"
                       onClick={async () => {
                         setLoading(true);
                         try {

@@ -97,6 +97,7 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
                 className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl border border-white/50 overflow-hidden transition-all duration-300 group-hover:scale-[1.02] group-hover:-translate-y-1"
                 onMouseEnter={() => setHoveredIndex(idx)}
                 onMouseLeave={() => setHoveredIndex(null)}
+                data-testid={`book-card-${book.id}`}
               >
                 <Link href={`/books/${book.id}`} className="block">
                   {/* Book Image */}
@@ -141,7 +142,7 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
                   
                   {/* Book Details */}
                   <div className="p-6 pb-4">
-                    <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2 group-hover:text-emerald-700 transition-colors duration-200">
+                    <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2 group-hover:text-emerald-700 transition-colors duration-200" data-testid={`book-title-${book.id}`}>
                       {book.title}
                     </h3>
                     <p className="text-sm text-gray-600 mb-3">by {book.author}</p>

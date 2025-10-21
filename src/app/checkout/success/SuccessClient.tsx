@@ -257,7 +257,7 @@ export default function SuccessClient() {
   return (
     <div className="max-w-5xl mx-auto p-6 sm:p-10">
       {/* Header */}
-      <div className="text-center mb-8">
+      <div className="text-center mb-8" data-testid="order-success-message">
         <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center">
           <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />

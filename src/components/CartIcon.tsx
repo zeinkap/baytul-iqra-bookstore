@@ -7,6 +7,7 @@ export default function CartIcon() {
     <Link 
       href="/cart" 
       className="relative inline-flex items-center justify-center p-2.5 text-gray-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-all duration-200 group"
+      data-testid="cart-icon"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
