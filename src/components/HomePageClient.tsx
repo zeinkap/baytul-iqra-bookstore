@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import SearchSection from './SearchSection';
 import BookGrid from './BookGrid';
@@ -15,6 +15,19 @@ interface HomePageClientProps {
 export default function HomePageClient({ books, categories, bestsellers }: HomePageClientProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+
+  // Check for category parameter in URL on mount and initialize state
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const categoryParam = urlParams.get('category');
+    if (categoryParam && categories.includes(categoryParam)) {
+      setSelectedCategories([categoryParam]);
+      // Clear the category parameter from URL after reading it
+      urlParams.delete('category');
+      const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + window.location.hash;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [categories]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -100,6 +113,7 @@ export default function HomePageClient({ books, categories, bestsellers }: HomeP
           categories={categories}
           onSearch={handleSearch}
           onCategoryChange={handleCategoryChange}
+          initialSelectedCategories={selectedCategories}
         />
       </div>
       

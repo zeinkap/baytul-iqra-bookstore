@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
     // Extract line items
     const lineItems = await stripe.checkout.sessions.listLineItems(sessionId);
     const productItems: { title: string; quantity: number; price: number }[] = [];
+    let totalCents = 0;
     let shippingCostCents = 0;
     
     for (const li of lineItems.data) {
@@ -36,6 +37,7 @@ export async function POST(req: NextRequest) {
       
       if (name?.toLowerCase() === 'shipping') {
         shippingCostCents += lineTotal;
+        totalCents += lineTotal;
         continue;
       }
       
@@ -53,10 +55,12 @@ export async function POST(req: NextRequest) {
         const originalPrice = Math.max(originalUnitPrice, unit * 0.8); // Prevent going below 80% of current price
         
         productItems.push({ title: name || 'Item', quantity: qty, price: originalPrice / 100 });
+        totalCents += (originalPrice * qty);
         shippingCostCents += embeddedShippingCost;
       } else {
         // Regular line item without embedded shipping
         productItems.push({ title: name || 'Item', quantity: qty, price: unit / 100 });
+        totalCents += lineTotal;
       }
     }
     
@@ -232,6 +236,7 @@ export async function POST(req: NextRequest) {
         shippingCost: shippingCostCents / 100,
         discountAmount: (discountAmountCents || 0) / 100,
         finalTotal,
+        stripeTotalCents: totalCents,
         fulfillmentType
       });
 

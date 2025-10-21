@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import AddToCartButtonClient from '@/components/AddToCartButtonClient';
@@ -26,9 +26,6 @@ interface BookGridProps {
 }
 
 export default function BookGrid({ initialBooks, searchQuery = '', selectedCategories = [] }: BookGridProps) {
-  const [books, setBooks] = useState<Book[]>(initialBooks);
-  const [loading, setLoading] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const isValidImageSrc = (src: unknown): src is string => {
@@ -39,45 +36,8 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
     );
   };
 
-
-  const handleCategoryFilter = useCallback(async (category: string) => {
-    setLoading(true);
-    setSelectedCategory(category);
-    
-    try {
-      const response = await fetch(`/api/books/category/${encodeURIComponent(category)}`);
-      if (response.ok) {
-        const categoryBooks = await response.json();
-        setBooks(categoryBooks);
-      } else {
-        console.error('Category filter failed');
-        setBooks(initialBooks);
-      }
-    } catch (error) {
-      console.error('Category filter error:', error);
-      setBooks(initialBooks);
-    } finally {
-      setLoading(false);
-    }
-  }, [initialBooks]);
-
-  // Check for category parameter in URL on component mount and clear it
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const categoryParam = urlParams.get('category');
-    if (categoryParam) {
-      handleCategoryFilter(categoryParam);
-      // Clear the category parameter from URL after applying the filter
-      urlParams.delete('category');
-      const newUrl = window.location.pathname + (urlParams.toString() ? `?${urlParams.toString()}` : '') + window.location.hash;
-      window.history.replaceState({}, '', newUrl);
-    }
-  }, [handleCategoryFilter]);
-
-
-
-  // Combined filter: if both search and category are set, filter client-side
-  const displayedBooks = books.filter((book) => {
+  // Combined filter: search query and selected categories
+  const displayedBooks = initialBooks.filter((book) => {
     const matchesSearch =
       !searchQuery ||
       book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -95,10 +55,8 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
 
   return (
     <div className="py-16">
-
-
-      {/* Show total number of books when All Categories is selected */}
-      {(!selectedCategory || selectedCategory === '') && !searchQuery && (
+      {/* Show total number of books when no filters are applied */}
+      {selectedCategories.length === 0 && !searchQuery && (
         <div className="max-w-6xl mx-auto px-4 mb-4 text-left">
           <span className="inline-block bg-emerald-50 text-emerald-700 px-4 py-2 rounded-full font-medium text-sm">
             Showing {displayedBooks.length} book{displayedBooks.length !== 1 ? 's' : ''}
@@ -112,7 +70,7 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
           id="book-grid"
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 pb-16"
         >
-          {displayedBooks.length === 0 && !loading && (
+          {displayedBooks.length === 0 && (
             <div className="col-span-full text-center py-16">
               <div className="max-w-md mx-auto">
                 <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

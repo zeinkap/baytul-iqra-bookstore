@@ -87,6 +87,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   // Build order items from line_items
   const lineItems = await stripe.checkout.sessions.listLineItems(session.id);
   const productItems: { title: string; quantity: number; price: number }[] = [];
+  let totalCents = 0;
   let shippingCostCents = 0;
   
   for (const li of lineItems.data) {
@@ -97,6 +98,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     
     if (name?.toLowerCase() === 'shipping') {
       shippingCostCents += lineTotal;
+      totalCents += lineTotal;
       continue;
     }
     
@@ -114,10 +116,12 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       const originalPrice = Math.max(originalUnitPrice, unit * 0.8); // Prevent going below 80% of current price
       
       productItems.push({ title: name || 'Item', quantity: qty, price: originalPrice / 100 });
+      totalCents += (originalPrice * qty);
       shippingCostCents += embeddedShippingCost;
     } else {
       // Regular line item without embedded shipping
       productItems.push({ title: name || 'Item', quantity: qty, price: (unit / 100) });
+      totalCents += lineTotal;
     }
   }
 
@@ -251,6 +255,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     discountAmountCents,
     pickupLocation,
     productItems,
+    totalCents,
     shippingCostCents,
     shippingAddress,
     email: customerDetails?.email || session.customer_email || undefined,
@@ -368,21 +373,15 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     }
   }
 
-  // Try multiple sources for customer name in payment intent
-  let customerName: string | undefined = undefined;
-  if (!customerName) {
-    // First try shipping address name
-    if (shippingAddress?.name) {
-      customerName = shippingAddress.name;
-    }
-  }
-
-  console.log('Final customer info for payment intent:', { email: paymentIntent.receipt_email, name: customerName });
-  console.log('Creating order with shipping address:', {
+  const customerName = shippingAddress?.name || undefined;
+  const totalCents = paymentIntent.amount;
+  
+  console.log('Final customer data for order creation (payment link):', {
     orderId,
-    fulfillmentType,
-    shippingAddress,
-    hasShippingAddress: !!shippingAddress
+    customerName,
+    email: paymentIntent.receipt_email,
+    hasShippingAddress: !!shippingAddress,
+    stripeTotalCents: totalCents
   });
 
   await createOrder({
@@ -392,6 +391,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     discountAmountCents,
     pickupLocation,
     productItems,
+    totalCents,
     shippingCostCents: 0, // Payment links typically don't have separate shipping line items
     shippingAddress,
     email: paymentIntent.receipt_email || undefined,
@@ -406,6 +406,7 @@ async function createOrder({
   discountAmountCents,
   pickupLocation,
   productItems,
+  totalCents,
   shippingCostCents,
   shippingAddress,
   email,
@@ -417,6 +418,7 @@ async function createOrder({
   discountAmountCents: number;
   pickupLocation?: string;
   productItems: { title: string; quantity: number; price: number }[];
+  totalCents: number;
   shippingCostCents?: number;
   shippingAddress?: {
     name?: string;
@@ -452,6 +454,7 @@ async function createOrder({
     shippingCost: (shippingCostCents || 0) / 100,
     discountAmount: (discountAmountCents || 0) / 100,
     finalTotal,
+    stripeTotalCents: totalCents,
     fulfillmentType
   });
 

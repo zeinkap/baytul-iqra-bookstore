@@ -19,6 +19,19 @@ async function readHiddenLinks(): Promise<string[]> {
 
 export async function GET() {
   try {
+    // Check if Stripe secret key is properly configured
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeKey || stripeKey === 'sk_test_placeholder' || stripeKey.length < 20) {
+      console.error('Invalid or missing Stripe secret key');
+      return NextResponse.json(
+        { 
+          error: 'Stripe is not properly configured. Please set a valid STRIPE_SECRET_KEY in your .env file.',
+          details: 'Current key is invalid or placeholder'
+        },
+        { status: 500 }
+      );
+    }
+
     // Fetch payment links from Stripe with expanded data
     const paymentLinks = await stripe.paymentLinks.list({
       limit: 50, // Get the most recent 50 payment links
@@ -48,8 +61,15 @@ export async function GET() {
     return NextResponse.json(transformedLinks);
   } catch (error) {
     console.error('Error fetching payment links:', error);
+    
+    // Provide more specific error message
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to fetch payment links' },
+      { 
+        error: 'Failed to fetch payment links',
+        details: errorMessage,
+        hint: errorMessage.includes('key') ? 'Check your Stripe API key configuration' : undefined
+      },
       { status: 500 }
     );
   }

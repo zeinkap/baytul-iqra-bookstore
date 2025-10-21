@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Select, { MultiValue } from 'react-select';
-import AdminNav from '@/components/AdminNav';
 
 // Book type
 interface Book {
@@ -327,7 +326,6 @@ export default function AdminBooksPage() {
 
   return (
     <div className="w-full max-w-7xl mx-auto p-6 text-gray-900 bg-white min-h-screen">
-      <AdminNav />
       <h1 className="text-3xl font-bold mb-6">Admin: Books</h1>
       <div className="mb-4">
         <input

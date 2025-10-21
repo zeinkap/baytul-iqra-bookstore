@@ -940,6 +940,7 @@ export default function CartPage() {
             
             <div className="mb-6">
               <div className="bg-gray-50 rounded-xl p-6 inline-block">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img 
                   src={qrCodeDataUrl} 
                   alt="Payment QR Code" 

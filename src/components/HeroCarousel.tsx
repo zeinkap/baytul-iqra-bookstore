@@ -30,19 +30,24 @@ export default function HeroCarousel({ heroBooks }: { heroBooks: Book[] }) {
     },
   });
   const [mounted, setMounted] = useState(false);
-  // Autoplay
-  useEffect(() => {
-    const interval = setInterval(() => {
-      instanceRef.current?.next();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [instanceRef]);
-
+  
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  if (!mounted) return null;
+  // Autoplay - only run if we have books and slider is initialized
+  useEffect(() => {
+    if (!mounted || heroBooks.length === 0 || !instanceRef.current) return;
+    
+    const interval = setInterval(() => {
+      if (instanceRef.current) {
+        instanceRef.current.next();
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [instanceRef, mounted, heroBooks.length]);
+
+  if (!mounted || heroBooks.length === 0) return null;
 
   return (
     <div className="w-full max-w-lg mx-auto">

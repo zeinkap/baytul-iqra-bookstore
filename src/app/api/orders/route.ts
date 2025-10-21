@@ -1,5 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import Stripe from 'stripe';
+
+// Extended Stripe session type to include shipping_details which may not be in all TypeScript definitions
+interface StripeSessionWithShipping extends Stripe.Response<Stripe.Checkout.Session> {
+  shipping_details?: {
+    name?: string | null;
+    address?: {
+      line1?: string | null;
+      line2?: string | null;
+      city?: string | null;
+      state?: string | null;
+      postal_code?: string | null;
+      country?: string | null;
+    } | null;
+  } | null;
+  shipping?: {
+    name?: string | null;
+    address?: {
+      line1?: string | null;
+      line2?: string | null;
+      city?: string | null;
+      state?: string | null;
+      postal_code?: string | null;
+      country?: string | null;
+    } | null;
+  } | null;
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -135,6 +162,63 @@ export async function PUT(req: NextRequest) {
     const discountAmountCents = Number(session.metadata?.discountAmount || '0');
     const fulfillmentType = (session.metadata?.fulfillmentType as 'shipping' | 'pickup') || 'shipping';
     const pickupLocation = session.metadata?.pickupLocation || undefined;
+    
+    // Extract shipping address if fulfillment type is shipping
+    let shippingAddress: {
+      name?: string;
+      line1?: string;
+      line2?: string;
+      city?: string;
+      state?: string;
+      postal_code?: string;
+      country?: string;
+    } | undefined = undefined;
+    
+    if (fulfillmentType === 'shipping') {
+      // First try to get shipping address from session.shipping_details (preferred)
+      // Note: shipping_details is available in newer Stripe API versions but may not be in all TypeScript definitions
+      const sessionWithShipping = session as StripeSessionWithShipping;
+      if (sessionWithShipping.shipping_details?.address) {
+        shippingAddress = {
+          name: sessionWithShipping.shipping_details.name ?? undefined,
+          line1: sessionWithShipping.shipping_details.address.line1 ?? undefined,
+          line2: sessionWithShipping.shipping_details.address.line2 ?? undefined,
+          city: sessionWithShipping.shipping_details.address.city ?? undefined,
+          state: sessionWithShipping.shipping_details.address.state ?? undefined,
+          postal_code: sessionWithShipping.shipping_details.address.postal_code ?? undefined,
+          country: sessionWithShipping.shipping_details.address.country ?? undefined,
+        };
+      }
+      // Fallback to deprecated session.shipping
+      else if (sessionWithShipping.shipping?.address) {
+        const shipping = sessionWithShipping.shipping;
+        const address = shipping.address;
+        if (address) {
+          shippingAddress = {
+            name: shipping.name ?? undefined,
+            line1: address.line1 ?? undefined,
+            line2: address.line2 ?? undefined,
+            city: address.city ?? undefined,
+            state: address.state ?? undefined,
+            postal_code: address.postal_code ?? undefined,
+            country: address.country ?? undefined,
+          };
+        }
+      }
+      // Fallback to customer_details.address (billing address)
+      else if (session.customer_details?.address) {
+        shippingAddress = {
+          name: session.customer_details.name ?? undefined,
+          line1: session.customer_details.address.line1 ?? undefined,
+          line2: session.customer_details.address.line2 ?? undefined,
+          city: session.customer_details.address.city ?? undefined,
+          state: session.customer_details.address.state ?? undefined,
+          postal_code: session.customer_details.address.postal_code ?? undefined,
+          country: session.customer_details.address.country ?? undefined,
+        };
+      }
+    }
+    
     const created = await prisma.order.create({
       data: {
         id: orderId,
@@ -145,6 +229,7 @@ export async function PUT(req: NextRequest) {
         promoCodeId: session.metadata?.promoCodeId || null,
         fulfillmentType,
         pickupLocation: fulfillmentType === 'pickup' ? (pickupLocation || 'Alpharetta, GA') : null,
+        shippingAddress: shippingAddress || undefined,
         email: session.customer_details?.email || session.customer_email || undefined,
       },
     });
