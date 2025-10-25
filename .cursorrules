@@ -16,4 +16,125 @@
 - Prefer editing existing files over creating new ones unless absolutely necessary
 - Always use proper TypeScript types
 - Follow the existing code style and patterns
-- Test API endpoints and functionality through code changes rather than server commands 
+- Test API endpoints and functionality through code changes rather than server commands
+
+## Playwright E2E Testing Guidelines
+
+### File Organization and Reusability
+- **ALWAYS use existing helper files** before creating new ones:
+  - `tests/helpers/api.helper.ts` - API interactions (getBooks, createOrder, etc.)
+  - `tests/helpers/test-workflows.helper.ts` - Common user flows (addBookToCart, setupBookInCart, etc.)
+  - `tests/helpers/wait.helper.ts` - Waiting utilities (waitForAPI, waitForToast, etc.)
+- **ALWAYS use existing Page Objects** before creating new ones:
+  - `tests/pages/home.page.ts` - Home page interactions
+  - `tests/pages/cart.page.ts` - Cart page interactions
+  - `tests/pages/book-detail.page.ts` - Book detail page interactions
+  - `tests/pages/checkout-success.page.ts` - Checkout success page interactions
+- **Only create new helper/page files** when testing completely new features not covered by existing files
+- When adding methods to existing files, follow the established patterns and naming conventions
+
+### Locator Strategy
+- **ALWAYS use `data-testid` attributes** for locators (most reliable and maintainable)
+- **If a `data-testid` doesn't exist**, add it to the component first, then use it in tests
+- Avoid brittle selectors like CSS classes, text content, or DOM structure
+- Example:
+  ```typescript
+  // GOOD: Use data-testid
+  this.emailInput = page.locator('[data-testid="cart-email-input"]');
+  
+  // BAD: Don't use CSS classes or text
+  this.emailInput = page.locator('.email-input-class');
+  this.emailInput = page.locator('text=Enter email');
+  ```
+
+### API-First Testing Approach
+- **Use API helpers to set up test state** instead of clicking through the UI
+- **Use `APIHelper` class** for data setup and validation:
+  ```typescript
+  // GOOD: Use API to get test data
+  const apiHelper = initializeAPIHelper(page);
+  const testBook = await apiHelper.findInStockBook();
+  
+  // BAD: Don't manually navigate and search to find a book
+  await page.goto('/');
+  await page.fill('[data-testid="search"]', 'some book');
+  ```
+- Only use UI interactions for what you're actually testing
+- Use API calls for:
+  - Finding test data (books, orders, promo codes)
+  - Setting up preconditions
+  - Validating backend state
+  - Cleaning up test data
+
+### Reduce Redundancy
+- **Reuse existing test workflows** from `test-workflows.helper.ts`:
+  - `addBookToCart()` - Complete flow: navigate, search, add to cart
+  - `addMultipleBooksToCart()` - Add multiple books at once
+  - `setupBookInCart()` - Set up a book in cart and navigate to cart page
+  - `waitForCheckoutNavigation()` - Wait for Stripe or internal checkout
+- **Don't duplicate test logic** - extract common patterns into helpers
+- **Use test fixtures** from `base-test.ts` - page objects are already initialized
+- **Share test data** - use `test-data.ts` for common test data and utilities
+
+### Test Structure Best Practices
+- One test = one specific behavior/outcome
+- Use descriptive test names that explain user intent
+- Keep tests independent and isolated
+- Use `beforeEach` for common setup, not repeated code in each test
+- Example:
+  ```typescript
+  // GOOD: Clear setup, focused test
+  test.describe('Cart Management', () => {
+    let apiHelper: APIHelper;
+    let testBook: { id: string; title: string };
+
+    test.beforeEach(async ({ page }) => {
+      apiHelper = initializeAPIHelper(page);
+      testBook = await apiHelper.findInStockBook();
+    });
+
+    test('should add book to cart', async ({ homePage, cartPage }) => {
+      await addBookToCart(homePage, testBook);
+      await homePage.goToCart();
+      expect(await cartPage.getCartItemCount()).toBe(1);
+    });
+  });
+  ```
+
+### When Adding New Tests
+1. **Check existing tests** - avoid duplicating coverage
+2. **Reuse existing helpers and page objects** - don't recreate the wheel
+3. **Add `data-testid` attributes** to components if missing
+4. **Use API for setup** - only test UI interactions that matter
+5. **Follow the Page Object Model** - keep selectors in page objects
+6. **Keep tests focused** - test one thing at a time
+7. **Add helpers for repeated patterns** - if you copy code twice, extract it
+
+### Example: Good vs Bad Test
+
+**BAD - Redundant, UI-heavy, brittle:**
+```typescript
+test('should checkout', async ({ page }) => {
+  await page.goto('/');
+  await page.fill('.search-box', 'The Sealed Nectar');
+  await page.click('.search-button');
+  await page.click('.book-card:first-child .add-to-cart');
+  await page.click('a:has-text("Cart")');
+  await page.fill('input[type="email"]', 'test@example.com');
+  await page.click('button:has-text("Checkout")');
+});
+```
+
+**GOOD - Uses helpers, API, page objects, data-testid:**
+```typescript
+test('should checkout with valid email', async ({ homePage, cartPage }) => {
+  const apiHelper = initializeAPIHelper(page);
+  const testBook = await apiHelper.findInStockBook();
+  
+  await setupBookInCart(homePage, cartPage, testBook);
+  await cartPage.enterEmail(generateTestEmail());
+  await cartPage.clickCheckout();
+  
+  expect(await cartPage.isCheckoutSuccessful()).toBe(true);
+});
+```
