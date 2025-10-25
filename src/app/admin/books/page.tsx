@@ -20,6 +20,13 @@ interface Book {
   updatedAt: string;
 }
 
+interface BookStats {
+  totalBooks: number;
+  totalInventoryValue: number;
+  lowStockCount: number;
+  bestsellerCount: number;
+}
+
 export default function AdminBooksPage() {
   const [books, setBooks] = useState<Book[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
@@ -40,8 +47,20 @@ export default function AdminBooksPage() {
   const formRef = useRef<HTMLFormElement | null>(null);
   const formAnchorRef = useRef<HTMLDivElement | null>(null);
   const [searchText, setSearchText] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortField, setSortField] = useState<string>('title');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [stockFilter, setStockFilter] = useState("");
+  const [bestsellerFilter, setBestsellerFilter] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [bookToDelete, setBookToDelete] = useState<string | null>(null);
+  const [stats, setStats] = useState<BookStats>({
+    totalBooks: 0,
+    totalInventoryValue: 0,
+    lowStockCount: 0,
+    bestsellerCount: 0,
+  });
 
   function isValidImageSrc(src: unknown): src is string {
     return (
@@ -77,13 +96,53 @@ export default function AdminBooksPage() {
     }
   }, [showForm]);
 
+  // Debounced search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearch(searchText);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchText]);
+
+  // ESC key to close form
+  useEffect(() => {
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape' && showForm) {
+        cancelForm();
+      }
+      if (e.key === 'Escape' && showDeleteConfirm) {
+        setShowDeleteConfirm(false);
+        setBookToDelete(null);
+      }
+    }
+    
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [showForm, showDeleteConfirm]);
+
   async function fetchBooks() {
     setLoading(true);
     const res = await fetch("/api/books?bypassCache=1", { cache: 'no-store' });
     const data = await res.json();
     setBooks(data);
+    
+    // Calculate stats
+    const totalBooks = data.length;
+    const totalInventoryValue = data.reduce((sum: number, book: Book) => sum + (book.price * book.stock), 0);
+    const lowStockCount = data.filter((book: Book) => book.stock < 2).length;
+    const bestsellerCount = data.filter((book: Book) => book.isBestseller).length;
+    
+    setStats({
+      totalBooks,
+      totalInventoryValue,
+      lowStockCount,
+      bestsellerCount,
+    });
+    
     setLoading(false);
   }
+  
   async function fetchCategories() {
     const res = await fetch("/api/books/categories?bypassCache=1", { cache: 'no-store' });
     const data = await res.json();
@@ -179,6 +238,14 @@ export default function AdminBooksPage() {
     setShowForm(true);
     formRef.current?.scrollIntoView({ behavior: "smooth" });
   }
+  
+  function cancelForm() {
+    setEditingBook(null);
+    setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 0, isBestseller: false, format: "", categories: [] });
+    setShowForm(false);
+    setError(null);
+  }
+  
   function handleFormChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     const { name, value } = e.target;
     if (name.startsWith("images.")) {
@@ -192,6 +259,7 @@ export default function AdminBooksPage() {
       setForm((f) => ({ ...f, [name]: name === "price" || name === "stock" || name === "costPrice" || name === "shippingCost" ? Number(value) : value }));
     }
   }
+  
   // Helper to map categories to react-select format
   type Option = { value: string; label: string };
   const categoryOptions: Option[] = categories.map((c) => ({ value: c, label: c }));
@@ -250,9 +318,7 @@ export default function AdminBooksPage() {
       }
 
       await fetchBooks();
-      setEditingBook(null);
-      setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 0, isBestseller: false, categories: [] });
-      setShowForm(false);
+      cancelForm();
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -264,20 +330,27 @@ export default function AdminBooksPage() {
     }
   }
 
-  async function handleDelete(bookId: string) {
-    if (!confirm("Are you sure you want to delete this book?")) return;
+  function confirmDelete(bookId: string) {
+    setBookToDelete(bookId);
+    setShowDeleteConfirm(true);
+  }
+
+  async function handleDelete() {
+    if (!bookToDelete) return;
 
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch(`/api/books/${bookId}`, {
+      const res = await fetch(`/api/books/${bookToDelete}`, {
         method: "DELETE",
       });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({ error: "Failed to delete book" }));
         throw new Error(errorData.error || "Failed to delete book");
       }
-      await fetchBooks(); // Refresh the book list
+      await fetchBooks();
+      setShowDeleteConfirm(false);
+      setBookToDelete(null);
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -302,7 +375,7 @@ export default function AdminBooksPage() {
         const errorData = await res.json().catch(() => ({ error: "Failed to update bestseller status" }));
         throw new Error(errorData.error || "Failed to update bestseller status");
       }
-      await fetchBooks(); // Refresh the book list
+      await fetchBooks();
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);
@@ -314,41 +387,162 @@ export default function AdminBooksPage() {
     }
   }
 
-  // Filter books by search text (title, author, or category)
+  function exportToCSV() {
+    const headers = ['Title', 'Author', 'Format', 'Categories', 'Stock', 'Price', 'Cost Price', 'Shipping Cost', 'Bestseller', 'Created At'];
+    const rows = filteredBooks.map(book => [
+      book.title,
+      book.author,
+      book.format || 'N/A',
+      book.categories.join('; '),
+      book.stock.toString(),
+      `$${book.price.toFixed(2)}`,
+      book.costPrice ? `$${book.costPrice.toFixed(2)}` : 'N/A',
+      book.shippingCost ? `$${book.shippingCost.toFixed(2)}` : 'N/A',
+      book.isBestseller ? 'Yes' : 'No',
+      new Date(book.createdAt).toLocaleDateString(),
+    ]);
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `books-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  // Filter books by search text, category, stock level, and bestseller status
   const filteredBooks = books.filter((book) => {
-    const text = searchText.toLowerCase();
-    return (
+    const text = debouncedSearch.toLowerCase();
+    const matchesSearch = !debouncedSearch || (
       book.title.toLowerCase().includes(text) ||
       book.author.toLowerCase().includes(text) ||
       book.categories.some((cat) => cat.toLowerCase().includes(text))
     );
+    
+    const matchesCategory = !categoryFilter || book.categories.includes(categoryFilter);
+    
+    const matchesStock = !stockFilter || (
+      (stockFilter === 'low' && book.stock < 2) ||
+      (stockFilter === 'out' && book.stock === 0) ||
+      (stockFilter === 'in' && book.stock > 0)
+    );
+    
+    const matchesBestseller = !bestsellerFilter || (
+      (bestsellerFilter === 'yes' && book.isBestseller) ||
+      (bestsellerFilter === 'no' && !book.isBestseller)
+    );
+    
+    return matchesSearch && matchesCategory && matchesStock && matchesBestseller;
   });
 
   return (
     <div className="w-full max-w-7xl mx-auto p-6 text-gray-900 bg-white min-h-screen">
-      <h1 className="text-3xl font-bold mb-6">Admin: Books</h1>
-      <div className="mb-4">
-        <input
-          type="text"
-          value={searchText}
-          onChange={e => setSearchText(e.target.value)}
-          placeholder="Search by title, author, or category..."
-          className="w-full md:w-1/2 border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
-        />
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Admin: Books</h1>
+        <button
+          onClick={exportToCSV}
+          disabled={filteredBooks.length === 0}
+          className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-semibold shadow transition flex items-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Export CSV
+        </button>
       </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4 shadow">
+          <div className="text-sm text-blue-600 font-medium mb-1">Total Books</div>
+          <div className="text-2xl font-bold text-blue-900">{stats.totalBooks}</div>
+        </div>
+        <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-xl p-4 shadow">
+          <div className="text-sm text-green-600 font-medium mb-1">Inventory Value</div>
+          <div className="text-2xl font-bold text-green-900">${stats.totalInventoryValue.toFixed(2)}</div>
+        </div>
+        <div className="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-xl p-4 shadow">
+          <div className="text-sm orange-600 font-medium mb-1">Low Stock Items</div>
+          <div className="text-2xl font-bold text-orange-900">{stats.lowStockCount}</div>
+          <div className="text-xs text-orange-700 mt-1">&lt; 2 units</div>
+        </div>
+        <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-xl p-4 shadow">
+          <div className="text-sm text-purple-600 font-medium mb-1">Bestsellers</div>
+          <div className="text-2xl font-bold text-purple-900">{stats.bestsellerCount}</div>
+        </div>
+      </div>
+
+      {/* Search and Filters */}
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div>
+          <input
+            type="text"
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+            placeholder="Search by title, author, or category..."
+            className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          {searchText && (
+            <div className="text-xs text-gray-500 mt-1">
+              Searching...
+            </div>
+          )}
+        </div>
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        >
+          <option value="">All Categories</option>
+          {categories.map((cat) => (
+            <option key={cat} value={cat}>{cat}</option>
+          ))}
+        </select>
+        <select
+          value={stockFilter}
+          onChange={(e) => setStockFilter(e.target.value)}
+          className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        >
+          <option value="">All Stock Levels</option>
+          <option value="in">In Stock</option>
+          <option value="low">Low Stock (&lt; 2)</option>
+          <option value="out">Out of Stock</option>
+        </select>
+        <select
+          value={bestsellerFilter}
+          onChange={(e) => setBestsellerFilter(e.target.value)}
+          className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+        >
+          <option value="">All Books</option>
+          <option value="yes">Bestsellers Only</option>
+          <option value="no">Non-Bestsellers</option>
+        </select>
+      </div>
+
       <button
         onClick={startAdd}
         className="mb-6 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold shadow transition"
       >
-        Add New Book
+        + Add New Book
       </button>
+      
       {loading && (
         <div className="flex items-center gap-2 text-blue-600 mb-4">
           <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
           Loading...
         </div>
       )}
+      
       {error && <div className="bg-red-100 text-red-700 px-4 py-2 rounded mb-4 font-semibold flex items-center gap-2"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-12.728 12.728M5.636 5.636l12.728 12.728" /></svg>{error}</div>}
+      
       {/* Add/Edit Form */}
       <div ref={formAnchorRef} className="h-0" />
       {showForm && (
@@ -467,11 +661,7 @@ export default function AdminBooksPage() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                setEditingBook(null);
-                setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 0, isBestseller: false, format: "", categories: [] });
-                setShowForm(false);
-              }}
+              onClick={cancelForm}
               className="bg-gray-400 hover:bg-gray-500 text-white px-6 py-2 rounded-lg font-semibold shadow transition"
             >
               Cancel
@@ -479,8 +669,12 @@ export default function AdminBooksPage() {
           </div>
         </form>
       )}
+      
       {/* Book List */}
       <div className="bg-gray-50 border border-gray-200 rounded-xl shadow p-4 overflow-x-auto">
+        <div className="mb-4 text-sm text-gray-600">
+          Showing {filteredBooks.length} of {books.length} books
+        </div>
         <table className="w-full text-sm md:text-base">
           <thead>
             <tr className="bg-gray-100 text-gray-700">
@@ -581,7 +775,9 @@ export default function AdminBooksPage() {
           <tbody>
             {filteredBooks.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-8 text-gray-400">No books found.</td>
+                <td colSpan={8} className="text-center py-8 text-gray-400">
+                  {loading ? 'Loading books...' : 'No books found.'}
+                </td>
               </tr>
             ) : getSortedData(filteredBooks).map((book, idx) => (
               <tr
@@ -596,7 +792,13 @@ export default function AdminBooksPage() {
                 <td className="py-2 px-2 hidden md:table-cell">{book.author}</td>
                 <td className="py-2 px-2 hidden md:table-cell">{book.format}</td>
                 <td className="py-2 px-2 hidden md:table-cell">{book.categories.join(", ")}</td>
-                <td className="py-2 px-2">{book.stock}</td>
+                <td className="py-2 px-2">
+                  <span className={`${book.stock < 2 ? 'text-orange-600 font-semibold' : ''} ${book.stock === 0 ? 'text-red-600 font-bold' : ''}`}>
+                    {book.stock}
+                    {book.stock < 2 && book.stock > 0 && <span className="text-xs ml-1">⚠️</span>}
+                    {book.stock === 0 && <span className="text-xs ml-1">❌</span>}
+                  </span>
+                </td>
                 <td className="py-2 px-2">${book.price.toFixed(2)}</td>
                 <td className="py-2 px-2">
                   <button
@@ -618,7 +820,7 @@ export default function AdminBooksPage() {
                     Edit
                   </button>
                   <button
-                    onClick={() => handleDelete(book.id)}
+                    onClick={() => confirmDelete(book.id)}
                     className="text-red-600 hover:underline"
                   >
                     Delete
@@ -629,6 +831,55 @@ export default function AdminBooksPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={() => {
+            setShowDeleteConfirm(false);
+            setBookToDelete(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-red-100 rounded-full p-3">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Delete Book</h3>
+                <p className="text-sm text-gray-600">This action cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-gray-700 mb-6">
+              Are you sure you want to delete this book? All data associated with this book will be permanently removed.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleDelete}
+                disabled={loading}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-semibold shadow transition disabled:opacity-60"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setBookToDelete(null);
+                }}
+                className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 px-4 py-2 rounded-lg font-semibold shadow transition"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-} 
+}

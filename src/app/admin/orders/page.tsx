@@ -41,6 +41,7 @@ interface Order {
   pickupLocation: string | null;
   shippingAddress: ShippingAddress | null;
   email: string | null;
+  customerName: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -50,6 +51,12 @@ interface Pagination {
   limit: number;
   total: number;
   pages: number;
+}
+
+interface OrderStats {
+  totalRevenue: number;
+  totalOrders: number;
+  averageOrderValue: number;
 }
 
 export default function AdminOrdersPage() {
@@ -63,11 +70,17 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchText, setSearchText] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [fulfillmentFilter, setFulfillmentFilter] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [sortField, setSortField] = useState<string>('createdAt');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [stats, setStats] = useState<OrderStats>({
+    totalRevenue: 0,
+    totalOrders: 0,
+    averageOrderValue: 0,
+  });
 
   const fetchOrders = useCallback(async () => {
     setLoading(true);
@@ -77,7 +90,7 @@ export default function AdminOrdersPage() {
       const params = new URLSearchParams({
         page: pagination.page.toString(),
         limit: pagination.limit.toString(),
-        search: searchText,
+        search: debouncedSearch,
         fulfillmentType: fulfillmentFilter,
       });
       
@@ -89,12 +102,23 @@ export default function AdminOrdersPage() {
       const data = await res.json();
       setOrders(data.orders);
       setPagination(data.pagination);
+      
+      // Calculate stats
+      const totalRevenue = data.orders.reduce((sum: number, order: Order) => sum + order.finalTotal, 0);
+      const totalOrders = data.pagination.total;
+      const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+      
+      setStats({
+        totalRevenue,
+        totalOrders,
+        averageOrderValue,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, searchText, fulfillmentFilter]);
+  }, [pagination.page, pagination.limit, debouncedSearch, fulfillmentFilter]);
 
   // Fetch orders
   useEffect(() => {
@@ -126,6 +150,10 @@ export default function AdminOrdersPage() {
           aValue = new Date(a.createdAt).getTime();
           bValue = new Date(b.createdAt).getTime();
           break;
+        case 'customerName':
+          aValue = (a.customerName || '').toLowerCase();
+          bValue = (b.customerName || '').toLowerCase();
+          break;
         case 'email':
           aValue = (a.email || '').toLowerCase();
           bValue = (b.email || '').toLowerCase();
@@ -153,19 +181,15 @@ export default function AdminOrdersPage() {
     });
   }
 
-  // Debounced search
+  // Debounced search - update debouncedSearch after delay
   useEffect(() => {
     const timeoutId = setTimeout(() => {
+      setDebouncedSearch(searchText);
       setPagination(prev => ({ ...prev, page: 1 }));
-      fetchOrders();
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchText, fetchOrders]);
-
-  function handleSearch() {
-    setPagination(prev => ({ ...prev, page: 1 }));
-  }
+  }, [searchText]);
 
   function handlePageChange(page: number) {
     setPagination(prev => ({ ...prev, page }));
@@ -175,6 +199,23 @@ export default function AdminOrdersPage() {
     setSelectedOrder(order);
     setShowOrderDetails(true);
   }
+
+  function closeOrderDetails() {
+    setShowOrderDetails(false);
+    setSelectedOrder(null);
+  }
+
+  // Close modal on ESC key
+  useEffect(() => {
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === 'Escape' && showOrderDetails) {
+        closeOrderDetails();
+      }
+    }
+    
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [showOrderDetails]);
 
   function formatDate(dateString: string) {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -200,9 +241,102 @@ export default function AdminOrdersPage() {
     return parts.join(', ');
   }
 
+  function exportToCSV() {
+    // Create CSV content
+    const headers = ['Order ID', 'Date', 'Customer Name', 'Email', 'Items', 'Subtotal', 'Discount', 'Final Total', 'Fulfillment Type', 'Pickup Location', 'Shipping Address'];
+    const rows = orders.map(order => [
+      order.id,
+      formatDate(order.createdAt),
+      order.customerName || 'N/A',
+      order.email || 'N/A',
+      `${Array.isArray(order.items) ? order.items.length : 0} items`,
+      `$${order.total.toFixed(2)}`,
+      `$${order.discountAmount.toFixed(2)}`,
+      `$${order.finalTotal.toFixed(2)}`,
+      order.fulfillmentType,
+      order.pickupLocation || 'N/A',
+      formatAddress(order.shippingAddress),
+    ]);
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+    
+    // Download CSV
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `orders-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  function getPaginationRange() {
+    const { page, pages } = pagination;
+    const delta = 2;
+    const range: (number | string)[] = [];
+    const rangeWithDots: (number | string)[] = [];
+
+    for (
+      let i = Math.max(2, page - delta);
+      i <= Math.min(pages - 1, page + delta);
+      i++
+    ) {
+      range.push(i);
+    }
+
+    if (page - delta > 2) {
+      rangeWithDots.push(1, '...');
+    } else {
+      rangeWithDots.push(1);
+    }
+
+    rangeWithDots.push(...range);
+
+    if (page + delta < pages - 1) {
+      rangeWithDots.push('...', pages);
+    } else if (pages > 1) {
+      rangeWithDots.push(pages);
+    }
+
+    return rangeWithDots;
+  }
+
   return (
     <div className="max-w-7xl mx-auto p-6 text-gray-900 bg-white min-h-screen">
-      <h1 className="text-3xl font-bold mb-6">Admin: Orders</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Admin: Orders</h1>
+        <button
+          onClick={exportToCSV}
+          disabled={orders.length === 0}
+          className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-semibold shadow transition flex items-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          Export CSV
+        </button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4 shadow">
+          <div className="text-sm text-blue-600 font-medium mb-1">Total Orders</div>
+          <div className="text-2xl font-bold text-blue-900">{stats.totalOrders}</div>
+        </div>
+        <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-xl p-4 shadow">
+          <div className="text-sm text-green-600 font-medium mb-1">Total Revenue</div>
+          <div className="text-2xl font-bold text-green-900">${stats.totalRevenue.toFixed(2)}</div>
+        </div>
+        <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-xl p-4 shadow">
+          <div className="text-sm text-purple-600 font-medium mb-1">Avg Order Value</div>
+          <div className="text-2xl font-bold text-purple-900">${stats.averageOrderValue.toFixed(2)}</div>
+        </div>
+      </div>
       
       {/* Search and Filters */}
       <div className="mb-6 flex flex-col md:flex-row gap-4">
@@ -211,10 +345,14 @@ export default function AdminOrdersPage() {
             type="text"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-            placeholder="Search by email or order ID..."
+            placeholder="Search by email, customer name, or order ID..."
             className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
+          {searchText && (
+            <div className="text-xs text-gray-500 mt-1">
+              Searching... Results will appear after you stop typing
+            </div>
+          )}
         </div>
         <select
           value={fulfillmentFilter}
@@ -225,12 +363,6 @@ export default function AdminOrdersPage() {
           <option value="shipping">Shipping</option>
           <option value="pickup">Pickup</option>
         </select>
-        <button
-          onClick={handleSearch}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold shadow transition"
-        >
-          Search
-        </button>
       </div>
 
       {loading && (
@@ -278,6 +410,19 @@ export default function AdminOrdersPage() {
                   <div className="flex items-center space-x-1">
                     <span>Date</span>
                     {sortField === 'createdAt' && (
+                      <span className="text-blue-500">
+                        {sortDirection === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </div>
+                </th>
+                <th 
+                  className="font-semibold py-3 px-4 text-left cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                  onClick={() => handleSort('customerName')}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>Customer</span>
+                    {sortField === 'customerName' && (
                       <span className="text-blue-500">
                         {sortDirection === 'asc' ? '↑' : '↓'}
                       </span>
@@ -342,7 +487,7 @@ export default function AdminOrdersPage() {
             <tbody>
               {orders.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-8 text-gray-400">
+                  <td colSpan={8} className="text-center py-8 text-gray-400">
                     {loading ? 'Loading orders...' : 'No orders found.'}
                   </td>
                 </tr>
@@ -358,6 +503,7 @@ export default function AdminOrdersPage() {
                   >
                     <td className="py-3 px-4 font-mono text-xs">{order.id.slice(0, 8)}...</td>
                     <td className="py-3 px-4">{formatDate(order.createdAt)}</td>
+                    <td className="py-3 px-4">{order.customerName || 'N/A'}</td>
                     <td className="py-3 px-4">{order.email || 'N/A'}</td>
                     <td className="py-3 px-4">
                       {Array.isArray(order.items) ? order.items.length : 0} items
@@ -397,23 +543,29 @@ export default function AdminOrdersPage() {
 
       {/* Pagination */}
       {pagination.pages > 1 && (
-        <div className="mt-6 flex justify-center">
+        <div className="mt-6 flex justify-center items-center gap-4">
+          <button
+            onClick={() => handlePageChange(pagination.page - 1)}
+            disabled={pagination.page <= 1}
+            className="px-4 py-2 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition"
+          >
+            ← Previous
+          </button>
+          
           <div className="flex gap-2">
-            <button
-              onClick={() => handlePageChange(pagination.page - 1)}
-              disabled={pagination.page <= 1}
-              className="px-3 py-2 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-            >
-              Previous
-            </button>
-            
-            {Array.from({ length: Math.min(5, pagination.pages) }, (_, i) => {
-              const page = i + 1;
+            {getPaginationRange().map((page, idx) => {
+              if (page === '...') {
+                return (
+                  <span key={`ellipsis-${idx}`} className="px-3 py-2 text-gray-400">
+                    ...
+                  </span>
+                );
+              }
               return (
                 <button
                   key={page}
-                  onClick={() => handlePageChange(page)}
-                  className={`px-3 py-2 border rounded ${
+                  onClick={() => handlePageChange(page as number)}
+                  className={`px-3 py-2 border rounded transition ${
                     page === pagination.page
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'border-gray-300 hover:bg-gray-50'
@@ -423,27 +575,34 @@ export default function AdminOrdersPage() {
                 </button>
               );
             })}
-            
-            <button
-              onClick={() => handlePageChange(pagination.page + 1)}
-              disabled={pagination.page >= pagination.pages}
-              className="px-3 py-2 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-            >
-              Next
-            </button>
           </div>
+          
+          <button
+            onClick={() => handlePageChange(pagination.page + 1)}
+            disabled={pagination.page >= pagination.pages}
+            className="px-4 py-2 border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition"
+          >
+            Next →
+          </button>
         </div>
       )}
 
       {/* Order Details Modal */}
       {showOrderDetails && selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+          onClick={closeOrderDetails}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-2xl p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-2xl font-bold">Order Details</h2>
               <button
-                onClick={() => setShowOrderDetails(false)}
-                className="text-gray-500 hover:text-gray-700"
+                onClick={closeOrderDetails}
+                className="text-gray-500 hover:text-gray-700 transition"
+                aria-label="Close modal"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -456,22 +615,28 @@ export default function AdminOrdersPage() {
               <div>
                 <h3 className="text-lg font-semibold mb-3">Order Information</h3>
                 <div className="space-y-2 text-sm">
-                  <p><strong>Order ID:</strong> {selectedOrder.id}</p>
+                  <p><strong>Order ID:</strong> <span className="font-mono text-xs">{selectedOrder.id}</span></p>
                   <p><strong>Date:</strong> {formatDate(selectedOrder.createdAt)}</p>
+                  <p><strong>Customer Name:</strong> {selectedOrder.customerName || 'N/A'}</p>
                   <p><strong>Email:</strong> {selectedOrder.email || 'N/A'}</p>
                   <p><strong>Fulfillment:</strong> {selectedOrder.fulfillmentType}</p>
                   {selectedOrder.pickupLocation && (
                     <p><strong>Pickup Location:</strong> {selectedOrder.pickupLocation}</p>
                   )}
                   {selectedOrder.promoCode && (
-                    <p><strong>Promo Code:</strong> {selectedOrder.promoCode.code} ({selectedOrder.promoCode.description})</p>
+                    <div className="bg-green-50 border border-green-200 rounded p-2 mt-2">
+                      <p className="text-green-800"><strong>Promo Code:</strong> {selectedOrder.promoCode.code}</p>
+                      <p className="text-green-700 text-xs">{selectedOrder.promoCode.description}</p>
+                    </div>
                   )}
                 </div>
               </div>
 
               {/* Address */}
               <div>
-                <h3 className="text-lg font-semibold mb-3">Shipping Address</h3>
+                <h3 className="text-lg font-semibold mb-3">
+                  {selectedOrder.fulfillmentType === 'shipping' ? 'Shipping Address' : 'Pickup Information'}
+                </h3>
                 <p className="text-sm">{formatAddress(selectedOrder.shippingAddress)}</p>
               </div>
             </div>

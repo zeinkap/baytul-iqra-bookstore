@@ -40,7 +40,11 @@ export async function GET(req: NextRequest) {
     
     // Build where clause
     const where: {
-      OR?: Array<{ email?: { contains: string; mode: 'insensitive' }; id?: { contains: string; mode: 'insensitive' } }>;
+      OR?: Array<{ 
+        email?: { contains: string; mode: 'insensitive' }; 
+        id?: { contains: string; mode: 'insensitive' };
+        customerName?: { contains: string; mode: 'insensitive' };
+      }>;
       fulfillmentType?: string;
     } = {};
     
@@ -48,6 +52,7 @@ export async function GET(req: NextRequest) {
       where.OR = [
         { email: { contains: search, mode: 'insensitive' } },
         { id: { contains: search, mode: 'insensitive' } },
+        { customerName: { contains: search, mode: 'insensitive' } },
       ];
     }
     
@@ -96,7 +101,9 @@ export async function POST(req: NextRequest) {
     if (fulfillmentType !== 'shipping' && fulfillmentType !== 'pickup') {
       return NextResponse.json({ error: 'Invalid fulfillment type' }, { status: 400 });
     }
-    const finalTotal = total - (discountAmount || 0);
+    // Add shipping cost to final total if fulfillment type is shipping
+    const shippingCost = fulfillmentType === 'shipping' ? 5.00 : 0;
+    const finalTotal = total + shippingCost - (discountAmount || 0);
     
     const order = await prisma.order.create({
       data: {
@@ -146,18 +153,17 @@ export async function PUT(req: NextRequest) {
     // Build from line items similar to webhook
     const lineItems = await stripe.checkout.sessions.listLineItems(sessionId);
     const productItems: { title: string; quantity: number; price: number }[] = [];
-    let totalCents = 0;
+    let shippingCostCents = 0;
       for (const li of lineItems.data) {
     const name = li.description || (li.price?.product as unknown as string);
     const qty = li.quantity || 1;
     const unit = li.price?.unit_amount ?? 0;
     const lineTotal = unit * qty;
     if (name?.toLowerCase() === 'shipping') {
-      totalCents += lineTotal;
+      shippingCostCents += lineTotal;
       continue;
     }
     productItems.push({ title: name || 'Item', quantity: qty, price: unit / 100 });
-    totalCents += lineTotal;
   }
     const discountAmountCents = Number(session.metadata?.discountAmount || '0');
     const fulfillmentType = (session.metadata?.fulfillmentType as 'shipping' | 'pickup') || 'shipping';
@@ -219,13 +225,17 @@ export async function PUT(req: NextRequest) {
       }
     }
     
+    // Calculate totals
+    const subtotal = productItems.reduce((s, it) => s + it.price * it.quantity, 0);
+    const finalTotal = subtotal + (shippingCostCents / 100) - ((discountAmountCents || 0) / 100);
+    
     const created = await prisma.order.create({
       data: {
         id: orderId,
         items: productItems,
-        total: productItems.reduce((s, it) => s + it.price * it.quantity, 0),
+        total: subtotal,
         discountAmount: (discountAmountCents || 0) / 100,
-        finalTotal: (totalCents || 0) / 100,
+        finalTotal: finalTotal,
         promoCodeId: session.metadata?.promoCodeId || null,
         fulfillmentType,
         pickupLocation: fulfillmentType === 'pickup' ? (pickupLocation || 'Alpharetta, GA') : null,
