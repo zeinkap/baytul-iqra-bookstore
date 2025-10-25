@@ -94,16 +94,18 @@ async function backfillCustomerInfo() {
         if (sessionWithShipping.shipping_details?.address) {
           const shipDetails = sessionWithShipping.shipping_details;
           const address = shipDetails.address;
-          shippingAddress = {
-            name: shipDetails.name ?? undefined,
-            line1: address.line1 ?? undefined,
-            line2: address.line2 ?? undefined,
-            city: address.city ?? undefined,
-            state: address.state ?? undefined,
-            postal_code: address.postal_code ?? undefined,
-            country: address.country ?? undefined,
-          };
-          console.log(`  ✓ Extracted shipping address from session`);
+          if (address) {
+            shippingAddress = {
+              name: shipDetails.name ?? undefined,
+              line1: address.line1 ?? undefined,
+              line2: address.line2 ?? undefined,
+              city: address.city ?? undefined,
+              state: address.state ?? undefined,
+              postal_code: address.postal_code ?? undefined,
+              country: address.country ?? undefined,
+            };
+            console.log(`  ✓ Extracted shipping address from session`);
+          }
         }
         // Fallback to billing address
         else if (customerDetails?.address) {
