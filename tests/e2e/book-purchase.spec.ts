@@ -2,7 +2,7 @@ import { test, expect } from '../fixtures/base-test';
 import { generateTestEmail } from '../fixtures/test-data';
 import { 
   initializeAPIHelper, 
-  setupBookInCart, 
+  setupCartViaLocalStorage,
   waitForCheckoutNavigation 
 } from '../helpers/test-workflows.helper';
 import type { APIHelper } from '../helpers/api.helper';
@@ -11,22 +11,23 @@ import type { APIHelper } from '../helpers/api.helper';
  * End-to-End Test: Book Purchase Flow
  * 
  * This test suite covers critical purchase flow scenarios:
- * 1. Email validation (negative test)
- * 2. Checkout with shipping (positive test)
- * 3. Complete purchase flow with pickup (comprehensive test)
+ * 1. Email validation (negative test) - OPTIMIZED: Uses localStorage for speed
+ * 2. Checkout with shipping (positive test) - OPTIMIZED: Uses localStorage for speed
+ * 3. Complete purchase flow with pickup (comprehensive test) - Full UI flow to test entire journey
  */
 
 test.describe('Book Purchase Flow', () => {
   let apiHelper: APIHelper;
-  let testBook: { id: string; title: string };
+  let testBook: { id: string; title: string; author: string; price: number };
 
   test.beforeEach(async ({ page }) => {
     apiHelper = initializeAPIHelper(page);
     testBook = await apiHelper.findInStockBook();
   });
 
-  test('should show email validation error when email is missing', async ({ homePage, cartPage }) => {
-    await setupBookInCart(homePage, cartPage, testBook);
+  test('should show email validation error when email is missing', async ({ cartPage, page }) => {
+    // Fast setup: Add to cart via localStorage instead of UI
+    await setupCartViaLocalStorage(page, cartPage, [testBook]);
 
     await cartPage.selectShipping();
     await cartPage.clickCheckout();
@@ -36,8 +37,9 @@ test.describe('Book Purchase Flow', () => {
     expect(await cartPage.isEmailErrorVisible()).toBe(true);
   });
 
-  test('should proceed to checkout with valid email and shipping', async ({ homePage, cartPage, page }) => {
-    await setupBookInCart(homePage, cartPage, testBook);
+  test('should proceed to checkout with valid email and shipping', async ({ cartPage, page }) => {
+    // Fast setup: Add to cart via localStorage instead of UI
+    await setupCartViaLocalStorage(page, cartPage, [testBook]);
 
     const testEmail = generateTestEmail();
     await cartPage.enterEmail(testEmail);

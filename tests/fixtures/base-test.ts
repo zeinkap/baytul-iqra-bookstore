@@ -3,6 +3,7 @@ import { HomePage } from '../pages/home.page';
 import { BookDetailPage } from '../pages/book-detail.page';
 import { CartPage } from '../pages/cart.page';
 import { CheckoutSuccessPage } from '../pages/checkout-success.page';
+import { ContactPage } from '../pages/contact.page';
 
 /**
  * Extended test fixture with Page Object Models
@@ -18,6 +19,7 @@ type PageFixtures = {
   bookDetailPage: BookDetailPage;
   cartPage: CartPage;
   checkoutSuccessPage: CheckoutSuccessPage;
+  contactPage: ContactPage;
 };
 
 export const test = base.extend<PageFixtures>({
@@ -71,6 +73,12 @@ export const test = base.extend<PageFixtures>({
     const checkoutSuccessPage = new CheckoutSuccessPage(page);
     // eslint-disable-next-line react-hooks/rules-of-hooks
     await use(checkoutSuccessPage);
+  },
+
+  contactPage: async ({ page }, use) => {
+    const contactPage = new ContactPage(page);
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    await use(contactPage);
   },
 });
 

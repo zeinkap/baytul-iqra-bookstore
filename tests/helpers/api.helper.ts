@@ -131,5 +131,18 @@ export class APIHelper {
     }
     return inStockBooks;
   }
+
+  /**
+   * Find a book that's out of stock for testing
+   */
+  async findOutOfStockBook() {
+    const books = await this.getBooks();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const outOfStockBook = books.find((book: any) => book.stock === 0);
+    if (!outOfStockBook) {
+      throw new Error('No books with zero stock available for testing');
+    }
+    return outOfStockBook;
+  }
 }
 

@@ -115,5 +115,41 @@ export class CheckoutSuccessPage extends BasePage {
     // Wait for loading state to disappear
     await this.page.waitForSelector('text="Finalizing your order"', { state: 'hidden', timeout: 30000 });
   }
+
+  /**
+   * Get customer name from order info section
+   */
+  async getCustomerName(): Promise<string> {
+    const nameElement = this.page.locator('text=/Name/').locator('..').locator('.text-gray-900');
+    const name = await nameElement.textContent();
+    return name?.trim() || '';
+  }
+
+  /**
+   * Get customer email from order info section
+   */
+  async getCustomerEmail(): Promise<string> {
+    const emailElement = this.page.locator('text=/Email/').locator('..').locator('.text-gray-900');
+    const email = await emailElement.textContent();
+    return email?.trim() || '';
+  }
+
+  /**
+   * Get shipping address from order info section
+   */
+  async getShippingAddress(): Promise<string> {
+    const addressElement = this.page.locator('text="Shipping Address"').locator('..').locator('.text-gray-900');
+    const address = await addressElement.textContent();
+    return address?.trim() || '';
+  }
+
+  /**
+   * Get pickup details from order info section
+   */
+  async getPickupDetails(): Promise<string> {
+    const pickupElement = this.page.locator('text="Pickup Details"').locator('..').locator('.text-gray-900');
+    const details = await pickupElement.textContent();
+    return details?.trim() || '';
+  }
 }
 

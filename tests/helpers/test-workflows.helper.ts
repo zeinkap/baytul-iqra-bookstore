@@ -68,6 +68,32 @@ export async function setupBookInCart(
 }
 
 /**
+ * Setup cart state directly via localStorage (fast, no UI interactions)
+ * Use this when testing cart page functionality, not the add-to-cart flow
+ */
+export async function setupCartViaLocalStorage(
+  page: Page,
+  cartPage: CartPage,
+  books: Array<{ id: string; title: string; author: string; price: number; image?: string }>
+): Promise<void> {
+  // Create cart items with quantity
+  const cartItems = books.map(book => ({
+    ...book,
+    quantity: 1,
+    image: book.image || '/placeholder.svg'
+  }));
+
+  // Set cart in localStorage
+  await page.goto('/');
+  await page.evaluate((items) => {
+    localStorage.setItem('cart', JSON.stringify(items));
+  }, cartItems);
+
+  // Navigate to cart page
+  await cartPage.navigate();
+}
+
+/**
  * Test data constants
  */
 export const TEST_DATA = {
