@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
         title: true,
         price: true,
         author: true,
+        images: true,
       },
       take: limit,
       orderBy: {

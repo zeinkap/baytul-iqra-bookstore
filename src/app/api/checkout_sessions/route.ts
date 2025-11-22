@@ -246,6 +246,7 @@ export async function POST(req: NextRequest) {
           fulfillmentType,
           discountAmount: discountAmount ? String(discountAmount) : '0',
           pickupLocation: pickupLocation || '',
+          customerEmail: email || '',
           customerPhone: phone || '',
           // Store cart items as JSON for display in admin panel
           cartItems: cartItemsJson,
@@ -253,13 +254,16 @@ export async function POST(req: NextRequest) {
           totalItems: String(items.reduce((sum, item) => sum + item.quantity, 0)),
         },
         // Add payment method types for payment links
-        payment_method_types: ['card'],
+        // 'card' enables Apple Pay, Google Pay, and regular card payments
+        // 'link' enables Stripe Link for one-click payments
+        payment_method_types: ['card', 'link'],
         // Add shipping address collection if needed
         ...(fulfillmentType === 'shipping' && {
           shipping_address_collection: { allowed_countries: ['US', 'CA'] }
         }),
-        // Add billing address collection for customer information
-        billing_address_collection: 'required',
+        // Use 'auto' instead of 'required' to allow mobile wallets to pre-fill address
+        // This makes Apple Pay/Google Pay faster (one tap to pay)
+        billing_address_collection: 'auto',
         // Add customer email collection for payment links
         customer_creation: 'always',
         // Add phone number collection for payment links
