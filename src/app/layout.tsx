@@ -2,6 +2,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Inter, Merriweather } from 'next/font/google';
 import { CartProvider } from '@/components/CartProvider';
+import { WishlistProvider } from '@/components/WishlistProvider';
 import ConditionalLayout from '@/components/ConditionalLayout';
 import { Toaster } from 'react-hot-toast';
 import { headers } from 'next/headers';
@@ -49,24 +50,26 @@ export default async function RootLayout({
       </head>
       <body className="font-sans bg-white">
         <CartProvider>
-          <Toaster 
-            position="top-center"
-            toastOptions={{
-              duration: 3000,
-              style: {
-                background: '#363636',
-                color: '#fff',
-                borderRadius: '8px',
-                padding: '12px 16px',
-                fontSize: '14px',
-                maxWidth: '90vw',
-                wordBreak: 'break-word',
-              },
-            }}
-          />
-          <ConditionalLayout categories={categories}>
-            {children}
-          </ConditionalLayout>
+          <WishlistProvider>
+            <Toaster 
+              position="top-center"
+              toastOptions={{
+                duration: 3000,
+                style: {
+                  background: '#363636',
+                  color: '#fff',
+                  borderRadius: '8px',
+                  padding: '12px 16px',
+                  fontSize: '14px',
+                  maxWidth: '90vw',
+                  wordBreak: 'break-word',
+                },
+              }}
+            />
+            <ConditionalLayout categories={categories}>
+              {children}
+            </ConditionalLayout>
+          </WishlistProvider>
         </CartProvider>
         <SpeedInsights />
       </body>

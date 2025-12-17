@@ -1,6 +1,5 @@
 "use client";
 
-import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { useCart } from '@/components/CartProvider';
 import Button from '@/components/Button';
@@ -33,10 +32,13 @@ type Order = {
   };
 };
 
-export default function SuccessClient() {
-  const searchParams = useSearchParams();
-  const orderId = searchParams.get('orderId');
-  const sessionId = searchParams.get('session_id');
+export default function SuccessClient({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | string[] | undefined };
+}) {
+  const orderId = typeof searchParams.orderId === 'string' ? searchParams.orderId : undefined;
+  const sessionId = typeof searchParams.session_id === 'string' ? searchParams.session_id : undefined;
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

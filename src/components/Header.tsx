@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import CartIconClient from './CartIconClient';
+import { useWishlist } from './WishlistProvider';
 import { useState, useEffect } from 'react';
 
 export default function Header({ categories }: { categories: string[] }) {
@@ -15,6 +16,7 @@ export default function Header({ categories }: { categories: string[] }) {
   const [isCategoriesOpen, setIsCategoriesOpen] = useState(false);
   const [mobileBooksOpen, setMobileBooksOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const { wishlist, isHydrated } = useWishlist();
 
   useEffect(() => {
     setMounted(true);
@@ -125,8 +127,33 @@ export default function Header({ categories }: { categories: string[] }) {
             </nav>
           </div>
 
-          {/* Right side - cart only */}
-          <div className="flex items-center">
+          {/* Right side - wishlist and cart */}
+          <div className="flex items-center gap-3">
+            {/* Wishlist icon */}
+            <Link
+              href="/wishlist"
+              className="relative p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200"
+              aria-label="Wishlist"
+            >
+              <svg
+                className="w-6 h-6"
+                fill={isHydrated && wishlist.length > 0 ? 'currentColor' : 'none'}
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                />
+              </svg>
+              {isHydrated && wishlist.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  {wishlist.length > 9 ? '9+' : wishlist.length}
+                </span>
+              )}
+            </Link>
             {/* Cart icon */}
             <div className="relative">
               <CartIconClient />

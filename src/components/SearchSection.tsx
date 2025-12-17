@@ -6,16 +6,19 @@ interface SearchSectionProps {
   categories: string[];
   onSearch?: (query: string) => void;
   onCategoryChange?: (categories: string[]) => void;
+  onPriceRangeChange?: (priceRange: string | null) => void;
 }
 
 export default function SearchSection({
   categories,
   onSearch,
   onCategoryChange,
+  onPriceRangeChange,
   initialSelectedCategories = []
 }: SearchSectionProps & { initialSelectedCategories?: string[] }) {
   const [selectedCategories, setSelectedCategories] = useState<string[]>(initialSelectedCategories);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedPriceRange, setSelectedPriceRange] = useState<string | null>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Sync with parent when initialSelectedCategories changes
@@ -79,19 +82,19 @@ export default function SearchSection({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 mb-16">
-      <div className="bg-white/95 backdrop-blur-sm rounded-3xl shadow-xl p-8 lg:p-12 border border-white/50">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-12 sm:mb-16">
+      <div className="bg-white/95 backdrop-blur-sm rounded-2xl sm:rounded-3xl shadow-xl p-4 sm:p-6 md:p-8 lg:p-12 border border-white/50">
+        <div className="text-center mb-6 sm:mb-8">
+          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 sm:mb-4">
             Discover Your Next Read
           </h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-2xl mx-auto">
             Search through our extensive collection of Islamic literature. Filter by category, author, or browse our curated selections.
           </p>
         </div>
         
         {/* Quick Search Bar */}
-        <div className="max-w-4xl mx-auto mb-8">
+        <div className="max-w-4xl mx-auto mb-6 sm:mb-8">
           <div className="relative">
             <input
               type="text"
@@ -103,22 +106,65 @@ export default function SearchSection({
                   handleSearch();
                 }
               }}
-              className="w-full px-6 py-4 text-lg border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+              className="w-full px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg border-2 border-gray-200 rounded-xl sm:rounded-2xl focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
               data-testid="search-input"
             />
             <button 
               onClick={handleSearch}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-3 rounded-xl hover:shadow-lg transition-all duration-200"
+              className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-2.5 sm:p-3 rounded-lg sm:rounded-xl hover:shadow-lg active:scale-95 transition-all duration-200 touch-manipulation"
+              aria-label="Search"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </button>
           </div>
         </div>
 
+        {/* Price Range Quick Filters */}
+        <div className="mb-6 sm:mb-8">
+          <div className="text-center mb-3 sm:mb-4">
+            <h3 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2 sm:mb-3">Filter by Price</h3>
+            <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
+              {[
+                { label: 'Under $10', value: 'under-10' },
+                { label: '$10 - $25', value: '10-25' },
+                { label: '$25 - $50', value: '25-50' },
+                { label: '$50+', value: '50-plus' },
+              ].map((range) => (
+                <button
+                  key={range.value}
+                  onClick={() => {
+                    const newRange = selectedPriceRange === range.value ? null : range.value;
+                    setSelectedPriceRange(newRange);
+                    onPriceRangeChange?.(newRange);
+                  }}
+                  className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium border transition-all duration-200 active:scale-95 touch-manipulation ${
+                    selectedPriceRange === range.value
+                      ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+                      : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200 hover:border-gray-400'
+                  }`}
+                >
+                  {range.label}
+                </button>
+              ))}
+              {selectedPriceRange && (
+                <button
+                  onClick={() => {
+                    setSelectedPriceRange(null);
+                    onPriceRangeChange?.(null);
+                  }}
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 rounded-full text-xs sm:text-sm font-medium border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 active:scale-95 touch-manipulation"
+                >
+                  Clear Price
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Quick Category Filters */}
-        <div className="mb-8">
+        <div className="mb-6 sm:mb-8">
           {/* Desktop: Button layout */}
           <div className="hidden md:flex flex-wrap justify-center gap-3">
             {categories.map((category) => {
@@ -127,7 +173,7 @@ export default function SearchSection({
                 <button
                   key={category}
                   onClick={() => toggleCategory(category)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200 ${
+                  className={`px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200 active:scale-95 touch-manipulation ${
                     isSelected
                       ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
                       : 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200 hover:border-gray-400'
@@ -144,7 +190,7 @@ export default function SearchSection({
                 onCategoryChange?.([]);
                 onSearch?.('');
               }}
-              className="px-4 py-2 bg-gray-50 text-gray-700 rounded-full text-sm font-medium border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-all duration-200"
+              className="px-4 py-2 bg-gray-50 text-gray-700 rounded-full text-sm font-medium border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 active:scale-95 touch-manipulation"
             >
               Clear All
             </button>
@@ -152,8 +198,8 @@ export default function SearchSection({
 
           {/* Mobile: Dropdown layout */}
           <div className="md:hidden">
-            <div className="text-center mb-4">
-              <label htmlFor="category-select" className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="text-center mb-3 sm:mb-4">
+              <label htmlFor="category-select" className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
                 Select Categories
               </label>
               <select
@@ -165,7 +211,7 @@ export default function SearchSection({
                   setSelectedCategories(selectedOptions);
                   onCategoryChange?.(selectedOptions);
                 }}
-                className="w-full max-w-xs px-4 py-3 border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-200 bg-white text-gray-900"
+                className="w-full max-w-xs mx-auto px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-xl sm:rounded-2xl focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-200 bg-white text-gray-900 text-sm sm:text-base"
                 size={Math.min(categories.length + 1, 6)} // Show up to 6 options, but at least all categories
               >
                 {categories.map((category) => (
@@ -174,24 +220,24 @@ export default function SearchSection({
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-gray-500 mt-2">
+              <p className="text-xs text-gray-500 mt-2 px-2">
                 Hold Ctrl/Cmd to select multiple categories
               </p>
             </div>
             
             {/* Selected categories display */}
             {selectedCategories.length > 0 && (
-              <div className="text-center mb-4">
-                <div className="flex flex-wrap justify-center gap-2 mb-3">
+              <div className="text-center mb-3 sm:mb-4">
+                <div className="flex flex-wrap justify-center gap-2 mb-2 sm:mb-3">
                   {selectedCategories.map((category) => (
                     <span
                       key={category}
-                      className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm font-medium border border-emerald-200"
+                      className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs sm:text-sm font-medium border border-emerald-200"
                     >
                       {category}
                       <button
                         onClick={() => toggleCategory(category)}
-                        className="ml-1 text-emerald-600 hover:text-emerald-800 transition-colors duration-200"
+                        className="ml-0.5 sm:ml-1 text-emerald-600 hover:text-emerald-800 transition-colors duration-200 active:scale-110 touch-manipulation"
                         aria-label={`Remove ${category}`}
                       >
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -208,7 +254,7 @@ export default function SearchSection({
                     onCategoryChange?.([]);
                     onSearch?.('');
                   }}
-                  className="px-4 py-2 bg-gray-50 text-gray-700 rounded-full text-sm font-medium border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-all duration-200"
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 rounded-full text-xs sm:text-sm font-medium border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 active:scale-95 touch-manipulation"
                 >
                   Clear All
                 </button>

@@ -39,7 +39,7 @@ export default function AddToCartButton({
     }
 
     addToCart({ id, title, author, price, image, format });
-    toast.success('Added to cart!', {
+    toast.success(`"${title}" added to cart!`, {
       style: {
         background: '#f59e0b',
         color: '#fff',

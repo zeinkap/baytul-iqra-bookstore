@@ -1,8 +1,11 @@
 import { prisma } from '@/lib/prisma';
-import { NextResponse } from 'next/server';
-// @ts-expect-error - context.params is not typed
-export async function GET(request, context) {
-  const { id } = await context.params;
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
   try {
     const order = await prisma.order.findUnique({
       where: { id },

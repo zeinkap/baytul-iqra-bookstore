@@ -51,33 +51,34 @@ export default function HeroCarousel({ heroBooks }: { heroBooks: Book[] }) {
 
   return (
     <div className="w-full max-w-lg mx-auto">
-      <h2 className="text-2xl font-bold text-center text-emerald-800 mb-6 tracking-tight">New Arrivals</h2>
-      <div ref={sliderRef} className="keen-slider rounded-2xl shadow-xl bg-white">
+      <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-center text-emerald-800 mb-4 sm:mb-6 tracking-tight">New Arrivals</h2>
+      <div ref={sliderRef} className="keen-slider rounded-xl sm:rounded-2xl shadow-xl bg-white">
         {heroBooks.map((book) => (
-          <div key={book.id} className="keen-slider__slide flex flex-col items-center p-6">
+          <div key={book.id} className="keen-slider__slide flex flex-col items-center p-4 sm:p-6">
             <Image
               src={book.images && book.images[0] ? book.images[0] : '/book-hero.png'}
               alt={book.title}
               width={320}
               height={400}
-              className="rounded-xl object-contain max-h-80 mb-4 shadow"
+              className="rounded-lg sm:rounded-xl object-contain max-h-48 sm:max-h-64 md:max-h-80 mb-3 sm:mb-4 shadow"
               priority
               style={{ height: 'auto' }}
+              sizes="(max-width: 640px) 280px, (max-width: 768px) 320px, 400px"
             />
-            <div className="text-lg font-semibold text-center mb-2 line-clamp-2 text-gray-900" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.08)' }}>{book.title}</div>
-            <Button asChild variant="primary" className="mt-2">
+            <div className="text-sm sm:text-base md:text-lg font-semibold text-center mb-2 line-clamp-2 text-gray-900 px-2" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.08)' }}>{book.title}</div>
+            <Button asChild variant="primary" className="mt-2 text-xs sm:text-sm px-4 sm:px-6 py-2 sm:py-3">
               <a href={`/books/${book.id}`}>View Book</a>
             </Button>
           </div>
         ))}
       </div>
       {/* Dots navigation */}
-      <div className="flex justify-center mt-4 gap-2">
+      <div className="flex justify-center mt-3 sm:mt-4 gap-2">
         {heroBooks.map((_, idx) => (
           <button
             key={idx}
             onClick={() => instanceRef.current?.moveToIdx(idx)}
-            className={`w-3 h-3 rounded-full transition-all duration-200 border border-emerald-400 ${
+            className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full transition-all duration-200 border border-emerald-400 touch-manipulation ${
               currentSlide === idx ? 'bg-emerald-600' : 'bg-emerald-200'
             }`}
             aria-label={`Go to slide ${idx + 1}`}

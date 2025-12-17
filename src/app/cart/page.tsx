@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/components/CartProvider';
 import { toast } from 'react-hot-toast';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import Button from '@/components/Button';
 
 // Add type for book stock information
@@ -12,7 +12,16 @@ type BookStock = {
   stock: number;
 };
 
-export default function CartPage() {
+export default function CartPage({
+  params,
+  searchParams,
+}: {
+  params?: Promise<{ [key: string]: string | string[] | undefined }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  // Unwrap params and searchParams to prevent enumeration errors
+  if (params) use(params);
+  if (searchParams) use(searchParams);
   const { cart, updateQuantity, removeFromCart, clearCart } = useCart();
   const [loading, setLoading] = useState(false);
   const [fulfillmentType, setFulfillmentType] = useState<'shipping' | 'pickup'>('shipping');
@@ -528,7 +537,7 @@ export default function CartPage() {
                               <button
                                 onClick={() => {
                                   removeFromCart(item.id);
-                                  toast.success('Item removed from cart', {
+                                  toast.success(`"${item.title}" removed from cart`, {
                                     style: {
                                       background: '#ef4444',
                                       color: '#fff',

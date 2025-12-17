@@ -96,7 +96,7 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
                     return;
                   }
                   addToCart({ id: book.id, title: book.title, author: book.author, price: book.price, image: book.images && book.images[0] ? book.images[0] : '' });
-                  toast.success('Added to cart!', {
+                  toast.success(`"${book.title}" added to cart!`, {
                     style: {
                       background: '#f59e0b',
                       color: '#fff',
@@ -230,7 +230,7 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
                              return;
                            }
                             addToCart({ id: book.id, title: book.title, author: book.author, price: book.price, image: validImages[0] ? validImages[0] : '' });
-                           toast.success('Added to cart!', {
+                           toast.success(`"${book.title}" added to cart!`, {
                              style: {
                                background: '#f59e0b',
                                color: '#fff',
