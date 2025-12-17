@@ -3,10 +3,8 @@
 import { useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useCart } from './CartProvider';
 import AddToCartButtonClient from './AddToCartButtonClient';
 import { Book } from './BookGrid';
-import { toast } from 'react-hot-toast';
 
 interface QuickViewModalProps {
   book: Book | null;
