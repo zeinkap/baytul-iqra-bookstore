@@ -196,57 +196,36 @@ export default function SearchSection({
             </button>
           </div>
 
-          {/* Mobile: Dropdown layout */}
+          {/* Mobile: Scrollable chip layout */}
           <div className="md:hidden">
             <div className="text-center mb-3 sm:mb-4">
-              <label htmlFor="category-select" className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
-                Select Categories
-              </label>
-              <select
-                id="category-select"
-                multiple
-                value={selectedCategories}
-                onChange={(e) => {
-                  const selectedOptions = Array.from(e.target.selectedOptions, option => option.value);
-                  setSelectedCategories(selectedOptions);
-                  onCategoryChange?.(selectedOptions);
-                }}
-                className="w-full max-w-xs mx-auto px-3 sm:px-4 py-2.5 sm:py-3 border-2 border-gray-200 rounded-xl sm:rounded-2xl focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-200 bg-white text-gray-900 text-sm sm:text-base"
-                size={Math.min(categories.length + 1, 6)} // Show up to 6 options, but at least all categories
-              >
-                {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-              <p className="text-xs text-gray-500 mt-2 px-2">
-                Hold Ctrl/Cmd to select multiple categories
-              </p>
-            </div>
-            
-            {/* Selected categories display */}
-            {selectedCategories.length > 0 && (
-              <div className="text-center mb-3 sm:mb-4">
-                <div className="flex flex-wrap justify-center gap-2 mb-2 sm:mb-3">
-                  {selectedCategories.map((category) => (
-                    <span
-                      key={category}
-                      className="inline-flex items-center gap-1 px-2.5 sm:px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs sm:text-sm font-medium border border-emerald-200"
-                    >
-                      {category}
+              <h3 className="text-xs sm:text-sm font-semibold text-gray-700 mb-3 sm:mb-4">Select Categories</h3>
+              
+              {/* Scrollable category container */}
+              <div className="bg-gray-50 border-2 border-gray-200 rounded-xl sm:rounded-2xl p-3 sm:p-4 max-h-64 sm:max-h-72 overflow-y-auto">
+                <div className="flex flex-wrap gap-2 sm:gap-3 justify-center">
+                  {categories.map((category) => {
+                    const isSelected = selectedCategories.includes(category);
+                    return (
                       <button
+                        key={category}
                         onClick={() => toggleCategory(category)}
-                        className="ml-0.5 sm:ml-1 text-emerald-600 hover:text-emerald-800 transition-colors duration-200 active:scale-110 touch-manipulation"
-                        aria-label={`Remove ${category}`}
+                        className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium border transition-all duration-200 active:scale-95 touch-manipulation min-h-[44px] flex items-center justify-center ${
+                          isSelected
+                            ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-600 shadow-md'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100 hover:border-gray-400'
+                        }`}
+                        data-testid={`category-chip-${category.toLowerCase().replace(/\s+/g, '-')}`}
                       >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
+                        {category}
                       </button>
-                    </span>
-                  ))}
+                    );
+                  })}
                 </div>
+              </div>
+              
+              {/* Clear All button */}
+              {selectedCategories.length > 0 && (
                 <button 
                   onClick={() => {
                     setSelectedCategories([]);
@@ -254,12 +233,13 @@ export default function SearchSection({
                     onCategoryChange?.([]);
                     onSearch?.('');
                   }}
-                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 rounded-full text-xs sm:text-sm font-medium border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 active:scale-95 touch-manipulation"
+                  className="mt-3 px-4 py-2 bg-gray-50 text-gray-700 rounded-full text-xs sm:text-sm font-medium border border-gray-200 hover:bg-gray-100 hover:border-gray-300 transition-all duration-200 active:scale-95 touch-manipulation"
+                  data-testid="clear-all-categories"
                 >
-                  Clear All
+                  Clear All Categories
                 </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 

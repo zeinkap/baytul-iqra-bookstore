@@ -42,7 +42,7 @@ export default function CartPage({
   } | null>(null);
   const [promoCodeError, setPromoCodeError] = useState('');
   const [validatingPromoCode, setValidatingPromoCode] = useState(false);
-  const [isInPersonSale, setIsInPersonSale] = useState(false);
+  const isInPersonSale = false; // Feature disabled - in-person sale mode removed
   const [paymentLink, setPaymentLink] = useState<string | null>(null);
   const [showPaymentLink, setShowPaymentLink] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
@@ -616,34 +616,6 @@ export default function CartPage({
                         <div className="mt-1 text-right">
                           <span className="text-xs text-gray-500">Tax included</span>
                         </div>
-                      </div>
-                    </div>
-                    
-                    {/* In-Person Sale Toggle */}
-                    <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
-                          <input
-                            type="checkbox"
-                            checked={isInPersonSale}
-                                           onChange={(e) => {
-                 setIsInPersonSale(e.target.checked);
-                 // Automatically set to pickup when in-person mode is enabled
-                 if (e.target.checked) {
-                   setFulfillmentType('pickup');
-                 } else {
-                   // Reset to shipping when in-person mode is disabled
-                   setFulfillmentType('shipping');
-                 }
-                 setPaymentLink(null);
-                 setShowPaymentLink(false);
-                 setShowQRCode(false);
-               }}
-                            className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
-                          />
-                          <span className="font-medium">In-Person Sale Mode</span>
-                          <span className="text-xs text-gray-500">(for bazaars & events)</span>
-                        </label>
                       </div>
                     </div>
 

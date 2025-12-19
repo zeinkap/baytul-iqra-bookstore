@@ -238,11 +238,13 @@ export default function HomePageClient({ books, categories, bestsellers }: HomeP
           searchQuery={searchQuery}
           selectedCategories={selectedCategories}
           selectedPriceRange={selectedPriceRange}
+          quickViewBook={quickViewBook}
+          setQuickViewBook={setQuickViewBook}
         />
       </div>
 
       {/* Scroll to Top Button */}
-      {showScrollToTop && (
+      {showScrollToTop && !quickViewBook && (
         <button
           onClick={scrollToTop}
           className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 z-50 bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 active:scale-95 transition-all duration-300 flex items-center justify-center group touch-manipulation"

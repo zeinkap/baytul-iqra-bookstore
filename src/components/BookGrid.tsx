@@ -3,7 +3,6 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import AddToCartButtonClient from '@/components/AddToCartButtonClient';
-import QuickViewModal from '@/components/QuickViewModal';
 import { useWishlist } from '@/components/WishlistProvider';
 import { toast } from 'react-hot-toast';
 
@@ -27,11 +26,12 @@ interface BookGridProps {
   searchQuery?: string;
   selectedCategories?: string[];
   selectedPriceRange?: string | null;
+  quickViewBook?: Book | null;
+  setQuickViewBook?: (book: Book | null) => void;
 }
 
-export default function BookGrid({ initialBooks, searchQuery = '', selectedCategories = [], selectedPriceRange = null }: BookGridProps) {
+export default function BookGrid({ initialBooks, searchQuery = '', selectedCategories = [], selectedPriceRange = null, setQuickViewBook }: BookGridProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-  const [quickViewBook, setQuickViewBook] = useState<Book | null>(null);
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
 
   const isValidImageSrc = (src: unknown): src is string => {
@@ -232,7 +232,7 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          setQuickViewBook(book);
+                          setQuickViewBook?.(book);
                         }}
                         className="px-6 py-3 bg-white text-gray-900 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
                       >
@@ -301,12 +301,6 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
         </div>
       </div>
 
-      {/* Quick View Modal */}
-      <QuickViewModal
-        book={quickViewBook}
-        isOpen={!!quickViewBook}
-        onClose={() => setQuickViewBook(null)}
-      />
     </div>
   );
 } 
