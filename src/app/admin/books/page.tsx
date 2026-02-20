@@ -312,8 +312,8 @@ export default function AdminBooksPage() {
       const method = editingBook ? "PUT" : "POST";
       const url = editingBook ? `/api/books/${editingBook.id}` : "/api/books";
       // Ensure optional numeric fields are valid numbers or null (so they persist correctly)
-      const costPriceVal = form.costPrice;
-      const shippingCostVal = form.shippingCost;
+      const costPriceVal = form.costPrice as unknown;
+      const shippingCostVal = form.shippingCost as unknown;
       const body = {
         ...form,
         images: finalImages,
