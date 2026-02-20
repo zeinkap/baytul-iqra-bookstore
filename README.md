@@ -108,6 +108,10 @@ All routes under `/admin` are protected:
 
 **Important**: Choose a strong password and never commit `.env` files to version control!
 
+## Tap to Pay (In-Person: Customer Taps Card on Your Phone)
+
+To accept in-person payments where the customer taps their card or phone on **your** phone, see **[docs/TAP_TO_PAY.md](docs/TAP_TO_PAY.md)**. You can start immediately with the **Stripe Dashboard mobile app** (no code), or later integrate **Stripe Terminal** with a custom mobile app using the `POST /api/terminal/create-payment-intent` endpoint.
+
 ## 🚀 Getting Started
 
 ### Prerequisites

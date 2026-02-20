@@ -190,6 +190,14 @@ export default function AdminBooksPage() {
           aValue = a.price;
           bValue = b.price;
           break;
+        case 'costPrice':
+          aValue = a.costPrice ?? -1;
+          bValue = b.costPrice ?? -1;
+          break;
+        case 'shippingCost':
+          aValue = a.shippingCost ?? -1;
+          bValue = b.shippingCost ?? -1;
+          break;
         case 'bestseller':
           aValue = a.isBestseller ? 1 : 0;
           bValue = b.isBestseller ? 1 : 0;
@@ -303,8 +311,15 @@ export default function AdminBooksPage() {
     try {
       const method = editingBook ? "PUT" : "POST";
       const url = editingBook ? `/api/books/${editingBook.id}` : "/api/books";
-      
-      const body = { ...form, images: finalImages };
+      // Ensure optional numeric fields are valid numbers or null (so they persist correctly)
+      const costPriceVal = form.costPrice;
+      const shippingCostVal = form.shippingCost;
+      const body = {
+        ...form,
+        images: finalImages,
+        costPrice: costPriceVal !== undefined && costPriceVal !== "" && !Number.isNaN(Number(costPriceVal)) ? Number(costPriceVal) : null,
+        shippingCost: shippingCostVal !== undefined && shippingCostVal !== "" && !Number.isNaN(Number(shippingCostVal)) ? Number(shippingCostVal) : null,
+      };
 
       const res = await fetch(url, {
         method,
@@ -757,6 +772,32 @@ export default function AdminBooksPage() {
                 </div>
               </th>
               <th 
+                className="font-semibold py-3 px-2 text-left hidden md:table-cell cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                onClick={() => handleSort('costPrice')}
+              >
+                <div className="flex items-center space-x-1">
+                  <span>Cost Price</span>
+                  {sortField === 'costPrice' && (
+                    <span className="text-blue-500">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </div>
+              </th>
+              <th 
+                className="font-semibold py-3 px-2 text-left hidden md:table-cell cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                onClick={() => handleSort('shippingCost')}
+              >
+                <div className="flex items-center space-x-1">
+                  <span>Shipping Cost</span>
+                  {sortField === 'shippingCost' && (
+                    <span className="text-blue-500">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </div>
+              </th>
+              <th 
                 className="font-semibold py-3 px-2 text-left cursor-pointer hover:bg-gray-200 transition-colors select-none"
                 onClick={() => handleSort('bestseller')}
               >
@@ -775,7 +816,7 @@ export default function AdminBooksPage() {
           <tbody>
             {filteredBooks.length === 0 ? (
               <tr>
-                <td colSpan={8} className="text-center py-8 text-gray-400">
+                <td colSpan={10} className="text-center py-8 text-gray-400">
                   {loading ? 'Loading books...' : 'No books found.'}
                 </td>
               </tr>
@@ -800,6 +841,12 @@ export default function AdminBooksPage() {
                   </span>
                 </td>
                 <td className="py-2 px-2">${book.price.toFixed(2)}</td>
+                <td className="py-2 px-2 hidden md:table-cell text-gray-600">
+                  {book.costPrice != null ? `$${book.costPrice.toFixed(2)}` : '—'}
+                </td>
+                <td className="py-2 px-2 hidden md:table-cell text-gray-600">
+                  {book.shippingCost != null ? `$${book.shippingCost.toFixed(2)}` : '—'}
+                </td>
                 <td className="py-2 px-2">
                   <button
                     onClick={() => toggleBestseller(book.id, book.isBestseller)}

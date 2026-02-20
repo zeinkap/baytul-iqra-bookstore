@@ -254,7 +254,7 @@ export async function POST(req: NextRequest) {
           totalItems: String(items.reduce((sum, item) => sum + item.quantity, 0)),
         },
         // Add payment method types for payment links
-        // 'card' enables Apple Pay, Google Pay, and regular card payments
+        // 'card' enables card entry and, on supported devices, Apple Pay & Google Pay (tap-to-pay on customer's phone)
         // 'link' enables Stripe Link for one-click payments
         payment_method_types: ['card', 'link'],
         // Add shipping address collection if needed

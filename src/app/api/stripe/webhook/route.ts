@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
-import { updateBookStock, extractBookItems } from '@/lib/stockManager';
+import { updateBookStock, extractBookItems, hasStockBeenUpdated } from '@/lib/stockManager';
 import { sendOrderConfirmationEmail } from '@/lib/sendEmail';
 
 // Extended Stripe session type to include shipping_details which may not be in all TypeScript definitions
@@ -443,14 +443,27 @@ async function createOrder({
 }) {
   console.log('Creating order:', { orderId, email, customerName, totalCents });
 
-  // Check if order already exists to prevent duplicates
+  // Check if order already exists (e.g. created before payment link or Terminal payment)
   if (orderId) {
     const existingOrder = await prisma.order.findUnique({
       where: { id: orderId }
     });
-    
+
     if (existingOrder) {
-      console.log(`Order ${orderId} already exists, skipping creation`);
+      console.log(`Order ${orderId} already exists, ensuring stock updated and skipping duplicate creation`);
+      // Still deduct inventory: order was created before payment, so stock wasn't updated yet
+      try {
+        if (!hasStockBeenUpdated(existingOrder.id)) {
+          const orderItems = existingOrder.items as Array<{ id?: string; title?: string; quantity?: number; price?: number }>;
+          const bookItems = extractBookItems(orderItems);
+          if (bookItems.length > 0) {
+            await updateBookStock(bookItems, existingOrder.id);
+            console.log('Stock updated for existing order:', existingOrder.id);
+          }
+        }
+      } catch (stockError) {
+        console.error('Failed to update stock for existing order:', existingOrder.id, stockError);
+      }
       return existingOrder;
     }
   }
