@@ -199,6 +199,8 @@ DATABASE_URL="your_production_url" npx prisma migrate deploy
 ```
 This ensures your production database schema is up to date.
 
+Vercel applies pending migrations automatically, but **only for production builds** (`scripts/migrateOnProduction.mjs`, run by `npm run build`). Preview builds for pull requests do not touch the database, so a PR's migration reaches production only after it is merged. Locally, `npm install` no longer migrates: run `npm run db:migrate` after pulling a branch with new migrations.
+
 ## 💾 Database Backup & Restore
 
 A robust backup and restore system is in place to protect your data.

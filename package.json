@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "npx prisma generate && next build",
+    "build": "npx prisma generate && node scripts/migrateOnProduction.mjs && next build",
     "start": "next start",
     "lint": "eslint .",
-    "postinstall": "npx prisma generate && npx prisma migrate deploy",
+    "postinstall": "npx prisma generate",
     "studio": "npx prisma studio",
     "db:backup": "npx tsx scripts/createBackup.ts",
     "db:restore": "npx tsx scripts/restoreFromBackup.ts",
