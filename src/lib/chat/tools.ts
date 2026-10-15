@@ -43,8 +43,20 @@ export const CHAT_TOOLS: Anthropic.Tool[] = [
 
 type BookRow = Prisma.BookGetPayload<{ include: { categories: true } }>;
 
+/** Descriptions may contain HTML (they are rendered as HTML on the site); give the model plain text. */
+function toPlainText(html: string): string {
+  return html
+    .replace(/<\/(p|li)>/gi, ' ')
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function summarize(book: BookRow, full = false) {
-  const description = book.description.trim();
+  const description = toPlainText(book.description);
   return {
     id: book.id,
     title: book.title,

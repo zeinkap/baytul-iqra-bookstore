@@ -13,6 +13,8 @@
     "db:restore": "npx tsx scripts/restoreFromBackup.ts",
     "ages:suggest": "npx tsx scripts/suggestAgeRanges.ts",
     "ages:apply": "npx tsx scripts/applyAgeRanges.ts",
+    "desc:suggest": "npx tsx scripts/suggestDescriptions.ts",
+    "desc:apply": "npx tsx scripts/applyDescriptions.ts",
     "db:migrate": "npx prisma migrate dev",
     "db:reset": "npx prisma migrate reset",
     "migrate:status": "npx prisma migrate status",
