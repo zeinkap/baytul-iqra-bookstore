@@ -16,6 +16,12 @@ export default function ScanToCart({ book }: { book: Omit<CartItem, "quantity"> 
   useEffect(() => {
     if (!isHydrated || done.current) return;
     done.current = true;
+    try {
+      // Tells the cart page to skip the shipping/pickup choice and ask only for email
+      sessionStorage.setItem("checkoutMode", "in-shop");
+    } catch {
+      // sessionStorage unavailable: the customer just sees the normal cart form
+    }
     if (!cart.some((i) => i.id === book.id)) addToCart(book);
     router.replace("/cart");
   }, [isHydrated, cart, book, addToCart, router]);
