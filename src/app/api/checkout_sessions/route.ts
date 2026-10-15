@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
 import { findStockProblems, stockProblemMessage } from '@/lib/stockManager';
 import { priceItems, discountForPromoId } from '@/lib/pricing';
+import { isAdminRequest } from '@/lib/adminAuth';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -20,9 +21,9 @@ export async function POST(req: NextRequest) {
     const inShop = source === 'in-shop';
     // Prices, titles and discounts come from the database; the browser only supplies ids and quantities.
     // Exception: the admin "custom payment link" tool sends free-form items (no book id), so it keeps
-    // its own prices when the admin cookie is present.
+    // its own prices when the admin session is valid.
     const isAdminCustomLink =
-      createPaymentLink === true && req.cookies.get('adminAuth')?.value === 'true' && Array.isArray(rawItems) && rawItems.length > 0;
+      createPaymentLink === true && (await isAdminRequest(req)) && Array.isArray(rawItems) && rawItems.length > 0;
     let items: CartItem[];
     let discountAmount = 0; // dollars, server-computed
     if (isAdminCustomLink) {

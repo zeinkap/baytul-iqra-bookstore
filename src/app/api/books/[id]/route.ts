@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/adminAuth';
 import { prisma } from '@/lib/prisma';
 import { Category } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
@@ -31,6 +32,9 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
   const { id } = await params;
   const data = await req.json();
   const { title, author, description, price, costPrice, shippingCost, images, stock, isBestseller, format, ageRange, isbn, categories } = data;
@@ -102,6 +106,9 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
   const { id } = await params;
   const data = await req.json();
   
@@ -132,6 +139,9 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
   const { id } = await params;
   try {
     await prisma.book.delete({

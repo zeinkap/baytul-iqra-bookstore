@@ -17,7 +17,6 @@ export default function AdminNav() {
   const handleLogout = async () => {
     try {
       await fetch('/api/admin/auth', { method: 'DELETE' });
-      sessionStorage.removeItem('adminAuth');
       router.push('/admin/login');
     } catch (error) {
       console.error('Logout error:', error);

@@ -24,12 +24,11 @@ export default function AdminLoginPage() {
       });
 
       if (response.ok) {
-        // Store authentication in sessionStorage
-        sessionStorage.setItem('adminAuth', 'true');
+        // The server set a signed httpOnly session cookie
         router.push('/admin/orders');
         router.refresh();
       } else {
-        setError('Invalid password');
+        setError(response.status === 429 ? 'Too many attempts. Try again later.' : 'Invalid password');
         setPassword('');
       }
     } catch (err) {
