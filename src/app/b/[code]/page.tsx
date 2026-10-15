@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { prisma } from '@/lib/prisma';
 import { normalizeIsbn } from '@/lib/isbn';
+import { htmlToText } from '@/lib/htmlToText';
 import ScanBook from './ScanBook';
 import ScanLogger from './ScanLogger';
 
@@ -79,7 +80,7 @@ export default async function ScanBookPage({ params }: { params: Promise<{ code:
       <ScanBook
         code={book.isbn ?? book.id}
         stock={book.stock}
-        description={book.description}
+        description={htmlToText(book.description)}
         ageRange={book.ageRange ?? undefined}
         images={book.images}
         book={{
