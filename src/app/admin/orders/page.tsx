@@ -42,6 +42,7 @@ interface Order {
   shippingAddress: ShippingAddress | null;
   email: string | null;
   customerName: string | null;
+  source: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -72,6 +73,7 @@ export default function AdminOrdersPage() {
   const [searchText, setSearchText] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [fulfillmentFilter, setFulfillmentFilter] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [sortField, setSortField] = useState<string>('createdAt');
@@ -92,6 +94,7 @@ export default function AdminOrdersPage() {
         limit: pagination.limit.toString(),
         search: debouncedSearch,
         fulfillmentType: fulfillmentFilter,
+        source: sourceFilter,
       });
       
       const res = await fetch(`/api/orders?${params}`);
@@ -118,7 +121,7 @@ export default function AdminOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, debouncedSearch, fulfillmentFilter]);
+  }, [pagination.page, pagination.limit, debouncedSearch, fulfillmentFilter, sourceFilter]);
 
   // Fetch orders
   useEffect(() => {
@@ -363,6 +366,16 @@ export default function AdminOrdersPage() {
           <option value="shipping">Shipping</option>
           <option value="pickup">Pickup</option>
         </select>
+        <select
+          value={sourceFilter}
+          onChange={(e) => setSourceFilter(e.target.value)}
+          className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          data-testid="order-source-filter"
+        >
+          <option value="">All Sources</option>
+          <option value="online">Online</option>
+          <option value="in-shop">In shop (QR)</option>
+        </select>
       </div>
 
       {loading && (
@@ -524,6 +537,9 @@ export default function AdminOrdersPage() {
                       }`}>
                         {order.fulfillmentType === 'pickup' ? 'Pickup' : 'Shipping'}
                       </span>
+                      {order.source === 'in-shop' && (
+                        <span className="ml-2 px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800">In shop</span>
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       <button

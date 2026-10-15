@@ -26,6 +26,8 @@ export default function CartPage({
   const [loading, setLoading] = useState(false);
   const [fulfillmentType, setFulfillmentType] = useState<'shipping' | 'pickup'>('shipping');
   const [email, setEmail] = useState('');
+  // Set by the QR scan route (/b/[code]): skip the shipping/pickup choice, ask only for email
+  const [inShopMode, setInShopMode] = useState(false);
   const [emailTouched, setEmailTouched] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
   const [bookStocks, setBookStocks] = useState<BookStock[]>([]);
@@ -53,6 +55,17 @@ export default function CartPage({
   const shippingFee = fulfillmentType === 'shipping' ? 5 : 0;
   const discountAmount = appliedPromoCode ? appliedPromoCode.discountAmount : 0;
   const grandTotal = total + shippingFee - discountAmount;
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('checkoutMode') === 'in-shop') {
+        setInShopMode(true);
+        setFulfillmentType('pickup');
+      }
+    } catch {
+      // sessionStorage unavailable: fall back to the normal form
+    }
+  }, []);
 
   // Fetch stock information for all books in cart
   useEffect(() => {
@@ -185,7 +198,9 @@ export default function CartPage({
           {/* Fulfillment Type Selection */}
           {cart.length > 0 && (
             <div className="mb-8 bg-white/90 rounded-xl shadow p-4 sm:p-6 border border-gray-100">
-              <h2 className="text-lg font-semibold mb-4 text-gray-900">How would you like to receive your order?</h2>
+              <h2 className="text-lg font-semibold mb-4 text-gray-900">
+                {inShopMode ? 'Where should we send your receipt?' : 'How would you like to receive your order?'}
+              </h2>
               {isInPersonSale && (
                 <div className="mb-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
                   <p className="text-sm text-emerald-700">
@@ -193,6 +208,7 @@ export default function CartPage({
                   </p>
                 </div>
               )}
+              {!inShopMode && (
               <div className="flex flex-col sm:flex-row gap-4 mb-4">
                 <label className={`flex items-center gap-2 ${isInPersonSale ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                   <input
@@ -222,6 +238,7 @@ export default function CartPage({
                   {isInPersonSale && <span className="text-xs text-emerald-600">✓ Selected for in-person sale</span>}
                 </label>
               </div>
+              )}
               <div className="mb-2">
                 <label htmlFor="email" className="block text-gray-900 font-semibold mb-1">
                   Email for order confirmation {!isInPersonSale && <span className="text-red-600">*</span>}
@@ -250,7 +267,7 @@ export default function CartPage({
                   <p className="text-red-600 text-sm mt-1">Please enter a valid email address.</p>
                 )}
               </div>
-              {fulfillmentType === 'pickup' && (
+              {fulfillmentType === 'pickup' && !inShopMode && (
                 <div className="mt-4 text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg p-4">
                   <strong>Pickup Location:</strong> Alpharetta, GA<br />
                   You will receive instructions for pickup after completing your order.
@@ -731,7 +748,8 @@ export default function CartPage({
                               items: cart,
                               total,
                               fulfillmentType,
-                              pickupLocation: fulfillmentType === 'pickup' ? 'Alpharetta, GA' : undefined,
+                              pickupLocation: inShopMode ? 'In shop' : fulfillmentType === 'pickup' ? 'Alpharetta, GA' : undefined,
+                              source: inShopMode ? 'in-shop' : 'online',
                               email,
                               promoCodeId: appliedPromoCode?.id,
                               discountAmount: appliedPromoCode?.discountAmount || 0,
@@ -782,7 +800,8 @@ export default function CartPage({
                                 email,
                                 promoCodeId: appliedPromoCode?.id,
                                 discountAmount: appliedPromoCode?.discountAmount || 0,
-                                pickupLocation: fulfillmentType === 'pickup' ? 'Alpharetta, GA' : undefined,
+                                pickupLocation: inShopMode ? 'In shop' : fulfillmentType === 'pickup' ? 'Alpharetta, GA' : undefined,
+                                source: inShopMode ? 'in-shop' : 'online',
                               }),
                             });
                             const data = await res.json();

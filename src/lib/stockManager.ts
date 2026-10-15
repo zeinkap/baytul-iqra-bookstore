@@ -54,10 +54,14 @@ export async function updateBookStock(items: OrderItem[], orderId: string): Prom
       // Check if stock went negative (shouldn't happen with proper validation)
       if (updatedBook.stock < 0) {
         console.error(`CRITICAL: Stock went negative for book ${updatedBook.title} (${updatedBook.id}). Current stock: ${updatedBook.stock}`);
-        // In a production system, you might want to:
-        // 1. Rollback the order
-        // 2. Send alerts to administrators
-        // 3. Log this as a critical error
+        // Pre-payment stock checks can't stop two customers paying for the last copy at once, so tell staff
+        try {
+          // Lazy import: the email client needs RESEND_API_KEY, which order/checkout routes shouldn't require
+          const { sendOversellAlert } = await import('./sendEmail');
+          await sendOversellAlert({ bookTitle: updatedBook.title, stock: updatedBook.stock, orderId });
+        } catch (alertError) {
+          console.error('Failed to send oversell alert:', alertError);
+        }
       }
     }
 
@@ -134,4 +138,52 @@ export function extractBookItemsFromMetadata(metadata: Record<string, string>): 
       price: 0 // We don't have price in metadata
     }))
     .filter(item => item.id && item.quantity > 0);
+}
+
+
+export interface StockProblem {
+  id: string;
+  title: string;
+  requested: number;
+  available: number;
+}
+
+/**
+ * Checks cart/order items against current stock. Returns the items that can't be fulfilled
+ * (empty array means everything is available). Call before creating an order or Stripe session.
+ */
+export async function findStockProblems(items: unknown): Promise<StockProblem[]> {
+  const requestedById = new Map<string, number>();
+  for (const item of extractBookItems(items)) {
+    if (!item.id) continue;
+    requestedById.set(item.id, (requestedById.get(item.id) ?? 0) + item.quantity);
+  }
+  if (requestedById.size === 0) return [];
+
+  const books = await prisma.book.findMany({
+    where: { id: { in: [...requestedById.keys()] } },
+    select: { id: true, title: true, stock: true },
+  });
+  const stockById = new Map(books.map((b) => [b.id, b]));
+
+  const problems: StockProblem[] = [];
+  for (const [id, requested] of requestedById) {
+    const book = stockById.get(id);
+    const available = Math.max(book?.stock ?? 0, 0);
+    if (requested > available) {
+      problems.push({ id, title: book?.title ?? 'This book', requested, available });
+    }
+  }
+  return problems;
+}
+
+/** Customer-facing message for stock problems, e.g. 'Sorry, "X" just sold out.' */
+export function stockProblemMessage(problems: StockProblem[]): string {
+  return problems
+    .map((p) =>
+      p.available === 0
+        ? `Sorry, "${p.title}" just sold out.`
+        : `Only ${p.available} left of "${p.title}" (you asked for ${p.requested}).`
+    )
+    .join(' ');
 }

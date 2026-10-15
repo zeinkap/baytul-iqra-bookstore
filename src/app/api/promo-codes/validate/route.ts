@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { checkPromoCode } from '@/lib/pricing';
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,56 +26,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Check if promo code is active
-    if (!promoCode.isActive) {
-      return NextResponse.json({ 
-        valid: false, 
-        error: 'This promo code is no longer active' 
-      });
+    const result = checkPromoCode(promoCode, orderTotal);
+    if (!result.valid) {
+      return NextResponse.json({ valid: false, error: result.error });
     }
-
-    // Check if promo code is within valid date range
-    const now = new Date();
-    if (now < promoCode.validFrom) {
-      return NextResponse.json({ 
-        valid: false, 
-        error: 'This promo code is not yet valid' 
-      });
-    }
-
-    if (promoCode.validUntil && now > promoCode.validUntil) {
-      return NextResponse.json({ 
-        valid: false, 
-        error: 'This promo code has expired' 
-      });
-    }
-
-    // Check minimum order amount
-    if (promoCode.minimumOrderAmount && orderTotal < promoCode.minimumOrderAmount) {
-      return NextResponse.json({ 
-        valid: false, 
-        error: `Minimum order amount of $${promoCode.minimumOrderAmount.toFixed(2)} required` 
-      });
-    }
-
-    // Check usage limits
-    if (promoCode.maxUses && promoCode.currentUses >= promoCode.maxUses) {
-      return NextResponse.json({ 
-        valid: false, 
-        error: 'This promo code has reached its usage limit' 
-      });
-    }
-
-    // Calculate discount
-    let discountAmount = 0;
-    if (promoCode.discountType === 'percentage') {
-      discountAmount = (orderTotal * promoCode.discountValue) / 100;
-    } else if (promoCode.discountType === 'fixed') {
-      discountAmount = promoCode.discountValue / 100; // Convert cents to dollars
-    }
-
-    // Ensure discount doesn't exceed order total
-    discountAmount = Math.min(discountAmount, orderTotal);
+    const discountAmount = result.discountAmount;
 
     const finalTotal = orderTotal - discountAmount;
 

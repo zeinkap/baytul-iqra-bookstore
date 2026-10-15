@@ -50,3 +50,8 @@ next-env.d.ts
 # generated age range suggestions (review before applying)
 age-range-suggestions*.csv
 description-suggestions*.csv
+
+# generated QR label output and ISBN working file
+/qr-labels
+isbn-template.csv
+isbn-prod.csv

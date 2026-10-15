@@ -4,7 +4,7 @@ import { sendOrderNotificationToSales } from '@/lib/sendEmail';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { orderId, items, total, fulfillmentType, customerEmail, shippingAddress } = body;
+    const { orderId, items, total, fulfillmentType, customerEmail, shippingAddress, source } = body;
 
     console.log('Sales notification request:', { orderId, items, total, fulfillmentType, customerEmail });
 
@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
       total,
       fulfillmentType,
       customerEmail,
+      source,
       shippingAddress,
     });
 

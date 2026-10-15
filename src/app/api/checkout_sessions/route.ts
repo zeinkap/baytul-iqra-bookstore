@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
+import { findStockProblems, stockProblemMessage } from '@/lib/stockManager';
+import { priceItems, discountForPromoId } from '@/lib/pricing';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 type CartItem = {
+  id?: string;
   title: string;
   image?: string;
   price: number;
@@ -13,9 +16,36 @@ type CartItem = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { items, fulfillmentType, orderId, email, phone, promoCodeId, createPaymentLink, discountAmount, pickupLocation } = await req.json();
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ error: 'No items provided' }, { status: 400 });
+    const { items: rawItems, fulfillmentType, orderId, email, phone, promoCodeId, createPaymentLink, pickupLocation, source, cancelPath } = await req.json();
+    const inShop = source === 'in-shop';
+    // Prices, titles and discounts come from the database; the browser only supplies ids and quantities.
+    // Exception: the admin "custom payment link" tool sends free-form items (no book id), so it keeps
+    // its own prices when the admin cookie is present.
+    const isAdminCustomLink =
+      createPaymentLink === true && req.cookies.get('adminAuth')?.value === 'true' && Array.isArray(rawItems) && rawItems.length > 0;
+    let items: CartItem[];
+    let discountAmount = 0; // dollars, server-computed
+    if (isAdminCustomLink) {
+      items = rawItems;
+    } else {
+      const priced = await priceItems(rawItems);
+      if (!priced.ok) {
+        return NextResponse.json({ error: priced.error }, { status: priced.status });
+      }
+      items = priced.items;
+      if (promoCodeId) {
+        const promo = await discountForPromoId(promoCodeId, priced.subtotal);
+        if (!promo.valid) {
+          return NextResponse.json({ error: promo.error }, { status: 400 });
+        }
+        discountAmount = promo.discountAmount;
+      }
+    }
+
+    // Re-check stock right before payment: someone else may have bought the last copy since the cart was built
+    const stockProblems = await findStockProblems(items);
+    if (stockProblems.length > 0) {
+      return NextResponse.json({ error: stockProblemMessage(stockProblems), stockProblems }, { status: 409 });
     }
 
     // For payment links, we need a publicly accessible URL
@@ -324,15 +354,17 @@ export async function POST(req: NextRequest) {
       line_items,
       mode: 'payment',
       success_url: `${req.nextUrl.origin}/checkout/success?orderId=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.nextUrl.origin}/cart`,
+      // In-shop buy-now purchases return to the book they scanned; only same-site /b/ paths are accepted
+      cancel_url: `${req.nextUrl.origin}${inShop && typeof cancelPath === 'string' && /^\/b\/[\w-]+$/.test(cancelPath) ? cancelPath : '/cart'}`,
       // Only collect shipping address if fulfillment type is shipping
       ...(fulfillmentType === 'shipping' && {
         shipping_address_collection: { allowed_countries: ['US', 'CA'] }
       }),
       customer_email: email,
-      billing_address_collection: 'required', // This will collect customer name
+      // In-shop scans: keep checkout to email + payment (wallet-friendly), no billing address or phone
+      billing_address_collection: inShop ? 'auto' : 'required', // 'required' collects customer name
       phone_number_collection: {
-        enabled: true // Collect phone number for better customer support
+        enabled: !inShop // Collect phone number for better customer support
       },
       metadata: { 
         orderId, 
@@ -340,6 +372,7 @@ export async function POST(req: NextRequest) {
         fulfillmentType,
         discountAmount: discountAmount ? String(discountAmount) : '0',
         pickupLocation: pickupLocation || '',
+        source: inShop ? 'in-shop' : 'online',
         customerPhone: phone || '',
         // Store cart items as JSON for display in admin panel
         cartItems: cartItemsJson,

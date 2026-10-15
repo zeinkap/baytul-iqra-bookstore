@@ -22,6 +22,7 @@ model Book {
   isBestseller Boolean  @default(false)
   format      String?  // Book format: Paperback, Hardcover, etc.
   ageRange    String?  // Target reader age, e.g. "6-9", "10-13", "14+", "All ages"
+  isbn        String?  @unique // Normalized ISBN-10/13 (no hyphens); used in direct-to-cart QR URLs (/b/<isbn>)
   categories  Category[] @relation("BookCategories")
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
@@ -63,6 +64,7 @@ model Order {
   shippingAddress  Json?    
   email            String?
   customerName     String?
+  source           String   @default("online") // "online" or "in-shop" (QR scan at the shop)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
