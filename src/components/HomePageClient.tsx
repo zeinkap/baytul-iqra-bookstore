@@ -247,7 +247,7 @@ export default function HomePageClient({ books, categories, bestsellers }: HomeP
       {showScrollToTop && !quickViewBook && (
         <button
           onClick={scrollToTop}
-          className="fixed bottom-4 right-4 sm:bottom-8 sm:right-8 z-50 bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 active:scale-95 transition-all duration-300 flex items-center justify-center group touch-manipulation"
+          className="fixed bottom-20 right-4 sm:bottom-20 sm:right-4 z-50 bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-3 sm:p-4 rounded-full shadow-lg hover:shadow-xl transform hover:scale-110 active:scale-95 transition-all duration-300 flex items-center justify-center group touch-manipulation"
           aria-label="Scroll to top"
         >
           <svg 

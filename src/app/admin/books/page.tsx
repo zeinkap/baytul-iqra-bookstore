@@ -15,6 +15,7 @@ interface Book {
   stock: number;
   isBestseller: boolean;
   format?: string;
+  ageRange?: string;
   categories: string[];
   createdAt: string;
   updatedAt: string;
@@ -233,6 +234,7 @@ export default function AdminBooksPage() {
       stock: book.stock,
       isBestseller: book.isBestseller,
       format: book.format || "",
+      ageRange: book.ageRange || "",
       categories: book.categories,
     });
     setEditingBook(book);
@@ -241,7 +243,7 @@ export default function AdminBooksPage() {
   }
 
   function startAdd() {
-    setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 0, isBestseller: false, format: "", categories: [] });
+    setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 0, isBestseller: false, format: "", ageRange: "", categories: [] });
     setEditingBook(null);
     setShowForm(true);
     formRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -249,7 +251,7 @@ export default function AdminBooksPage() {
   
   function cancelForm() {
     setEditingBook(null);
-    setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 0, isBestseller: false, format: "", categories: [] });
+    setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 0, isBestseller: false, format: "", ageRange: "", categories: [] });
     setShowForm(false);
     setError(null);
   }
@@ -585,6 +587,12 @@ export default function AdminBooksPage() {
                 Format <span className="text-gray-500 font-normal">(optional)</span>
               </label>
               <input name="format" value={form.format || ""} onChange={handleFormChange} className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="e.g., Paperback, Hardcover" />
+            </div>
+            <div>
+              <label className="block font-medium mb-1">
+                Age Range <span className="text-gray-500 font-normal">(optional)</span>
+              </label>
+              <input name="ageRange" value={form.ageRange || ""} onChange={handleFormChange} className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="e.g., 6-9, 10-13, 14+, All ages" />
             </div>
             <div className="md:col-span-2">
               <label className="block font-medium mb-1">

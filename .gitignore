@@ -46,3 +46,7 @@ next-env.d.ts
 # backups
 /backups/*.json
 !/backups/.gitkeep
+
+# generated age range suggestions (review before applying)
+age-range-suggestions*.csv
+description-suggestions*.csv

@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Header from './Header';
 import Footer from './Footer';
+import ChatWidget from './ChatWidget';
 
 export default function ConditionalLayout({ 
   categories,
@@ -21,6 +22,7 @@ export default function ConditionalLayout({
         <main className="flex-1">{children}</main>
         {!isAdminRoute && <Footer />}
       </div>
+      {!isAdminRoute && <ChatWidget />}
     </>
   );
 }
