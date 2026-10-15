@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
+import { requireAdmin } from '@/lib/adminAuth';
 import { prisma } from '@/lib/prisma';
 
 // Define the image updates you want to make
@@ -13,7 +14,10 @@ const imageUpdates: { bookId: string; newImages: string[] }[] = [
   },
 ];
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
   try {
     console.log('🔄 Starting book image updates in PRODUCTION...');
     

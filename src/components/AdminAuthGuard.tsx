@@ -17,15 +17,8 @@ export default function AdminAuthGuard({ children }: { children: React.ReactNode
         return;
       }
 
-      // Check sessionStorage first (client-side quick check)
-      const sessionAuth = sessionStorage.getItem('adminAuth');
-      
-      if (!sessionAuth) {
-        router.push('/admin/login');
-        return;
-      }
-
-      // Verify with server
+      // The server (src/proxy.ts) already refuses admin pages without a valid session;
+      // this just confirms it and handles an expired session while the page is open
       try {
         const response = await fetch('/api/admin/auth', {
           method: 'GET',
@@ -35,12 +28,10 @@ export default function AdminAuthGuard({ children }: { children: React.ReactNode
         if (response.ok) {
           setIsAuthenticated(true);
         } else {
-          sessionStorage.removeItem('adminAuth');
           router.push('/admin/login');
         }
       } catch (error) {
         console.error('Auth check error:', error);
-        sessionStorage.removeItem('adminAuth');
         router.push('/admin/login');
       } finally {
         setIsLoading(false);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/adminAuth';
 import { prisma } from '@/lib/prisma';
 import Stripe from 'stripe';
 import type { Prisma } from '@prisma/client';
@@ -32,6 +33,9 @@ interface StripeSessionWithShipping extends Stripe.Response<Stripe.Checkout.Sess
 }
 
 export async function GET(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
   try {
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1');
