@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import Stripe from 'stripe';
+import { findStockProblems, stockProblemMessage } from '@/lib/stockManager';
 
 // Extended Stripe session type to include shipping_details which may not be in all TypeScript definitions
 interface StripeSessionWithShipping extends Stripe.Response<Stripe.Checkout.Session> {
@@ -109,6 +110,10 @@ export async function POST(req: NextRequest) {
     }
     if (source !== undefined && source !== 'online' && source !== 'in-shop') {
       return NextResponse.json({ error: 'Invalid source' }, { status: 400 });
+    }
+    const stockProblems = await findStockProblems(items);
+    if (stockProblems.length > 0) {
+      return NextResponse.json({ error: stockProblemMessage(stockProblems), stockProblems }, { status: 409 });
     }
     // Add shipping cost to final total if fulfillment type is shipping
     const shippingCost = fulfillmentType === 'shipping' ? 5.00 : 0;

@@ -90,6 +90,7 @@ export async function sendOrderNotificationToSales({
   total,
   fulfillmentType,
   customerEmail,
+  source,
   shippingAddress,
 }: {
   orderId: string;
@@ -97,6 +98,7 @@ export async function sendOrderNotificationToSales({
   total: number;
   fulfillmentType: string;
   customerEmail: string;
+  source?: string;
   shippingAddress?: {
     name?: string;
     line1?: string;
@@ -107,7 +109,8 @@ export async function sendOrderNotificationToSales({
     country?: string;
   };
 }) {
-  const subject = `New Order #${orderId} - Baytul Iqra Bookstore`;
+  const inShop = source === 'in-shop';
+  const subject = `${inShop ? '[In shop] ' : ''}New Order #${orderId} - Baytul Iqra Bookstore`;
   const orderDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   
   let shippingAddressHtml = '';
@@ -116,7 +119,9 @@ export async function sendOrderNotificationToSales({
     shippingAddressHtml = `<h3>Shipping Address</h3><p>${[addr.name, addr.line1, addr.line2, addr.city, addr.state, addr.postal_code, addr.country].filter(Boolean).join('<br>')}</p>`;
   }
 
-  const fulfillmentText = fulfillmentType === 'pickup' 
+  const fulfillmentText = inShop
+    ? '<p><strong>Fulfillment Type:</strong> In-shop purchase (QR scan). The customer already has the book, no pickup or shipping needed.</p>'
+    : fulfillmentType === 'pickup' 
     ? '<p><strong>Fulfillment Type:</strong> Local Pickup (Alpharetta, GA)</p>'
     : '<p><strong>Fulfillment Type:</strong> Shipping</p>';
 
@@ -152,7 +157,7 @@ export async function sendOrderNotificationToSales({
     </table>
     <p><strong>Total:</strong> $${total.toFixed(2)}</p>
     
-    <p>Please process this order accordingly.</p>
+    <p>${inShop ? 'Please make sure the shelf count matches (the book has been taken by the customer).' : 'Please process this order accordingly.'}</p>
   `;
 
   return resend.emails.send({
@@ -162,3 +167,25 @@ export async function sendOrderNotificationToSales({
     html,
   });
 } 
+
+/** Alerts staff when payments pushed a book's stock below zero (two customers paid for the last copy). */
+export async function sendOversellAlert({
+  bookTitle,
+  stock,
+  orderId,
+}: {
+  bookTitle: string;
+  stock: number;
+  orderId: string;
+}) {
+  return resend.emails.send({
+    from: 'sales@baytuliqra.com',
+    to: 'sales@baytuliqra.com',
+    subject: `Oversold: ${bookTitle}`,
+    html: `
+      <h2>Stock went negative</h2>
+      <p><strong>${bookTitle}</strong> is now at <strong>${stock}</strong> after order <strong>${orderId}</strong>.</p>
+      <p>Two customers likely paid for the last copy at the same time. Please check the shelf and refund or restock the affected order.</p>
+    `,
+  });
+}

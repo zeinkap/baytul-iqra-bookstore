@@ -98,7 +98,7 @@ export default function SuccessClient({
               clearedRef.current = true;
             }
             // Send sales notification once
-            if (!notificationSentRef.current && data.email) {
+            if (!notificationSentRef.current && (data.email || data.source === 'in-shop')) {
               notificationSentRef.current = true;
               fetch('/api/orders/notify-sales', {
                 method: 'POST',
@@ -108,7 +108,8 @@ export default function SuccessClient({
                   items: data.items,
                   total: data.total,
                   fulfillmentType: data.fulfillmentType,
-                  customerEmail: data.email,
+                  customerEmail: data.email || 'Collected by Stripe (see Stripe receipt)',
+                  source: data.source,
                   shippingAddress: data.shippingAddress,
                 }),
               }).catch((err) => console.error('Failed to send sales notification:', err));
@@ -133,7 +134,7 @@ export default function SuccessClient({
                 clearCart();
                 clearedRef.current = true;
               }
-              if (!notificationSentRef.current && data.email) {
+              if (!notificationSentRef.current && (data.email || data.source === 'in-shop')) {
                 notificationSentRef.current = true;
                 fetch('/api/orders/notify-sales', {
                   method: 'POST',
@@ -143,7 +144,8 @@ export default function SuccessClient({
                     items: data.items,
                     total: data.total,
                     fulfillmentType: data.fulfillmentType,
-                    customerEmail: data.email,
+                    customerEmail: data.email || 'Collected by Stripe (see Stripe receipt)',
+                  source: data.source,
                     shippingAddress: data.shippingAddress,
                   }),
                 }).catch((err) => console.error('Failed to send sales notification:', err));

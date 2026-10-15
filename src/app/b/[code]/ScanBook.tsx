@@ -13,7 +13,7 @@ type ScannedBook = Omit<CartItem, "quantity">;
  *  - "Buy now": order + Stripe Checkout for just this book (Stripe collects the email), or
  *  - "Add to cart": idempotently adds it and opens the email-only cart to buy several.
  */
-export default function ScanBook({ book, code }: { book: ScannedBook; code: string }) {
+export default function ScanBook({ book, code, stock }: { book: ScannedBook; code: string; stock: number }) {
   const { cart, addToCart, isHydrated } = useCart();
   const router = useRouter();
   const [buying, setBuying] = useState(false);
@@ -35,6 +35,7 @@ export default function ScanBook({ book, code }: { book: ScannedBook; code: stri
 
   const handleBuyNow = async () => {
     setBuying(true);
+    let navigating = false;
     try {
       const items = [{ ...book, quantity: 1 }];
       const orderRes = await fetch("/api/orders", {
@@ -49,6 +50,12 @@ export default function ScanBook({ book, code }: { book: ScannedBook; code: stri
         }),
       });
       const order = await orderRes.json();
+      if (orderRes.status === 409) {
+        // Someone bought the last copy since this page loaded: re-render the server page (out-of-stock message)
+        toast.error(order.error || "Sorry, this book just sold out.");
+        router.refresh();
+        return;
+      }
       if (!orderRes.ok) throw new Error(order.error || "Failed to create order");
 
       const sessionRes = await fetch("/api/checkout_sessions", {
@@ -64,11 +71,19 @@ export default function ScanBook({ book, code }: { book: ScannedBook; code: stri
         }),
       });
       const data = await sessionRes.json();
+      if (sessionRes.status === 409) {
+        toast.error(data.error || "Sorry, this book just sold out.");
+        router.refresh();
+        return;
+      }
       if (!data.url) throw new Error(data.error || "Failed to start checkout");
+      navigating = true;
       window.location.href = data.url;
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Something went wrong. Please try again.");
-      setBuying(false);
+    } finally {
+      // Stay disabled while navigating to Stripe; on any failure the buttons must work again
+      if (!navigating) setBuying(false);
     }
   };
 
@@ -82,7 +97,13 @@ export default function ScanBook({ book, code }: { book: ScannedBook; code: stri
         )}
         <h1 className="text-xl font-bold text-gray-900" data-testid="scan-book-title">{book.title}</h1>
         <p className="text-gray-600 mb-2">{book.author}</p>
-        <p className="text-2xl font-extrabold text-emerald-700 mb-5">${book.price.toFixed(2)}</p>
+        <p className="text-2xl font-extrabold text-emerald-700 mb-2">${book.price.toFixed(2)}</p>
+        {stock <= 3 && (
+          <p className="text-sm font-semibold text-amber-700 mb-3" data-testid="scan-low-stock">
+            {stock === 1 ? "Last copy!" : `Only ${stock} left`}
+          </p>
+        )}
+        <div className="mb-3" />
 
         <button
           onClick={handleBuyNow}

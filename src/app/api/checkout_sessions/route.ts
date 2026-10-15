@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
+import { findStockProblems, stockProblemMessage } from '@/lib/stockManager';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -17,6 +18,12 @@ export async function POST(req: NextRequest) {
     const inShop = source === 'in-shop';
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: 'No items provided' }, { status: 400 });
+    }
+
+    // Re-check stock right before payment: someone else may have bought the last copy since the cart was built
+    const stockProblems = await findStockProblems(items);
+    if (stockProblems.length > 0) {
+      return NextResponse.json({ error: stockProblemMessage(stockProblems), stockProblems }, { status: 409 });
     }
 
     // For payment links, we need a publicly accessible URL

@@ -265,6 +265,7 @@ export async function POST(req: NextRequest) {
           total: created.total,
           fulfillmentType: created.fulfillmentType,
           customerEmail: created.email || 'No email provided',
+          source: created.source,
           shippingAddress: shippingAddress,
         });
         console.log('Sales notification email sent for order (from-session):', created.id);
