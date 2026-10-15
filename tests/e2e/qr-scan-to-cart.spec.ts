@@ -25,6 +25,8 @@ test.describe('QR scan to cart', () => {
     await expect(page.getByTestId('scan-book-title')).toHaveText(book.title);
     await expect(page.getByTestId('scan-buy-now')).toBeVisible();
     await expect(page.getByTestId('scan-add-to-cart')).toBeVisible();
+    await expect(page.getByTestId('scan-trust-note')).toContainText('Stripe');
+    await expect(page.getByTestId('scan-description')).toBeVisible();
   });
 
   test('scanning a book code adds it to the cart and lands on /cart', async ({ page, cartPage }) => {

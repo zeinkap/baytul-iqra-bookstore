@@ -38,6 +38,8 @@ export default async function ScanBookPage({ params }: { params: Promise<{ code:
     <ScanBook
       code={book.isbn ?? book.id}
       stock={book.stock}
+      description={book.description}
+      ageRange={book.ageRange ?? undefined}
       book={{
         id: book.id,
         title: book.title,

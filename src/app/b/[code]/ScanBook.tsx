@@ -14,10 +14,24 @@ type ScannedBook = Omit<CartItem, "quantity">;
  *  - "Buy now": order + Stripe Checkout for just this book (Stripe collects the email), or
  *  - "Add to cart": idempotently adds it and opens the email-only cart to buy several.
  */
-export default function ScanBook({ book, code, stock }: { book: ScannedBook; code: string; stock: number }) {
+export default function ScanBook({
+  book,
+  code,
+  stock,
+  description,
+  ageRange,
+}: {
+  book: ScannedBook;
+  code: string;
+  stock: number;
+  description?: string;
+  ageRange?: string;
+}) {
   const { cart, addToCart, isHydrated } = useCart();
   const router = useRouter();
   const [buying, setBuying] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const chips = [ageRange && (/^\d/.test(ageRange) ? `Ages ${ageRange}` : ageRange), book.format].filter(Boolean) as string[];
 
   const markInShop = () => {
     try {
@@ -88,8 +102,11 @@ export default function ScanBook({ book, code, stock }: { book: ScannedBook; cod
     }
   };
 
+  const price = `$${book.price.toFixed(2)}`;
+
   return (
-    <main className="max-w-md mx-auto px-4 py-8" data-testid="scan-book-card">
+    // Extra bottom padding on phones so the pinned Buy now bar never covers content
+    <main className="max-w-md mx-auto px-4 pt-6 pb-32 sm:pb-8" data-testid="scan-book-card">
       <div className="flex flex-col items-center mb-4">
         <Image src="/logo-baytul-iqra.png" alt="Baytul Iqra Bookstore" width={64} height={64} className="w-16 h-16 object-contain" priority />
         <p className="mt-1 text-sm font-semibold text-emerald-800">Baytul Iqra Bookstore</p>
@@ -101,24 +118,53 @@ export default function ScanBook({ book, code, stock }: { book: ScannedBook; cod
           </div>
         )}
         <h1 className="text-xl font-bold text-gray-900" data-testid="scan-book-title">{book.title}</h1>
-        <p className="text-gray-600 mb-2">{book.author}</p>
-        <p className="text-2xl font-extrabold text-emerald-700">${book.price.toFixed(2)}</p>
+        <p className="text-gray-600 mb-3">{book.author}</p>
+
+        {chips.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-2 mb-3" data-testid="scan-chips">
+            {chips.map((chip) => (
+              <span key={chip} className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-medium">
+                {chip}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {description && (
+          <div className="mb-4 text-left" data-testid="scan-description">
+            <p className={`text-sm text-gray-700 whitespace-pre-line ${expanded ? "" : "line-clamp-3"}`}>{description}</p>
+            {description.length > 140 && (
+              <button
+                onClick={() => setExpanded((v) => !v)}
+                className="mt-1 text-sm font-medium text-emerald-700 underline"
+                data-testid="scan-read-more"
+              >
+                {expanded ? "Show less" : "Read more"}
+              </button>
+            )}
+          </div>
+        )}
+
+        <p className="text-2xl font-extrabold text-emerald-700">{price}</p>
         <p className="text-xs text-gray-500 mb-2" data-testid="scan-tax-note">Tax included</p>
         {stock <= 3 && (
           <p className="text-sm font-semibold text-amber-700 mb-3" data-testid="scan-low-stock">
             {stock === 1 ? "Last copy!" : `Only ${stock} left`}
           </p>
         )}
-        <div className="mb-3" />
 
-        <button
-          onClick={handleBuyNow}
-          disabled={buying || !isHydrated}
-          data-testid="scan-buy-now"
-          className="w-full px-6 py-3.5 rounded-xl font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500 disabled:opacity-60"
-        >
-          {buying ? "Opening checkout…" : `Buy now · $${book.price.toFixed(2)}`}
-        </button>
+        {/* Pinned to the bottom of the screen on phones (thumb reach); sits in the card on larger screens */}
+        <div className="fixed bottom-0 inset-x-0 z-20 bg-white/95 backdrop-blur border-t border-gray-200 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:static sm:z-auto sm:bg-transparent sm:backdrop-blur-none sm:border-0 sm:p-0 sm:mt-4">
+          <button
+            onClick={handleBuyNow}
+            disabled={buying || !isHydrated}
+            data-testid="scan-buy-now"
+            className="w-full max-w-md mx-auto block px-6 py-3.5 rounded-xl font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500 disabled:opacity-60"
+          >
+            {buying ? "Opening checkout…" : `Buy now · ${price}`}
+          </button>
+        </div>
+
         <button
           onClick={handleAddToCart}
           disabled={buying || !isHydrated}
@@ -127,7 +173,11 @@ export default function ScanBook({ book, code, stock }: { book: ScannedBook; cod
         >
           Add to cart (buying more than one?)
         </button>
-        <Link href="/" className="inline-block mt-4 text-sm text-gray-500 underline">
+
+        <p className="mt-4 text-xs text-gray-500" data-testid="scan-trust-note">
+          🔒 Secure checkout by Stripe. Apple Pay and Google Pay where available. Your receipt is emailed to you, and you can take the book with you right after paying.
+        </p>
+        <Link href="/" className="inline-block mt-3 text-sm text-gray-500 underline">
           Browse more books
         </Link>
       </div>
