@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { useCart, type CartItem } from "@/components/CartProvider";
@@ -89,6 +90,7 @@ export default function ScanBook({ book, code, stock }: { book: ScannedBook; cod
 
   return (
     <main className="max-w-md mx-auto px-4 py-8" data-testid="scan-book-card">
+      <p className="text-center text-sm font-semibold text-emerald-800 mb-4">Baytul Iqra Bookstore</p>
       <div className="bg-white rounded-2xl shadow border border-gray-100 p-5 text-center">
         {book.image && (
           <div className="relative mx-auto mb-4 w-40 h-56">
@@ -97,7 +99,8 @@ export default function ScanBook({ book, code, stock }: { book: ScannedBook; cod
         )}
         <h1 className="text-xl font-bold text-gray-900" data-testid="scan-book-title">{book.title}</h1>
         <p className="text-gray-600 mb-2">{book.author}</p>
-        <p className="text-2xl font-extrabold text-emerald-700 mb-2">${book.price.toFixed(2)}</p>
+        <p className="text-2xl font-extrabold text-emerald-700">${book.price.toFixed(2)}</p>
+        <p className="text-xs text-gray-500 mb-2" data-testid="scan-tax-note">Tax included</p>
         {stock <= 3 && (
           <p className="text-sm font-semibold text-amber-700 mb-3" data-testid="scan-low-stock">
             {stock === 1 ? "Last copy!" : `Only ${stock} left`}
@@ -121,6 +124,9 @@ export default function ScanBook({ book, code, stock }: { book: ScannedBook; cod
         >
           Add to cart (buying more than one?)
         </button>
+        <Link href="/" className="inline-block mt-4 text-sm text-gray-500 underline">
+          Browse more books
+        </Link>
       </div>
     </main>
   );

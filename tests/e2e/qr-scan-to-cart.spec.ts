@@ -45,6 +45,16 @@ test.describe('QR scan to cart', () => {
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('cart') ?? '[]')[0].quantity)).toBe(1);
   });
 
+  test('scan page is focused: tax note shown, no navbar or chat button', async ({ page }) => {
+    const book = await initializeAPIHelper(page).findInStockBook();
+
+    await page.goto(`/b/${book.id}`);
+
+    await expect(page.getByTestId('scan-tax-note')).toHaveText('Tax included');
+    await expect(page.locator('header')).toHaveCount(0);
+    await expect(page.getByText('Ask us')).toHaveCount(0);
+  });
+
   test('scanned cart asks only for email (no shipping/pickup choice)', async ({ page, cartPage }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
 
