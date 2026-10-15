@@ -90,7 +90,10 @@ export default function ScanBook({ book, code, stock }: { book: ScannedBook; cod
 
   return (
     <main className="max-w-md mx-auto px-4 py-8" data-testid="scan-book-card">
-      <p className="text-center text-sm font-semibold text-emerald-800 mb-4">Baytul Iqra Bookstore</p>
+      <div className="flex flex-col items-center mb-4">
+        <Image src="/logo-baytul-iqra.png" alt="Baytul Iqra Bookstore" width={64} height={64} className="w-16 h-16 object-contain" priority />
+        <p className="mt-1 text-sm font-semibold text-emerald-800">Baytul Iqra Bookstore</p>
+      </div>
       <div className="bg-white rounded-2xl shadow border border-gray-100 p-5 text-center">
         {book.image && (
           <div className="relative mx-auto mb-4 w-40 h-56">

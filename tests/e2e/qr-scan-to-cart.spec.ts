@@ -52,6 +52,7 @@ test.describe('QR scan to cart', () => {
 
     await expect(page.getByTestId('scan-tax-note')).toHaveText('Tax included');
     await expect(page.locator('header')).toHaveCount(0);
+    await expect(page.getByRole('img', { name: 'Baytul Iqra Bookstore' })).toBeVisible();
     await expect(page.getByText('Ask us')).toHaveCount(0);
   });
 
