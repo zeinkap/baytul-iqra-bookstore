@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
 import { findStockProblems, stockProblemMessage } from '@/lib/stockManager';
+import { priceItems, discountForPromoId } from '@/lib/pricing';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 type CartItem = {
+  id?: string;
   title: string;
   image?: string;
   price: number;
@@ -14,10 +16,30 @@ type CartItem = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { items, fulfillmentType, orderId, email, phone, promoCodeId, createPaymentLink, discountAmount, pickupLocation, source, cancelPath } = await req.json();
+    const { items: rawItems, fulfillmentType, orderId, email, phone, promoCodeId, createPaymentLink, pickupLocation, source, cancelPath } = await req.json();
     const inShop = source === 'in-shop';
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ error: 'No items provided' }, { status: 400 });
+    // Prices, titles and discounts come from the database; the browser only supplies ids and quantities.
+    // Exception: the admin "custom payment link" tool sends free-form items (no book id), so it keeps
+    // its own prices when the admin cookie is present.
+    const isAdminCustomLink =
+      createPaymentLink === true && req.cookies.get('adminAuth')?.value === 'true' && Array.isArray(rawItems) && rawItems.length > 0;
+    let items: CartItem[];
+    let discountAmount = 0; // dollars, server-computed
+    if (isAdminCustomLink) {
+      items = rawItems;
+    } else {
+      const priced = await priceItems(rawItems);
+      if (!priced.ok) {
+        return NextResponse.json({ error: priced.error }, { status: priced.status });
+      }
+      items = priced.items;
+      if (promoCodeId) {
+        const promo = await discountForPromoId(promoCodeId, priced.subtotal);
+        if (!promo.valid) {
+          return NextResponse.json({ error: promo.error }, { status: 400 });
+        }
+        discountAmount = promo.discountAmount;
+      }
     }
 
     // Re-check stock right before payment: someone else may have bought the last copy since the cart was built

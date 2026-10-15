@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import Stripe from 'stripe';
+import type { Prisma } from '@prisma/client';
 import { findStockProblems, stockProblemMessage } from '@/lib/stockManager';
+import { priceItems, discountForPromoId } from '@/lib/pricing';
 
 // Extended Stripe session type to include shipping_details which may not be in all TypeScript definitions
 interface StripeSessionWithShipping extends Stripe.Response<Stripe.Checkout.Session> {
@@ -101,8 +103,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const data = await req.json();
-    const { items, total, fulfillmentType, pickupLocation, shippingAddress, email, promoCodeId, discountAmount, source } = data;
-    if (!items || !Array.isArray(items) || typeof total !== 'number' || !fulfillmentType) {
+    const { items: rawItems, fulfillmentType, pickupLocation, shippingAddress, email, promoCodeId, source } = data;
+    if (!rawItems || !Array.isArray(rawItems) || !fulfillmentType) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
     if (fulfillmentType !== 'shipping' && fulfillmentType !== 'pickup') {
@@ -111,19 +113,35 @@ export async function POST(req: NextRequest) {
     if (source !== undefined && source !== 'online' && source !== 'in-shop') {
       return NextResponse.json({ error: 'Invalid source' }, { status: 400 });
     }
+    // Prices, total and discount come from the database; the browser only supplies ids and quantities
+    const priced = await priceItems(rawItems);
+    if (!priced.ok) {
+      return NextResponse.json({ error: priced.error }, { status: priced.status });
+    }
+    const items = priced.items;
+    const total = priced.subtotal;
+    let discountAmount = 0;
+    if (promoCodeId) {
+      const promo = await discountForPromoId(promoCodeId, total);
+      if (!promo.valid) {
+        return NextResponse.json({ error: promo.error }, { status: 400 });
+      }
+      discountAmount = promo.discountAmount;
+    }
+
     const stockProblems = await findStockProblems(items);
     if (stockProblems.length > 0) {
       return NextResponse.json({ error: stockProblemMessage(stockProblems), stockProblems }, { status: 409 });
     }
     // Add shipping cost to final total if fulfillment type is shipping
     const shippingCost = fulfillmentType === 'shipping' ? 5.00 : 0;
-    const finalTotal = total + shippingCost - (discountAmount || 0);
+    const finalTotal = total + shippingCost - discountAmount;
     
     const order = await prisma.order.create({
       data: {
-        items,
+        items: items as unknown as Prisma.InputJsonValue,
         total,
-        discountAmount: discountAmount || 0,
+        discountAmount,
         finalTotal,
         promoCodeId: promoCodeId || null,
         fulfillmentType,
