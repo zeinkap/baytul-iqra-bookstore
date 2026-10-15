@@ -17,6 +17,8 @@
     "desc:apply": "npx tsx scripts/applyDescriptions.ts",
     "isbn:export": "npx tsx scripts/isbnCsv.ts export",
     "isbn:apply": "npx tsx scripts/isbnCsv.ts apply",
+    "images:export": "npx tsx scripts/imageUrlsCsv.ts export",
+    "images:apply": "npx tsx scripts/imageUrlsCsv.ts apply",
     "qr:generate": "npx tsx scripts/generateQrCodes.ts",
     "db:migrate": "npx prisma migrate dev",
     "db:reset": "npx prisma migrate reset",
