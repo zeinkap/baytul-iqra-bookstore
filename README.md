@@ -289,6 +289,8 @@ npm start
 
 This project uses Playwright for end-to-end testing with a comprehensive test suite following best practices.
 
+> For quick browser-based testing via the Cursor AI agent, see [docs/EXPECT_BROWSER_TESTING.md](docs/EXPECT_BROWSER_TESTING.md).
+
 ### Test Structure
 
 ```

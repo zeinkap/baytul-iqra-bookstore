@@ -169,7 +169,7 @@ export class CartPage extends BasePage {
   async removeItem(index: number = 0) {
     const removeButtons = this.page.locator('button:has-text("Remove")');
     await removeButtons.nth(index).click();
-    await this.waitForToast('Item removed from cart');
+    await this.waitForToast('removed from cart');
   }
 
   /**
