@@ -166,6 +166,7 @@ A floating chat widget (`src/components/ChatWidget.tsx`) answers book recommenda
 - Requires `ANTHROPIC_API_KEY`. Optional `CHAT_MODEL` overrides the default model.
 - Store policies live in `src/lib/chat/systemPrompt.ts` — edit them there.
 - Set each book's **Age Range** (e.g. `6-9`, `10-13`, `14+`, `All ages`) in the admin Books form so age-based recommendations work.
+- To bulk-fill age ranges: `npm run ages:suggest` writes `age-range-suggestions.csv` (no DB changes), edit the `suggestedAgeRange` column as needed, preview with `npm run ages:apply`, then write with `npm run ages:apply -- --apply` (run `npm run db:backup` first; add `--skip-low` to ignore low-confidence rows).
 - Order status is intentionally not supported; the bot directs customers to support.
 - Rate limiting is in-memory per instance (`src/lib/chat/rateLimit.ts`); use a shared store (Upstash/Vercel KV) for a hard limit.
 
