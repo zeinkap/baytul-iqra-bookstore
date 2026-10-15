@@ -8,6 +8,7 @@ export async function sendOrderConfirmationEmail({
   items,
   total,
   fulfillmentType,
+  source,
   shippingAddress,
 }: {
   to: string;
@@ -15,6 +16,7 @@ export async function sendOrderConfirmationEmail({
   items: { title: string; quantity: number; price: number }[];
   total: number;
   fulfillmentType: string;
+  source?: string;
   shippingAddress?: {
     name?: string;
     line1?: string;
@@ -26,7 +28,9 @@ export async function sendOrderConfirmationEmail({
   };
 }) {
   const subject = 'Your Baytul Iqra Bookstore Order Confirmation';
-  const pickupText = fulfillmentType === 'pickup'
+  const pickupText = source === 'in-shop'
+    ? `<p>Thanks for your purchase at the shop. Enjoy your book! This email is your receipt.</p>`
+    : fulfillmentType === 'pickup'
     ? `<p>Your order is ready for <b>free local pickup</b> in <b>Alpharetta, GA</b>. We'll contact you soon with pickup instructions.</p>`
     : `<p>Your order will be shipped to your address. You'll receive a confirmation email with tracking details soon.</p>`;
 

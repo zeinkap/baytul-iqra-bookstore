@@ -239,6 +239,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     shippingAddress,
     email: session.customer_details?.email || session.customer_email || undefined,
     customerName: customerName,
+    source: session.metadata?.source === 'in-shop' ? 'in-shop' : 'online',
   });
 }
 
@@ -421,6 +422,7 @@ async function createOrder({
   shippingAddress,
   email,
   customerName,
+  source,
 }: {
   orderId?: string;
   promoCodeId?: string;
@@ -440,6 +442,7 @@ async function createOrder({
   };
   email?: string;
   customerName?: string;
+  source?: 'online' | 'in-shop';
 }) {
   console.log('Creating order:', { orderId, email, customerName, totalCents });
 
@@ -464,6 +467,28 @@ async function createOrder({
       } catch (stockError) {
         console.error('Failed to update stock for existing order:', existingOrder.id, stockError);
       }
+
+      // Orders created before payment may not have an email yet (in-shop "buy now" lets Stripe collect it).
+      // Save what Stripe collected and send the confirmation that would otherwise never go out.
+      if (!existingOrder.email && email) {
+        try {
+          const updated = await prisma.order.update({
+            where: { id: existingOrder.id },
+            data: { email, customerName: existingOrder.customerName || customerName || undefined },
+          });
+          await sendOrderConfirmationEmail({
+            to: email,
+            orderId: updated.id,
+            items: updated.items as { title: string; quantity: number; price: number }[],
+            total: updated.finalTotal,
+            fulfillmentType: updated.fulfillmentType,
+            source: updated.source,
+          });
+          return updated;
+        } catch (error) {
+          console.error('Failed to backfill email for existing order:', existingOrder.id, error);
+        }
+      }
       return existingOrder;
     }
   }
@@ -482,6 +507,7 @@ async function createOrder({
         shippingAddress: shippingAddress || undefined,
         email: email,
         customerName: customerName,
+        source: source || 'online',
       },
   });
 
@@ -517,6 +543,7 @@ async function createOrder({
         items: productItems,
         total: created.total,
         fulfillmentType: created.fulfillmentType,
+        source: created.source,
         shippingAddress: undefined,
       });
       console.log('Order confirmation email sent to:', created.email);

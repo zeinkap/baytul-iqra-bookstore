@@ -13,7 +13,8 @@ type CartItem = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { items, fulfillmentType, orderId, email, phone, promoCodeId, createPaymentLink, discountAmount, pickupLocation } = await req.json();
+    const { items, fulfillmentType, orderId, email, phone, promoCodeId, createPaymentLink, discountAmount, pickupLocation, source, cancelPath } = await req.json();
+    const inShop = source === 'in-shop';
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: 'No items provided' }, { status: 400 });
     }
@@ -324,15 +325,17 @@ export async function POST(req: NextRequest) {
       line_items,
       mode: 'payment',
       success_url: `${req.nextUrl.origin}/checkout/success?orderId=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.nextUrl.origin}/cart`,
+      // In-shop buy-now purchases return to the book they scanned; only same-site /b/ paths are accepted
+      cancel_url: `${req.nextUrl.origin}${inShop && typeof cancelPath === 'string' && /^\/b\/[\w-]+$/.test(cancelPath) ? cancelPath : '/cart'}`,
       // Only collect shipping address if fulfillment type is shipping
       ...(fulfillmentType === 'shipping' && {
         shipping_address_collection: { allowed_countries: ['US', 'CA'] }
       }),
       customer_email: email,
-      billing_address_collection: 'required', // This will collect customer name
+      // In-shop scans: keep checkout to email + payment (wallet-friendly), no billing address or phone
+      billing_address_collection: inShop ? 'auto' : 'required', // 'required' collects customer name
       phone_number_collection: {
-        enabled: true // Collect phone number for better customer support
+        enabled: !inShop // Collect phone number for better customer support
       },
       metadata: { 
         orderId, 
@@ -340,6 +343,7 @@ export async function POST(req: NextRequest) {
         fulfillmentType,
         discountAmount: discountAmount ? String(discountAmount) : '0',
         pickupLocation: pickupLocation || '',
+        source: inShop ? 'in-shop' : 'online',
         customerPhone: phone || '',
         // Store cart items as JSON for display in admin panel
         cartItems: cartItemsJson,

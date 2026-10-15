@@ -253,6 +253,7 @@ export async function POST(req: NextRequest) {
           ...(shippingAddress ? { shippingAddress } : {}),
           email,
           customerName,
+          source: session.metadata?.source === 'in-shop' ? 'in-shop' : 'online',
         },
       });
 

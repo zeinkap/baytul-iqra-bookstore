@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const search = searchParams.get('search') || '';
     const fulfillmentType = searchParams.get('fulfillmentType') || '';
+    const source = searchParams.get('source') || '';
     
     const skip = (page - 1) * limit;
     
@@ -46,6 +47,7 @@ export async function GET(req: NextRequest) {
         customerName?: { contains: string; mode: 'insensitive' };
       }>;
       fulfillmentType?: string;
+      source?: string;
     } = {};
     
     if (search) {
@@ -58,6 +60,10 @@ export async function GET(req: NextRequest) {
     
     if (fulfillmentType) {
       where.fulfillmentType = fulfillmentType;
+    }
+
+    if (source) {
+      where.source = source;
     }
     
     // Get orders with pagination
@@ -94,12 +100,15 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const data = await req.json();
-    const { items, total, fulfillmentType, pickupLocation, shippingAddress, email, promoCodeId, discountAmount } = data;
+    const { items, total, fulfillmentType, pickupLocation, shippingAddress, email, promoCodeId, discountAmount, source } = data;
     if (!items || !Array.isArray(items) || typeof total !== 'number' || !fulfillmentType) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
     if (fulfillmentType !== 'shipping' && fulfillmentType !== 'pickup') {
       return NextResponse.json({ error: 'Invalid fulfillment type' }, { status: 400 });
+    }
+    if (source !== undefined && source !== 'online' && source !== 'in-shop') {
+      return NextResponse.json({ error: 'Invalid source' }, { status: 400 });
     }
     // Add shipping cost to final total if fulfillment type is shipping
     const shippingCost = fulfillmentType === 'shipping' ? 5.00 : 0;
@@ -116,6 +125,7 @@ export async function POST(req: NextRequest) {
         pickupLocation: fulfillmentType === 'pickup' ? (pickupLocation || 'Alpharetta, GA') : null,
         shippingAddress: fulfillmentType === 'shipping' ? shippingAddress : null,
         email,
+        source: source ?? 'online',
       },
     });
 
@@ -241,6 +251,7 @@ export async function PUT(req: NextRequest) {
         pickupLocation: fulfillmentType === 'pickup' ? (pickupLocation || 'Alpharetta, GA') : null,
         shippingAddress: shippingAddress || undefined,
         email: session.customer_details?.email || session.customer_email || undefined,
+        source: session.metadata?.source === 'in-shop' ? 'in-shop' : 'online',
       },
     });
 

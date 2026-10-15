@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { normalizeIsbn } from '@/lib/isbn';
-import ScanToCart from './ScanToCart';
+import ScanBook from './ScanBook';
 
 // Always look the book up fresh: stock changes and QR labels are printed once
 export const dynamic = 'force-dynamic';
@@ -35,7 +35,8 @@ export default async function ScanBookPage({ params }: { params: Promise<{ code:
   }
 
   return (
-    <ScanToCart
+    <ScanBook
+      code={book.isbn ?? book.id}
       book={{
         id: book.id,
         title: book.title,

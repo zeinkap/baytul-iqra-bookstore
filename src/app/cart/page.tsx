@@ -748,7 +748,8 @@ export default function CartPage({
                               items: cart,
                               total,
                               fulfillmentType,
-                              pickupLocation: fulfillmentType === 'pickup' ? 'Alpharetta, GA' : undefined,
+                              pickupLocation: inShopMode ? 'In shop' : fulfillmentType === 'pickup' ? 'Alpharetta, GA' : undefined,
+                              source: inShopMode ? 'in-shop' : 'online',
                               email,
                               promoCodeId: appliedPromoCode?.id,
                               discountAmount: appliedPromoCode?.discountAmount || 0,
@@ -799,7 +800,8 @@ export default function CartPage({
                                 email,
                                 promoCodeId: appliedPromoCode?.id,
                                 discountAmount: appliedPromoCode?.discountAmount || 0,
-                                pickupLocation: fulfillmentType === 'pickup' ? 'Alpharetta, GA' : undefined,
+                                pickupLocation: inShopMode ? 'In shop' : fulfillmentType === 'pickup' ? 'Alpharetta, GA' : undefined,
+                                source: inShopMode ? 'in-shop' : 'online',
                               }),
                             });
                             const data = await res.json();

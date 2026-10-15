@@ -18,6 +18,7 @@ type Order = {
   finalTotal: number;
   discountAmount: number;
   fulfillmentType: 'shipping' | 'pickup';
+  source?: 'online' | 'in-shop';
   pickupLocation?: string;
   email?: string;
   customerName?: string;
@@ -265,13 +266,17 @@ export default function SuccessClient({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold mb-2 text-emerald-700">Thank you for your order!</h1>
+        <h1 className="text-3xl sm:text-4xl font-extrabold mb-2 text-emerald-700">
+          {order.source === 'in-shop' ? 'Paid ✓ Enjoy your book!' : 'Thank you for your order!'}
+        </h1>
         <p className="text-gray-700">
-          {order.fulfillmentType === 'pickup'
+          {order.source === 'in-shop'
+            ? 'Your purchase is complete. A receipt is on its way to your email.'
+            : order.fulfillmentType === 'pickup'
             ? 'This was an in-person sale.'
             : 'Your order will be shipped soon. You will receive a confirmation email with tracking details.'}
         </p>
-        {order.fulfillmentType === 'pickup' && (
+        {order.fulfillmentType === 'pickup' && order.source !== 'in-shop' && (
           <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg inline-block">
             <p className="text-sm text-emerald-700">
               📍 <strong>In-Person Sale:</strong> Customer information collected during payment
@@ -368,13 +373,15 @@ export default function SuccessClient({
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-gray-600">Email</span>
                   <span className="text-gray-900">
-                    {order.email || (order.fulfillmentType === 'pickup' ? 'Not collected (in-person sale)' : 'N/A')}
+                    {order.email || (order.source === 'in-shop' ? 'Receipt sent by Stripe' : order.fulfillmentType === 'pickup' ? 'Not collected (in-person sale)' : 'N/A')}
                   </span>
                 </div>
                 <div className="border-t border-gray-100 pt-3">
-                  <div className="text-gray-600 mb-1">{order.fulfillmentType === 'pickup' ? 'Pickup Details' : 'Shipping Address'}</div>
+                  <div className="text-gray-600 mb-1">{order.source === 'in-shop' ? 'Purchase' : order.fulfillmentType === 'pickup' ? 'Pickup Details' : 'Shipping Address'}</div>
                   <div className="text-gray-900">
-                    {order.fulfillmentType === 'pickup'
+                    {order.source === 'in-shop'
+                      ? 'Bought in shop, no pickup needed'
+                      : order.fulfillmentType === 'pickup'
                       ? 'Alpharetta, GA (We will email pickup instructions)'
                       : formatAddress(order.shippingAddress)}
                   </div>
