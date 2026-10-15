@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Category } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
+import { normalizeIsbn } from '@/lib/isbn';
 
 // GET /api/books/[id] - Get a single book
 export async function GET(
@@ -32,7 +33,7 @@ export async function PUT(
 ) {
   const { id } = await params;
   const data = await req.json();
-  const { title, author, description, price, costPrice, shippingCost, images, stock, isBestseller, format, ageRange, categories } = data;
+  const { title, author, description, price, costPrice, shippingCost, images, stock, isBestseller, format, ageRange, isbn, categories } = data;
   if (!title || !author || !description || !Array.isArray(categories)) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
@@ -49,6 +50,11 @@ export async function PUT(
   const normalizedImages: string[] = Array.isArray(images) ? images.filter(isValidImageSrc) : [];
   const normalizedFormat = format != null && String(format).trim() !== '' ? String(format).trim() : null;
   const normalizedAgeRange = ageRange != null && String(ageRange).trim() !== '' ? String(ageRange).trim() : null;
+  const hasIsbn = isbn != null && String(isbn).trim() !== '';
+  const normalizedIsbn = hasIsbn ? normalizeIsbn(String(isbn)) : null;
+  if (hasIsbn && !normalizedIsbn) {
+    return NextResponse.json({ error: 'Invalid ISBN (must be a valid ISBN-10 or ISBN-13)' }, { status: 400 });
+  }
 
   try {
     const categoryConnect = categories.map((name: string) => ({ name }));
@@ -66,6 +72,8 @@ export async function PUT(
         isBestseller: Boolean(isBestseller),
         format: normalizedFormat,
         ageRange: normalizedAgeRange,
+        // Only touch ISBN when the caller sent the field, so older clients don't wipe it
+        isbn: isbn !== undefined ? normalizedIsbn : undefined,
         categories: {
           set: [], // Disconnect all existing categories first
           connect: categoryConnect,
@@ -82,6 +90,9 @@ export async function PUT(
   });
   } catch (error) {
     console.error("Failed to update book:", error);
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') {
+      return NextResponse.json({ error: 'Another book already has this ISBN' }, { status: 409 });
+    }
     return NextResponse.json({ error: 'Failed to update book' }, { status: 500 });
   }
 }
