@@ -55,6 +55,7 @@ export default function AdminBooksPage() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [stockFilter, setStockFilter] = useState("");
   const [bestsellerFilter, setBestsellerFilter] = useState("");
+  const [isbnFilter, setIsbnFilter] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [bookToDelete, setBookToDelete] = useState<string | null>(null);
   const [stats, setStats] = useState<BookStats>({
@@ -179,6 +180,10 @@ export default function AdminBooksPage() {
         case 'format':
           aValue = (a.format || '').toLowerCase();
           bValue = (b.format || '').toLowerCase();
+          break;
+        case 'isbn':
+          aValue = a.isbn || '';
+          bValue = b.isbn || '';
           break;
         case 'categories':
           aValue = a.categories.join(', ').toLowerCase();
@@ -407,11 +412,12 @@ export default function AdminBooksPage() {
   }
 
   function exportToCSV() {
-    const headers = ['Title', 'Author', 'Format', 'Categories', 'Stock', 'Price', 'Cost Price', 'Shipping Cost', 'Bestseller', 'Created At'];
+    const headers = ['Title', 'Author', 'Format', 'ISBN', 'Categories', 'Stock', 'Price', 'Cost Price', 'Shipping Cost', 'Bestseller', 'Created At'];
     const rows = filteredBooks.map(book => [
       book.title,
       book.author,
       book.format || 'N/A',
+      book.isbn || '',
       book.categories.join('; '),
       book.stock.toString(),
       `$${book.price.toFixed(2)}`,
@@ -437,6 +443,8 @@ export default function AdminBooksPage() {
     document.body.removeChild(link);
   }
 
+  const missingIsbnCount = books.filter((book) => !book.isbn).length;
+
   // Filter books by search text, category, stock level, and bestseller status
   const filteredBooks = books.filter((book) => {
     const text = debouncedSearch.toLowerCase();
@@ -459,7 +467,12 @@ export default function AdminBooksPage() {
       (bestsellerFilter === 'no' && !book.isBestseller)
     );
     
-    return matchesSearch && matchesCategory && matchesStock && matchesBestseller;
+    const matchesIsbn = !isbnFilter || (
+      (isbnFilter === 'missing' && !book.isbn) ||
+      (isbnFilter === 'has' && !!book.isbn)
+    );
+
+    return matchesSearch && matchesCategory && matchesStock && matchesBestseller && matchesIsbn;
   });
 
   return (
@@ -543,6 +556,16 @@ export default function AdminBooksPage() {
           <option value="">All Books</option>
           <option value="yes">Bestsellers Only</option>
           <option value="no">Non-Bestsellers</option>
+        </select>
+        <select
+          value={isbnFilter}
+          onChange={(e) => setIsbnFilter(e.target.value)}
+          className="border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          data-testid="isbn-filter"
+        >
+          <option value="">All ISBNs</option>
+          <option value="missing">Missing ISBN ({missingIsbnCount})</option>
+          <option value="has">Has ISBN</option>
         </select>
       </div>
 
@@ -750,6 +773,19 @@ export default function AdminBooksPage() {
               </th>
               <th 
                 className="font-semibold py-3 px-2 text-left hidden md:table-cell cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                onClick={() => handleSort('isbn')}
+              >
+                <div className="flex items-center space-x-1">
+                  <span>ISBN</span>
+                  {sortField === 'isbn' && (
+                    <span className="text-blue-500">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </div>
+              </th>
+              <th 
+                className="font-semibold py-3 px-2 text-left hidden md:table-cell cursor-pointer hover:bg-gray-200 transition-colors select-none"
                 onClick={() => handleSort('categories')}
               >
                 <div className="flex items-center space-x-1">
@@ -832,7 +868,7 @@ export default function AdminBooksPage() {
           <tbody>
             {filteredBooks.length === 0 ? (
               <tr>
-                <td colSpan={10} className="text-center py-8 text-gray-400">
+                <td colSpan={11} className="text-center py-8 text-gray-400">
                   {loading ? 'Loading books...' : 'No books found.'}
                 </td>
               </tr>
@@ -848,6 +884,9 @@ export default function AdminBooksPage() {
                 <td className="py-2 px-2 font-medium">{book.title}</td>
                 <td className="py-2 px-2 hidden md:table-cell">{book.author}</td>
                 <td className="py-2 px-2 hidden md:table-cell">{book.format}</td>
+                <td className="py-2 px-2 hidden md:table-cell font-mono text-sm" data-testid="book-isbn-cell">
+                  {book.isbn ? book.isbn : <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-xs font-sans font-medium">Missing</span>}
+                </td>
                 <td className="py-2 px-2 hidden md:table-cell">{book.categories.join(", ")}</td>
                 <td className="py-2 px-2">
                   <span className={`${book.stock < 2 ? 'text-orange-600 font-semibold' : ''} ${book.stock === 0 ? 'text-red-600 font-bold' : ''}`}>
