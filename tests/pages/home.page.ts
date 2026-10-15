@@ -140,6 +140,27 @@ export class HomePage extends BasePage {
   }
 
   /**
+   * Toggle a category filter button (desktop layout)
+   */
+  async toggleCategory(category: string) {
+    await this.page.getByRole('button', { name: category, exact: true }).click();
+  }
+
+  /**
+   * Reset all category filters and the search query
+   */
+  async clearAllCategories() {
+    await this.page.getByRole('button', { name: 'Clear All', exact: true }).click();
+  }
+
+  /**
+   * Get the visible text of every book card currently shown
+   */
+  async getVisibleBookCardTexts(): Promise<string[]> {
+    return this.page.locator('[data-testid^="book-card-"]').allInnerTexts();
+  }
+
+  /**
    * Wait for books to load
    */
   async waitForBooksToLoad() {
