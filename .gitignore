@@ -54,3 +54,4 @@ description-suggestions*.csv
 # generated QR label output and ISBN working file
 /qr-labels
 isbn-template.csv
+isbn-prod.csv
