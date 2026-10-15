@@ -5,45 +5,11 @@ import { normalizeIsbn } from '@/lib/isbn';
 import { htmlToText } from '@/lib/htmlToText';
 import ScanBook from './ScanBook';
 import ScanLogger from './ScanLogger';
+import BookSuggestions from '@/components/BookSuggestions';
+import { similarBooks, popularBooks, type Suggestion } from '@/lib/suggestions';
 
 // Always look the book up fresh: stock changes and QR labels are printed once
 export const dynamic = 'force-dynamic';
-
-type Suggestion = { id: string; title: string; author: string; price: number; image: string; code: string };
-
-/** In-stock books sharing categories (and age range) with the given book, best matches first. */
-async function similarBooks(book: { id: string; ageRange: string | null; categories: { id: number }[] }): Promise<Suggestion[]> {
-  const categoryIds = book.categories.map((c) => c.id);
-  const or = [
-    ...(categoryIds.length ? [{ categories: { some: { id: { in: categoryIds } } } }] : []),
-    ...(book.ageRange ? [{ ageRange: book.ageRange }] : []),
-  ];
-  if (or.length === 0) return popularBooks(book.id);
-
-  const candidates = await prisma.book.findMany({
-    where: { stock: { gt: 0 }, id: { not: book.id }, OR: or },
-    include: { categories: { select: { id: true } } },
-    take: 24,
-  });
-  const score = (b: (typeof candidates)[number]) =>
-    b.categories.filter((c) => categoryIds.includes(c.id)).length * 2 + (book.ageRange && b.ageRange === book.ageRange ? 1 : 0) + (b.isBestseller ? 0.5 : 0);
-  const ranked = candidates.sort((a, b) => score(b) - score(a)).slice(0, 4).map(toSuggestion);
-  return ranked.length > 0 ? ranked : popularBooks(book.id);
-}
-
-/** Fallback when there's nothing to compare with: in-stock bestsellers, then newest. */
-async function popularBooks(excludeId?: string): Promise<Suggestion[]> {
-  const books = await prisma.book.findMany({
-    where: { stock: { gt: 0 }, ...(excludeId ? { id: { not: excludeId } } : {}) },
-    orderBy: [{ isBestseller: 'desc' }, { createdAt: 'desc' }],
-    take: 4,
-  });
-  return books.map(toSuggestion);
-}
-
-function toSuggestion(b: { id: string; isbn: string | null; title: string; author: string; price: number; images: string[] }): Suggestion {
-  return { id: b.id, title: b.title, author: b.author, price: b.price, image: b.images[0] ?? '', code: b.isbn ?? b.id };
-}
 
 /**
  * Direct-to-cart landing page for QR labels stuck on physical books.
@@ -119,27 +85,9 @@ function Message({
       <h1 className="text-2xl font-bold text-gray-900 mb-2" data-testid="scan-message-title">{title}</h1>
       <p className="text-gray-600 mb-6">{children}</p>
 
-      {suggestions.length > 0 && (
-        <section className="text-left mb-6" data-testid="scan-suggestions">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">{suggestionsTitle}</h2>
-          <ul className="grid grid-cols-2 gap-3">
-            {suggestions.map((s) => (
-              <li key={s.id}>
-                <Link href={`/b/${s.code}`} className="block bg-white rounded-xl border border-gray-100 shadow-sm p-3 h-full">
-                  {s.image && (
-                    <div className="relative mx-auto mb-2 w-24 h-32">
-                      <Image src={s.image} alt={s.title} fill sizes="96px" className="object-contain" />
-                    </div>
-                  )}
-                  <p className="text-sm font-semibold text-gray-900 line-clamp-2">{s.title}</p>
-                  <p className="text-xs text-gray-500 line-clamp-1">{s.author}</p>
-                  <p className="text-sm font-bold text-emerald-700 mt-1">${s.price.toFixed(2)}</p>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <div className="mb-6">
+        <BookSuggestions title={suggestionsTitle} suggestions={suggestions} />
+      </div>
 
       <Link href="/" className="inline-block px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500">
         Browse all books

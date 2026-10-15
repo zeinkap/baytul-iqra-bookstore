@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, type ReactNode } from 'react';
 import { useCart } from '@/components/CartProvider';
 import Button from '@/components/Button';
 import { Card } from '@/components/Card';
+import InShopReceipt from './InShopReceipt';
 
 type OrderItem = {
   title: string;
@@ -22,6 +23,8 @@ type Order = {
   pickupLocation?: string;
   email?: string;
   customerName?: string;
+  paidAt?: string | null;
+  createdAt?: string | null;
   shippingAddress?: {
     name?: string;
     line1?: string;
@@ -35,8 +38,11 @@ type Order = {
 
 export default function SuccessClient({
   searchParams,
+  footer,
 }: {
   searchParams: { [key: string]: string | string[] | undefined };
+  /** Extra content under an in-shop receipt (e.g. book suggestions). */
+  footer?: ReactNode;
 }) {
   const orderId = typeof searchParams.orderId === 'string' ? searchParams.orderId : undefined;
   const sessionId = typeof searchParams.session_id === 'string' ? searchParams.session_id : undefined;
@@ -172,6 +178,29 @@ export default function SuccessClient({
     };
   }, [orderId, sessionId, clearCart]);
 
+  // In-shop orders are created before payment, so Stripe's email/name and the paid time land a moment
+  // later (via the webhook). Refresh the receipt for ~20s so the real values replace the placeholders.
+  const inShopId = order?.source === 'in-shop' ? order.id : null;
+  const needsRefresh = !order?.email || !order?.paidAt;
+  useEffect(() => {
+    if (!inShopId || !needsRefresh) return;
+    let tries = 0;
+    const timer = setInterval(async () => {
+      tries += 1;
+      try {
+        const res = await fetch(`/api/orders/${inShopId}`, { cache: 'no-store' });
+        if (res.ok) {
+          const fresh: Order = await res.json();
+          setOrder((prev) => (prev ? { ...prev, ...fresh } : fresh));
+        }
+      } catch {
+        // ignore and try again
+      }
+      if (tries >= 10) clearInterval(timer);
+    }, 2000);
+    return () => clearInterval(timer);
+  }, [inShopId, needsRefresh]);
+
   if (!orderId) {
     return <div className="max-w-2xl mx-auto p-8 text-center text-red-600 font-bold">Missing order ID.</div>;
   }
@@ -214,6 +243,10 @@ export default function SuccessClient({
         </Card>
       </div>
     );
+  }
+
+  if (order.source === 'in-shop') {
+    return <InShopReceipt order={order} footer={footer} />;
   }
 
   const formatCurrency = (n: number) => `$${Number(n || 0).toFixed(2)}`;
@@ -268,17 +301,13 @@ export default function SuccessClient({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <h1 className="text-3xl sm:text-4xl font-extrabold mb-2 text-emerald-700">
-          {order.source === 'in-shop' ? 'Paid ✓ Enjoy your book!' : 'Thank you for your order!'}
-        </h1>
+        <h1 className="text-3xl sm:text-4xl font-extrabold mb-2 text-emerald-700">Thank you for your order!</h1>
         <p className="text-gray-700">
-          {order.source === 'in-shop'
-            ? 'Your purchase is complete. A receipt is on its way to your email.'
-            : order.fulfillmentType === 'pickup'
+          {order.fulfillmentType === 'pickup'
             ? 'This was an in-person sale.'
             : 'Your order will be shipped soon. You will receive a confirmation email with tracking details.'}
         </p>
-        {order.fulfillmentType === 'pickup' && order.source !== 'in-shop' && (
+        {order.fulfillmentType === 'pickup' && (
           <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-lg inline-block">
             <p className="text-sm text-emerald-700">
               📍 <strong>In-Person Sale:</strong> Customer information collected during payment
@@ -375,15 +404,13 @@ export default function SuccessClient({
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-gray-600">Email</span>
                   <span className="text-gray-900">
-                    {order.email || (order.source === 'in-shop' ? 'Receipt sent by Stripe' : order.fulfillmentType === 'pickup' ? 'Not collected (in-person sale)' : 'N/A')}
+                    {order.email || (order.fulfillmentType === 'pickup' ? 'Not collected (in-person sale)' : 'N/A')}
                   </span>
                 </div>
                 <div className="border-t border-gray-100 pt-3">
-                  <div className="text-gray-600 mb-1">{order.source === 'in-shop' ? 'Purchase' : order.fulfillmentType === 'pickup' ? 'Pickup Details' : 'Shipping Address'}</div>
+                  <div className="text-gray-600 mb-1">{order.fulfillmentType === 'pickup' ? 'Pickup Details' : 'Shipping Address'}</div>
                   <div className="text-gray-900">
-                    {order.source === 'in-shop'
-                      ? 'Bought in shop, no pickup needed'
-                      : order.fulfillmentType === 'pickup'
+                    {order.fulfillmentType === 'pickup'
                       ? 'Alpharetta, GA (We will email pickup instructions)'
                       : formatAddress(order.shippingAddress)}
                   </div>

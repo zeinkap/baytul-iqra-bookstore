@@ -83,8 +83,9 @@ export class APIHelper {
     }>;
     total: number;
     fulfillmentType: string;
-    email: string;
+    email?: string;
     pickupLocation?: string;
+    source?: 'online' | 'in-shop';
   }) {
     const response = await this.request.post(`${this.baseURL}/api/orders`, {
       data: orderData
