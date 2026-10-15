@@ -33,6 +33,24 @@ test.describe('In-shop receipt', () => {
     await expect(page.getByRole('link', { name: 'Browse more books' })).toBeVisible();
   });
 
+  test('email receipt is unavailable until the order is paid and has an email', async ({ page }) => {
+    const apiHelper = initializeAPIHelper(page);
+    const book = await apiHelper.findInStockBook();
+    const order = await apiHelper.createOrder({
+      items: [{ id: book.id, title: book.title, author: book.author, price: book.price, quantity: 1 }],
+      total: book.price,
+      fulfillmentType: 'pickup',
+      source: 'in-shop',
+    });
+
+    await page.goto(`/receipt?orderId=${order.id}`);
+    await expect(page.getByTestId('receipt-email-button')).toBeDisabled();
+
+    // The API refuses too (never sends for unpaid orders or to an address that isn't on the order)
+    const response = await page.request.post(`/api/orders/${order.id}/send-receipt`);
+    expect(response.status()).toBe(409);
+  });
+
   test('suggests other books to buy', async ({ page }) => {
     const apiHelper = initializeAPIHelper(page);
     const book = await apiHelper.findInStockBook();

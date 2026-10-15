@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -16,6 +16,12 @@ export type InShopOrder = {
   createdAt?: string | null;
 };
 
+/** a***@gmail.com: enough to recognise the address without showing all of it on a shared screen. */
+const maskEmail = (email: string) => {
+  const [name, domain] = email.split("@");
+  return domain ? `${name.slice(0, 1)}***@${domain}` : email;
+};
+
 const money = (n: number) => `$${Number(n || 0).toFixed(2)}`;
 
 /**
@@ -28,6 +34,23 @@ export default function InShopReceipt({ order, footer }: { order: InShopOrder; f
     ? new Date(paidWhen).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
     : null;
   const shortRef = order.id.slice(-8).toUpperCase();
+  const [sendState, setSendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [sendMessage, setSendMessage] = useState("");
+  const canSend = !!order.email && !!order.paidAt;
+
+  const emailReceipt = async () => {
+    setSendState("sending");
+    setSendMessage("");
+    try {
+      const res = await fetch(`/api/orders/${order.id}/send-receipt`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not send the receipt. Please try again.");
+      setSendState("sent");
+    } catch (e) {
+      setSendState("error");
+      setSendMessage(e instanceof Error ? e.message : "Could not send the receipt. Please try again.");
+    }
+  };
 
   return (
     <main className="max-w-md mx-auto px-4 pt-6 pb-10" data-testid="in-shop-receipt">
@@ -93,6 +116,26 @@ export default function InShopReceipt({ order, footer }: { order: InShopOrder; f
           <summary className="cursor-pointer">Order details</summary>
           <p className="mt-1 break-all font-mono">{order.id}</p>
         </details>
+      </div>
+
+      <div className="text-center mb-6">
+        <button
+          onClick={emailReceipt}
+          disabled={!canSend || sendState === "sending" || sendState === "sent"}
+          data-testid="receipt-email-button"
+          className="px-5 py-2.5 rounded-xl font-semibold text-gray-800 border border-gray-300 bg-white disabled:opacity-60"
+        >
+          {sendState === "sending" ? "Sending…" : sendState === "sent" ? "Receipt sent ✓" : "Email me my receipt"}
+        </button>
+        <p className="mt-2 text-xs text-gray-500" data-testid="receipt-email-hint">
+          {sendState === "sent" && order.email
+            ? `Sent to ${maskEmail(order.email)}. Check your spam folder if you don't see it.`
+            : sendState === "error"
+            ? sendMessage
+            : canSend
+            ? `We'll send it to ${maskEmail(order.email as string)}.`
+            : "Your receipt email is being prepared…"}
+        </p>
       </div>
 
       {footer && <div className="mb-6">{footer}</div>}
