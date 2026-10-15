@@ -20,6 +20,7 @@ test.describe('QR scan to cart', () => {
     await expect(page.getByTestId('scan-add-to-cart')).toHaveCount(0);
     await expect(page.getByTestId('scan-trust-note')).toContainText('Stripe');
     await expect(page.getByTestId('scan-description')).toBeVisible();
+    await expect(page.getByTestId('scan-description')).not.toContainText(/<\/?(p|em|br|strong|ul|li)\b/i);
   });
 
   test('scan page is focused: tax note shown, no navbar or chat button', async ({ page }) => {
