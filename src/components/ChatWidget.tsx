@@ -15,13 +15,13 @@ const SUGGESTIONS = [
 const GREETING =
   "Assalamu alaikum! I can help you find books, check prices and stock, and answer questions about shipping, returns and payment.";
 
-// Renders **bold**, [text](/path) links (internal paths and mailto only) and "- " bullets.
-function renderInline(text: string, keyPrefix: string) {
-  const parts = text.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)\s]+\))/g);
-  return parts.map((part, i) => {
+// Renders **bold**, *italic*, [text](/path) links (internal paths and mailto only) and "- " bullets.
+// Parsing is recursive so links inside bold/italic (e.g. **[Title](/books/1)**) still work.
+const INLINE_TOKEN = /(\[[^\]]+\]\([^)\s]+\)|\*\*[^*]+\*\*|\*[^*\s][^*]*\*)/g;
+
+function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
+  return text.split(INLINE_TOKEN).map((part, i) => {
     const key = `${keyPrefix}-${i}`;
-    const bold = part.match(/^\*\*([^*]+)\*\*$/);
-    if (bold) return <strong key={key}>{bold[1]}</strong>;
     const link = part.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/);
     if (link) {
       const [, label, href] = link;
@@ -41,6 +41,10 @@ function renderInline(text: string, keyPrefix: string) {
       }
       return <span key={key}>{label}</span>;
     }
+    const bold = part.match(/^\*\*([^*]+)\*\*$/);
+    if (bold) return <strong key={key}>{renderInline(bold[1], key)}</strong>;
+    const italic = part.match(/^\*([^*]+)\*$/);
+    if (italic) return <em key={key}>{renderInline(italic[1], key)}</em>;
     return <span key={key}>{part}</span>;
   });
 }
@@ -142,7 +146,7 @@ export default function ChatWidget() {
           role="dialog"
           aria-label="Bookstore assistant"
           data-testid="chat-panel"
-          className="fixed bottom-0 right-0 z-50 flex h-[85vh] w-full flex-col overflow-hidden border border-gray-200 bg-white shadow-2xl sm:bottom-4 sm:right-4 sm:h-[560px] sm:w-[380px] sm:rounded-2xl"
+          className="fixed bottom-0 right-0 z-[60] flex h-[85vh] w-full flex-col overflow-hidden border border-gray-200 bg-white shadow-2xl sm:bottom-4 sm:right-4 sm:h-[560px] sm:w-[380px] sm:rounded-2xl"
         >
           <div className="flex items-center justify-between bg-emerald-600 px-4 py-3 text-white">
             <div>
