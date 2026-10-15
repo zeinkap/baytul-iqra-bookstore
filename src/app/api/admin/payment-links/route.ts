@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
+import { requireAdmin } from '@/lib/adminAuth';
 import Stripe from 'stripe';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -17,7 +18,10 @@ async function readHiddenLinks(): Promise<string[]> {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
   try {
     // Check if Stripe secret key is properly configured
     const stripeKey = process.env.STRIPE_SECRET_KEY;

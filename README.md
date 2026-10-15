@@ -74,11 +74,13 @@ The admin panel is password-protected to secure access to book management, order
    ```bash
    # .env (local development)
    ADMIN_PASSWORD=your_secure_password_here
+   ADMIN_SESSION_SECRET=a_long_random_string   # signs admin session cookies (recommended; falls back to ADMIN_PASSWORD)
    ```
 
 2. **For Production** (e.g., Vercel), set the environment variable:
    - Go to your project settings
    - Add `ADMIN_PASSWORD` with a strong password
+   - Add `ADMIN_SESSION_SECRET` with a long random string (e.g. `openssl rand -hex 32`)
    - Redeploy your application
 
 ### Access Admin Panel
@@ -86,7 +88,7 @@ The admin panel is password-protected to secure access to book management, order
 1. Navigate to `/admin` or any admin route (e.g., `/admin/books`, `/admin/orders`)
 2. You'll be redirected to `/admin/login` if not authenticated
 3. Enter the password set in `ADMIN_PASSWORD`
-4. Session lasts 24 hours
+4. Session lasts 12 hours (a signed, httpOnly cookie; admin pages and admin API routes are checked on the server)
 5. Use the "Logout" button to end your session
 
 ### Security Features

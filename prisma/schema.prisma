@@ -24,8 +24,22 @@ model Book {
   ageRange    String?  // Target reader age, e.g. "6-9", "10-13", "14+", "All ages"
   isbn        String?  @unique // Normalized ISBN-10/13 (no hyphens); used in direct-to-cart QR URLs (/b/<isbn>)
   categories  Category[] @relation("BookCategories")
+  scans       Scan[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+}
+
+// One row per QR label scan (see /b/[code]); compare with paid in-shop orders to spot labels that don't convert
+model Scan {
+  id        String   @id @default(uuid())
+  code      String   // what was in the URL (ISBN or book id)
+  bookId    String?
+  book      Book?    @relation(fields: [bookId], references: [id], onDelete: SetNull)
+  status    String   // "ok" | "sold-out" | "not-found"
+  createdAt DateTime @default(now())
+
+  @@index([bookId, createdAt])
+  @@index([createdAt])
 }
 
 model Category {
@@ -65,6 +79,7 @@ model Order {
   email            String?
   customerName     String?
   source           String   @default("online") // "online" or "in-shop" (QR scan at the shop)
+  paidAt           DateTime? // set when Stripe confirms payment (orders are created before payment)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }

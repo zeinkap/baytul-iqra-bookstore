@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/adminAuth';
 import { promises as fs } from 'fs';
 import path from 'path';
 
@@ -32,7 +33,10 @@ async function writeHiddenLinks(ids: string[]): Promise<void> {
   await fs.writeFile(HIDDEN_LINKS_FILE, JSON.stringify(ids, null, 2));
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
   try {
     const hiddenLinks = await readHiddenLinks();
     return NextResponse.json(hiddenLinks);
@@ -46,6 +50,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
   try {
     const { paymentLinkId } = await req.json();
     
@@ -78,6 +85,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
   try {
     const { paymentLinkId } = await req.json();
     

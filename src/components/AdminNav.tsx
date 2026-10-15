@@ -11,13 +11,13 @@ export default function AdminNav() {
     { href: '/admin/orders', label: 'Orders' },
     { href: '/admin/promo-codes', label: 'Promo Codes' },
     { href: '/admin/payment-links', label: 'Payment Links' },
+    { href: '/admin/scans', label: 'QR Scans' },
     { href: '/admin/profit-margins', label: 'Profit Margins' },
   ];
 
   const handleLogout = async () => {
     try {
       await fetch('/api/admin/auth', { method: 'DELETE' });
-      sessionStorage.removeItem('adminAuth');
       router.push('/admin/login');
     } catch (error) {
       console.error('Logout error:', error);

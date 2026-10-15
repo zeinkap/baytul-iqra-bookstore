@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/adminAuth';
 import { prisma } from '@/lib/prisma';
 import { Category } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
@@ -38,6 +39,9 @@ export async function GET(req: NextRequest) {
 
 // POST /api/books - Add a new book
 export async function POST(req: NextRequest) {
+  const denied = await requireAdmin(req);
+  if (denied) return denied;
+
   const data = await req.json();
   const { title, author, description, price, costPrice, shippingCost, images, stock, isBestseller, format, ageRange, isbn, categories } = data;
   if (!title || !author || !description || !Array.isArray(categories)) {
