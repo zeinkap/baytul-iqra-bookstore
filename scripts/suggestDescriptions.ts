@@ -112,19 +112,28 @@ async function main() {
       }));
 
       let result: Row[] = [];
-      try {
-        const res = await client.messages.create({
-          model: MODEL,
-          max_tokens: 6000,
-          system: SYSTEM,
-          tools: [TOOL],
-          tool_choice: { type: 'tool', name: TOOL.name },
-          messages: [{ role: 'user', content: `Improve these descriptions:\n${JSON.stringify(payload, null, 2)}` }],
-        });
-        const block = res.content.find((c) => c.type === 'tool_use');
-        if (block && block.type === 'tool_use') result = (block.input as { books?: Row[] }).books ?? [];
-      } catch (error) {
-        console.error(`Batch ${i / BATCH_SIZE + 1} failed:`, error instanceof Error ? error.message : error);
+      // Some models (e.g. Sonnet 5.5) reject a forced tool_choice, so let the model choose and
+      // retry once if it answers in plain text instead of calling the tool.
+      for (let attempt = 1; attempt <= 2 && result.length === 0; attempt++) {
+        try {
+          const res = await client.messages.create({
+            model: MODEL,
+            max_tokens: 6000,
+            system: SYSTEM,
+            tools: [TOOL],
+            messages: [
+              {
+                role: 'user',
+                content: `Improve these descriptions, then call ${TOOL.name} with every book (do not reply in plain text):\n${JSON.stringify(payload, null, 2)}`,
+              },
+            ],
+          });
+          const block = res.content.find((c) => c.type === 'tool_use');
+          if (block && block.type === 'tool_use') result = (block.input as { books?: Row[] }).books ?? [];
+          else console.error(`Batch ${i / BATCH_SIZE + 1} attempt ${attempt}: model did not call ${TOOL.name}.`);
+        } catch (error) {
+          console.error(`Batch ${i / BATCH_SIZE + 1} attempt ${attempt} failed:`, error instanceof Error ? error.message : error);
+        }
       }
 
       const seen = new Set<string>();

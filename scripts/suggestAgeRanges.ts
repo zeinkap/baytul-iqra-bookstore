@@ -95,8 +95,7 @@ async function main() {
           max_tokens: 2000,
           system: SYSTEM,
           tools: [TOOL],
-          tool_choice: { type: 'tool', name: TOOL.name },
-          messages: [{ role: 'user', content: `Classify these books:\n${JSON.stringify(payload, null, 2)}` }],
+          messages: [{ role: 'user', content: `Classify these books, then call ${TOOL.name} with every book (do not reply in plain text):\n${JSON.stringify(payload, null, 2)}` }],
         });
         const block = res.content.find((c) => c.type === 'tool_use');
         if (block && block.type === 'tool_use') {
