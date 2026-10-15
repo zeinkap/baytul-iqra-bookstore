@@ -138,6 +138,7 @@ To accept in-person payments where the customer taps their card or phone on **yo
    DATABASE_URL="postgresql://username:password@localhost:5432/bookstore"
    STRIPE_PUBLISHABLE_KEY="your_stripe_publishable_key"
    STRIPE_SECRET_KEY="your_stripe_secret_key"
+   ANTHROPIC_API_KEY="your_anthropic_api_key"   # powers the chat assistant
    ADMIN_PASSWORD="your_secure_admin_password"
    NEXT_PUBLIC_BASE_URL="http://localhost:3000"
    ```
@@ -157,6 +158,16 @@ To accept in-person payments where the customer taps their card or phone on **yo
 
 6. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
+
+## 💬 Chat Assistant
+
+A floating chat widget (`src/components/ChatWidget.tsx`) answers book recommendations (by topic or age), price/stock questions, and shipping/returns/payment questions. It talks to `POST /api/chat`, which calls Claude with two tools (`search_books`, `get_book`) that query the live catalog.
+
+- Requires `ANTHROPIC_API_KEY`. Optional `CHAT_MODEL` overrides the default model.
+- Store policies live in `src/lib/chat/systemPrompt.ts` — edit them there.
+- Set each book's **Age Range** (e.g. `6-9`, `10-13`, `14+`, `All ages`) in the admin Books form so age-based recommendations work.
+- Order status is intentionally not supported; the bot directs customers to support.
+- Rate limiting is in-memory per instance (`src/lib/chat/rateLimit.ts`); use a shared store (Upstash/Vercel KV) for a hard limit.
 
 ## 🛠️ Available Scripts
 

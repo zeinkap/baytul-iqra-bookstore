@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
 // POST /api/books - Add a new book
 export async function POST(req: NextRequest) {
   const data = await req.json();
-  const { title, author, description, price, costPrice, shippingCost, images, stock, isBestseller, format, categories } = data;
+  const { title, author, description, price, costPrice, shippingCost, images, stock, isBestseller, format, ageRange, categories } = data;
   if (!title || !author || !description || !Array.isArray(categories)) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
     typeof src === 'string' && src.trim().length > 0 && (src.startsWith('/') || /^https?:\/\//.test(src));
   const normalizedImages: string[] = Array.isArray(images) ? images.filter(isValidImageSrc) : [];
   const normalizedFormat = format != null && String(format).trim() !== '' ? String(format).trim() : null;
+  const normalizedAgeRange = ageRange != null && String(ageRange).trim() !== '' ? String(ageRange).trim() : null;
   // Optional numeric fields: only set if valid number
   const optionalCostPrice = costPrice !== undefined && typeof costPrice === 'number' && !Number.isNaN(costPrice) ? costPrice : undefined;
   const optionalShippingCost = shippingCost !== undefined && typeof shippingCost === 'number' && !Number.isNaN(shippingCost) ? shippingCost : undefined;
@@ -72,6 +73,7 @@ export async function POST(req: NextRequest) {
       stock: stockNum,
       isBestseller: Boolean(isBestseller),
       format: normalizedFormat,
+      ageRange: normalizedAgeRange,
       categories: { connect: categoryConnect },
     },
     include: { categories: true }

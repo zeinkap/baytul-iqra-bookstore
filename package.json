@@ -26,6 +26,7 @@
     "test:prod": "NODE_ENV=production playwright test"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.134.0",
     "@neondatabase/serverless": "^1.0.1",
     "@prisma/client": "^6.17.1",
     "@stripe/stripe-js": "^7.3.0",

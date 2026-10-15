@@ -32,7 +32,7 @@ export async function PUT(
 ) {
   const { id } = await params;
   const data = await req.json();
-  const { title, author, description, price, costPrice, shippingCost, images, stock, isBestseller, format, categories } = data;
+  const { title, author, description, price, costPrice, shippingCost, images, stock, isBestseller, format, ageRange, categories } = data;
   if (!title || !author || !description || !Array.isArray(categories)) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
@@ -48,6 +48,7 @@ export async function PUT(
     typeof src === 'string' && src.trim().length > 0 && (src.startsWith('/') || /^https?:\/\//.test(src));
   const normalizedImages: string[] = Array.isArray(images) ? images.filter(isValidImageSrc) : [];
   const normalizedFormat = format != null && String(format).trim() !== '' ? String(format).trim() : null;
+  const normalizedAgeRange = ageRange != null && String(ageRange).trim() !== '' ? String(ageRange).trim() : null;
 
   try {
     const categoryConnect = categories.map((name: string) => ({ name }));
@@ -64,6 +65,7 @@ export async function PUT(
         stock: stockNum,
         isBestseller: Boolean(isBestseller),
         format: normalizedFormat,
+        ageRange: normalizedAgeRange,
         categories: {
           set: [], // Disconnect all existing categories first
           connect: categoryConnect,
