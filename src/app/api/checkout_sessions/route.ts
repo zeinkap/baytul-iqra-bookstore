@@ -354,7 +354,8 @@ export async function POST(req: NextRequest) {
       payment_method_types: ['card'],
       line_items,
       mode: 'payment',
-      success_url: `${req.nextUrl.origin}/checkout/success?orderId=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
+      // In-shop buyers get the focused receipt page; everyone else the normal order confirmation
+      success_url: `${req.nextUrl.origin}${inShop ? '/receipt' : '/checkout/success'}?orderId=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
       // In-shop buy-now purchases return to the book they scanned; only same-site /b/ paths are accepted
       cancel_url: `${req.nextUrl.origin}${inShop && typeof cancelPath === 'string' && /^\/b\/[\w-]+$/.test(cancelPath) ? cancelPath : '/cart'}`,
       // Only collect shipping address if fulfillment type is shipping
