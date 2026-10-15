@@ -68,8 +68,26 @@ test.describe('QR scan to cart', () => {
     await expect(cartPage.fulfillmentTypePickup).toHaveCount(0);
   });
 
-  test('unknown code shows a friendly message', async ({ page }) => {
+  test('unknown code shows a friendly message with book suggestions', async ({ page }) => {
     await page.goto('/b/0000000000000');
-    await expect(page.getByText("We couldn't find that book")).toBeVisible();
+    await expect(page.getByTestId('scan-message-title')).toHaveText("We couldn't find that book");
+    await expect(page.getByTestId('scan-suggestions')).toBeVisible();
+  });
+
+  test('tapping the cover opens the larger photo viewer', async ({ page }) => {
+    const book = await initializeAPIHelper(page).findInStockBook();
+
+    await page.goto(`/b/${book.id}`);
+    await page.getByTestId('scan-cover').click();
+
+    await expect(page.locator('.yarl__container')).toBeVisible();
+  });
+
+  test('scans are recorded', async ({ page }) => {
+    const book = await initializeAPIHelper(page).findInStockBook();
+
+    const scanRequest = page.waitForRequest((r) => r.url().includes('/api/scans') && r.method() === 'POST');
+    await page.goto(`/b/${book.id}`);
+    expect((await scanRequest).postDataJSON()).toEqual({ code: book.id });
   });
 });

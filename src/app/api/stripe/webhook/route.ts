@@ -453,6 +453,13 @@ async function createOrder({
     });
 
     if (existingOrder) {
+      if (!existingOrder.paidAt) {
+        try {
+          await prisma.order.update({ where: { id: existingOrder.id }, data: { paidAt: new Date() } });
+        } catch (error) {
+          console.error('Failed to mark order paid:', existingOrder.id, error);
+        }
+      }
       console.log(`Order ${orderId} already exists, ensuring stock updated and skipping duplicate creation`);
       // Still deduct inventory: order was created before payment, so stock wasn't updated yet
       try {
@@ -508,6 +515,7 @@ async function createOrder({
         email: email,
         customerName: customerName,
         source: source || 'online',
+        paidAt: new Date(),
       },
   });
 

@@ -279,6 +279,7 @@ export async function PUT(req: NextRequest) {
         shippingAddress: shippingAddress || undefined,
         email: session.customer_details?.email || session.customer_email || undefined,
         source: session.metadata?.source === 'in-shop' ? 'in-shop' : 'online',
+        paidAt: new Date(),
       },
     });
 

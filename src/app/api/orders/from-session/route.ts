@@ -213,6 +213,7 @@ export async function POST(req: NextRequest) {
             ...(customerName && !existing.customerName ? { customerName } : {}),
             ...(shippingAddress && !existing.shippingAddress ? { shippingAddress } : {}),
             ...(email && !existing.email ? { email } : {}),
+            ...(existing.paidAt ? {} : { paidAt: new Date() }),
           }
         });
         
@@ -254,6 +255,7 @@ export async function POST(req: NextRequest) {
           email,
           customerName,
           source: session.metadata?.source === 'in-shop' ? 'in-shop' : 'online',
+          paidAt: new Date(),
         },
       });
 

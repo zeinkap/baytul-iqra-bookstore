@@ -2,6 +2,9 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import Lightbox from "yet-another-react-lightbox";
+import Zoom from "yet-another-react-lightbox/plugins/zoom";
+import "yet-another-react-lightbox/styles.css";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { useCart, type CartItem } from "@/components/CartProvider";
@@ -20,17 +23,21 @@ export default function ScanBook({
   stock,
   description,
   ageRange,
+  images,
 }: {
   book: ScannedBook;
   code: string;
   stock: number;
   description?: string;
   ageRange?: string;
+  images: string[];
 }) {
   const { cart, addToCart, isHydrated } = useCart();
   const router = useRouter();
   const [buying, setBuying] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [zoomOpen, setZoomOpen] = useState(false);
+  const gallery = images.filter((src) => typeof src === "string" && src.length > 0);
   const chips = [ageRange && (/^\d/.test(ageRange) ? `Ages ${ageRange}` : ageRange), book.format].filter(Boolean) as string[];
 
   const markInShop = () => {
@@ -113,9 +120,20 @@ export default function ScanBook({
       </div>
       <div className="bg-white rounded-2xl shadow border border-gray-100 p-5 text-center">
         {book.image && (
-          <div className="relative mx-auto mb-4 w-40 h-56">
-            <Image src={book.image} alt={book.title} fill sizes="160px" className="object-contain" priority />
-          </div>
+          <>
+            <button
+              type="button"
+              onClick={() => setZoomOpen(true)}
+              aria-label={`View larger photos of ${book.title}`}
+              data-testid="scan-cover"
+              className="relative block mx-auto w-40 h-56"
+            >
+              <Image src={book.image} alt={book.title} fill sizes="160px" className="object-contain" priority />
+            </button>
+            <p className="text-xs text-gray-500 mt-1 mb-4">
+              {gallery.length > 1 ? `Tap to enlarge · ${gallery.length} photos` : "Tap to enlarge"}
+            </p>
+          </>
         )}
         <h1 className="text-xl font-bold text-gray-900" data-testid="scan-book-title">{book.title}</h1>
         <p className="text-gray-600 mb-3">{book.author}</p>
@@ -181,6 +199,14 @@ export default function ScanBook({
           Browse more books
         </Link>
       </div>
+      <Lightbox
+        open={zoomOpen}
+        close={() => setZoomOpen(false)}
+        slides={gallery.map((src) => ({ src, alt: book.title }))}
+        plugins={[Zoom]}
+        carousel={{ finite: gallery.length <= 1 }}
+        render={gallery.length <= 1 ? { buttonPrev: () => null, buttonNext: () => null } : undefined}
+      />
     </main>
   );
 }
