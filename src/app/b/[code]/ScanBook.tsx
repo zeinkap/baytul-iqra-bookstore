@@ -7,15 +7,14 @@ import Zoom from "yet-another-react-lightbox/plugins/zoom";
 import "yet-another-react-lightbox/styles.css";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
-import { useCart, type CartItem } from "@/components/CartProvider";
+import type { CartItem } from "@/components/CartProvider";
 
 type ScannedBook = Omit<CartItem, "quantity">;
 
 /**
  * Landing page for a scanned QR label. Shows the book so the customer can confirm
- * (guards against accidental scans), then either:
- *  - "Buy now": order + Stripe Checkout for just this book (Stripe collects the email), or
- *  - "Add to cart": idempotently adds it and opens the email-only cart to buy several.
+ * (guards against accidental scans); "Buy now" creates the order and goes straight to Stripe Checkout (Stripe collects the email).
+ * There is deliberately no cart here: one clear action, no missed sale.
  */
 export default function ScanBook({
   book,
@@ -32,28 +31,12 @@ export default function ScanBook({
   ageRange?: string;
   images: string[];
 }) {
-  const { cart, addToCart, isHydrated } = useCart();
   const router = useRouter();
   const [buying, setBuying] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [zoomOpen, setZoomOpen] = useState(false);
   const gallery = images.filter((src) => typeof src === "string" && src.length > 0);
   const chips = [ageRange && (/^\d/.test(ageRange) ? `Ages ${ageRange}` : ageRange), book.format].filter(Boolean) as string[];
-
-  const markInShop = () => {
-    try {
-      // Tells the cart page to skip the shipping/pickup choice and ask only for email
-      sessionStorage.setItem("checkoutMode", "in-shop");
-    } catch {
-      // sessionStorage unavailable: the customer just sees the normal cart form
-    }
-  };
-
-  const handleAddToCart = () => {
-    markInShop();
-    if (!cart.some((i) => i.id === book.id)) addToCart(book);
-    router.push("/cart");
-  };
 
   const handleBuyNow = async () => {
     setBuying(true);
@@ -175,22 +158,13 @@ export default function ScanBook({
         <div className="fixed bottom-0 inset-x-0 z-20 bg-white/95 backdrop-blur border-t border-gray-200 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:static sm:z-auto sm:bg-transparent sm:backdrop-blur-none sm:border-0 sm:p-0 sm:mt-4">
           <button
             onClick={handleBuyNow}
-            disabled={buying || !isHydrated}
+            disabled={buying}
             data-testid="scan-buy-now"
             className="w-full max-w-md mx-auto block px-6 py-3.5 rounded-xl font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500 disabled:opacity-60"
           >
             {buying ? "Opening checkout…" : `Buy now · ${price}`}
           </button>
         </div>
-
-        <button
-          onClick={handleAddToCart}
-          disabled={buying || !isHydrated}
-          data-testid="scan-add-to-cart"
-          className="w-full mt-3 px-6 py-3 rounded-xl font-semibold text-gray-800 border border-gray-300 bg-white disabled:opacity-60"
-        >
-          Add to cart (buying more than one?)
-        </button>
 
         <p className="mt-4 text-xs text-gray-500" data-testid="scan-trust-note">
           🔒 Secure checkout by Stripe. Apple Pay and Google Pay where available. Your receipt is emailed to you, and you can take the book with you right after paying.
