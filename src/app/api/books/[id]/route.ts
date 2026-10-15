@@ -74,7 +74,7 @@ export async function PUT(
       include: { categories: true },
   });
   // Revalidate book listings/details caches
-  revalidateTag('books');
+  revalidateTag('books', { expire: 0 });
 
   return NextResponse.json({
       ...updatedBook,
@@ -101,7 +101,7 @@ export async function PATCH(
       include: { categories: true },
     });
     // Revalidate caches for books data
-    revalidateTag('books');
+    revalidateTag('books', { expire: 0 });
     return NextResponse.json({
       ...updatedBook,
       categories: updatedBook.categories.map((cat: Category) => cat.name)
@@ -127,7 +127,7 @@ export async function DELETE(
       where: { id },
     });
     // Revalidate caches for books data
-    revalidateTag('books');
+    revalidateTag('books', { expire: 0 });
     return NextResponse.json({ message: 'Book deleted successfully' }, { status: 200 });
   } catch (error) {
     console.error('Failed to delete book:', error);

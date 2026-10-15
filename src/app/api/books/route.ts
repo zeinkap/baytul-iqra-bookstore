@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
     include: { categories: true }
   });
   // Invalidate caches for any pages/data tagged with 'books'
-  revalidateTag('books');
+  revalidateTag('books', { expire: 0 });
 
   return NextResponse.json({
     ...book,

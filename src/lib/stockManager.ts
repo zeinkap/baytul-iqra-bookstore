@@ -66,7 +66,7 @@ export async function updateBookStock(items: OrderItem[], orderId: string): Prom
     
     // Revalidate book caches to ensure frontend shows updated stock
     try {
-      revalidateTag('books');
+      revalidateTag('books', { expire: 0 });
       console.log('Revalidated book caches after stock update');
     } catch (cacheError) {
       console.warn('Failed to revalidate book caches:', cacheError);
