@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "npx prisma generate && next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "postinstall": "npx prisma generate && npx prisma migrate deploy",
     "studio": "npx prisma studio",
     "db:backup": "npx tsx scripts/createBackup.ts",

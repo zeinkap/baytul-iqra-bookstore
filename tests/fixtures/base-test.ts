@@ -53,31 +53,26 @@ export const test = base.extend<PageFixtures>({
 
   homePage: async ({ page }, use) => {
     const homePage = new HomePage(page);
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     await use(homePage);
   },
 
   bookDetailPage: async ({ page }, use) => {
     const bookDetailPage = new BookDetailPage(page);
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     await use(bookDetailPage);
   },
 
   cartPage: async ({ page }, use) => {
     const cartPage = new CartPage(page);
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     await use(cartPage);
   },
 
   checkoutSuccessPage: async ({ page }, use) => {
     const checkoutSuccessPage = new CheckoutSuccessPage(page);
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     await use(checkoutSuccessPage);
   },
 
   contactPage: async ({ page }, use) => {
     const contactPage = new ContactPage(page);
-    // eslint-disable-next-line react-hooks/rules-of-hooks
     await use(contactPage);
   },
 });
