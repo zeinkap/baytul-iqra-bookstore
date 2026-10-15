@@ -37,7 +37,22 @@ async function exportCsv() {
   console.log(`Wrote ${rows.length} of ${books.length} books to ${csvPath}${includeAll ? '' : ' (books with 0-1 images; use --all for every book)'}`);
 }
 
+/** Lowercase, drop [bracketed] notes (e.g. "[Hardcover]") and punctuation, so near-identical titles still match. */
+const normalizeTitle = (t: string) =>
+  t.toLowerCase().replace(/\[[^\]]*\]/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
+
 async function applyCsv() {
+  // The CSV may come from a different database (e.g. local) whose book ids differ from the target's,
+  // so rows fall back to matching by title: exact first, then normalized.
+  const allBooks = await prisma.book.findMany({ select: { id: true, title: true, images: true } });
+  const byId = new Map(allBooks.map((b) => [b.id, b]));
+  const byTitle = new Map(allBooks.map((b) => [b.title, b]));
+  const byNormalized = new Map<string, typeof allBooks>();
+  for (const b of allBooks) {
+    const key = normalizeTitle(b.title);
+    byNormalized.set(key, [...(byNormalized.get(key) ?? []), b]);
+  }
+
   const rows: Record<string, string>[] = parse(fs.readFileSync(csvPath, 'utf8'), {
     columns: true,
     skip_empty_lines: true,
@@ -48,9 +63,23 @@ async function applyCsv() {
   let imagesAdded = 0;
   for (const row of rows) {
     const label = row.title || row.id;
-    const book = row.id ? await prisma.book.findUnique({ where: { id: row.id }, select: { id: true, images: true } }) : null;
+    const hasNewImages = Object.keys(row).some((c) => /^add_image/i.test(c) && row[c]?.trim());
+    if (!hasNewImages) continue;
+
+    let book = (row.id && byId.get(row.id)) || (row.title && byTitle.get(row.title)) || undefined;
+    let matchedBy = book && book.id === row.id ? '' : ' (matched by title)';
+    if (!book && row.title) {
+      const candidates = byNormalized.get(normalizeTitle(row.title)) ?? [];
+      if (candidates.length === 1) {
+        book = candidates[0];
+        matchedBy = ` (matched by similar title: "${book.title}")`;
+      } else if (candidates.length > 1) {
+        console.warn(`SKIP "${label}": ${candidates.length} books have a similar title, fix the title in the CSV`);
+        continue;
+      }
+    }
     if (!book) {
-      if (Object.keys(row).some((c) => /^add_image/i.test(c) && row[c]?.trim())) console.warn(`SKIP "${label}": no book with that id`);
+      console.warn(`SKIP "${label}": no matching book (by id or title)`);
       continue;
     }
 
@@ -58,7 +87,7 @@ async function applyCsv() {
     for (const url of invalid) console.warn(`SKIP invalid URL for "${label}": ${url}`);
     if (toAdd.length === 0) continue;
 
-    console.log(`${dryRun ? 'WOULD ADD' : 'ADD'} ${toAdd.length} image(s) to "${label}" (${book.images.length} -> ${book.images.length + toAdd.length})`);
+    console.log(`${dryRun ? 'WOULD ADD' : 'ADD'} ${toAdd.length} image(s) to "${label}"${matchedBy} (${book.images.length} -> ${book.images.length + toAdd.length})`);
     if (!dryRun) {
       await prisma.book.update({ where: { id: book.id }, data: { images: { set: [...book.images, ...toAdd] } } });
     }
