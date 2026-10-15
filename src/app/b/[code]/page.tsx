@@ -60,7 +60,7 @@ export default async function ScanBookPage({ params }: { params: Promise<{ code:
   if (!book) {
     return (
       <Message code={code} title="We couldn't find that book" suggestions={await popularBooks()} suggestionsTitle="Popular right now">
-        Sorry, that label isn't linked to a book. Here are some books you might like.
+        Sorry, that label isn&apos;t linked to a book. Here are some books you might like.
       </Message>
     );
   }

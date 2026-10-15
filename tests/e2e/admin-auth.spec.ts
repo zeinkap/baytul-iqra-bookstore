@@ -16,6 +16,9 @@ test.describe('Admin authentication', () => {
 
     const orders = await request.get('/api/orders');
     expect(orders.status()).toBe(401);
+
+    const scanStats = await request.get('/api/admin/scan-stats');
+    expect(scanStats.status()).toBe(401);
   });
 
   test('forged cookies do not grant access', async ({ page, baseURL }) => {
