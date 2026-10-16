@@ -13,12 +13,8 @@ interface QuickViewModalProps {
 }
 
 export default function QuickViewModal({ book, isOpen, onClose }: QuickViewModalProps) {
-  const [selectedImageIdx, setSelectedImageIdx] = useState(0);
-  const bookId = book?.id;
-
-  useEffect(() => {
-    setSelectedImageIdx(0);
-  }, [bookId]);
+  // Tie the selection to a book id so opening another book starts at its first image.
+  const [selection, setSelection] = useState<{ bookId?: string; idx: number }>({ idx: 0 });
 
   useEffect(() => {
     if (isOpen) {
@@ -52,6 +48,7 @@ export default function QuickViewModal({ book, isOpen, onClose }: QuickViewModal
 
   const validImages = Array.isArray(book.images) ? book.images.filter(isValidImageSrc) : [];
   const firstImage = validImages[0] || '/placeholder.svg';
+  const selectedImageIdx = selection.bookId === book.id ? selection.idx : 0;
   const displayedIdx = Math.max(0, Math.min(selectedImageIdx, validImages.length - 1));
   const displayedImage = validImages[displayedIdx] || '/placeholder.svg';
 
@@ -101,7 +98,7 @@ export default function QuickViewModal({ book, isOpen, onClose }: QuickViewModal
                     <button
                       key={img + idx}
                       type="button"
-                      onClick={() => setSelectedImageIdx(idx)}
+                      onClick={() => setSelection({ bookId: book.id, idx })}
                       className={`relative w-14 h-14 rounded-xl border-2 bg-white transition-all duration-200 overflow-hidden focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
                         displayedIdx === idx
                           ? 'border-emerald-500 shadow-lg'
