@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import AddToCartButtonClient from './AddToCartButtonClient';
@@ -13,6 +13,9 @@ interface QuickViewModalProps {
 }
 
 export default function QuickViewModal({ book, isOpen, onClose }: QuickViewModalProps) {
+  // Tie the selection to a book id so opening another book starts at its first image.
+  const [selection, setSelection] = useState<{ bookId?: string; idx: number }>({ idx: 0 });
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -45,6 +48,9 @@ export default function QuickViewModal({ book, isOpen, onClose }: QuickViewModal
 
   const validImages = Array.isArray(book.images) ? book.images.filter(isValidImageSrc) : [];
   const firstImage = validImages[0] || '/placeholder.svg';
+  const selectedImageIdx = selection.bookId === book.id ? selection.idx : 0;
+  const displayedIdx = Math.max(0, Math.min(selectedImageIdx, validImages.length - 1));
+  const displayedImage = validImages[displayedIdx] || '/placeholder.svg';
 
   return (
     <div
@@ -76,7 +82,7 @@ export default function QuickViewModal({ book, isOpen, onClose }: QuickViewModal
             <div className="sticky top-8">
               <div className="relative aspect-[3/4] bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
                 <Image
-                  src={firstImage}
+                  src={displayedImage}
                   alt={book.title}
                   fill
                   className="object-contain p-6"
@@ -84,6 +90,34 @@ export default function QuickViewModal({ book, isOpen, onClose }: QuickViewModal
                   priority
                 />
               </div>
+
+              {/* Thumbnails */}
+              {validImages.length > 1 && (
+                <div className="flex flex-wrap gap-3 mt-4 justify-center">
+                  {validImages.map((img, idx) => (
+                    <button
+                      key={img + idx}
+                      type="button"
+                      onClick={() => setSelection({ bookId: book.id, idx })}
+                      className={`relative w-14 h-14 rounded-xl border-2 bg-white transition-all duration-200 overflow-hidden focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 ${
+                        displayedIdx === idx
+                          ? 'border-emerald-500 shadow-lg'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      aria-label={`Show image ${idx + 1}`}
+                      aria-current={displayedIdx === idx}
+                    >
+                      <Image
+                        src={img}
+                        alt={`${book.title} thumbnail ${idx + 1}`}
+                        fill
+                        className="object-contain"
+                        sizes="56px"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
