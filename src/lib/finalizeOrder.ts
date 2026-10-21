@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import type { Order } from '@prisma/client';
 import { prisma } from './prisma';
-import { sendOrderConfirmationEmail, sendOrderNotificationToSales } from './sendEmail';
+import { sendOrderConfirmationEmail, sendOrderNotificationToSales, sendRefundEmail } from './sendEmail';
 import { extractBookItems } from './stockManager';
 
 /** How the customer paid, from Stripe: "apple_pay", "google_pay", "link", "card"... (null if it can't be read). */
@@ -68,14 +68,37 @@ export async function finalizePaidOrder(
   return order;
 }
 
-/** Records a Stripe refund on the order. `refundedAmount` is the cumulative total refunded (dollars), so repeats are harmless. */
+/**
+ * Records a Stripe refund on the order and emails the customer about it. `refundedAmount` is the cumulative total
+ * refunded (dollars). Only a call that raises the stored total sends the email, so Stripe's webhook retries
+ * and repeats never send it twice.
+ */
 export async function recordRefund(orderId: string, refundedAmount: number): Promise<Order | null> {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) return null;
-  return prisma.order.update({
-    where: { id: orderId },
-    data: { refundedAmount, refundedAt: order.refundedAt ?? new Date() },
-  });
+  const previous = order.refundedAmount ?? 0;
+  const raised = (
+    await prisma.order.updateMany({
+      where: { id: orderId, OR: [{ refundedAmount: null }, { refundedAmount: { lt: refundedAmount } }] },
+      data: { refundedAmount, refundedAt: order.refundedAt ?? new Date() },
+    })
+  ).count === 1;
+  const updated = await prisma.order.findUnique({ where: { id: orderId } });
+  if (updated && raised && updated.email) {
+    try {
+      await sendRefundEmail({
+        to: updated.email,
+        orderId: updated.id,
+        refundAmount: refundedAmount - previous,
+        totalRefunded: refundedAmount,
+        orderTotal: updated.finalTotal,
+        paymentMethod: updated.paymentMethod,
+      });
+    } catch (error) {
+      console.error('Error sending refund email:', error);
+    }
+  }
+  return updated;
 }
 
 /** What the order is actually worth after refunds. */
