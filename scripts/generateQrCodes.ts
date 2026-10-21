@@ -6,7 +6,10 @@
  * Writes to qr-labels/:
  *   <isbn-or-id>.svg  one QR per book (for custom label software)
  *   labels.html       printable sheet; open in a browser and print (Ctrl/Cmd+P)
- *   labels-2x2.pdf    one label per page, 2 x 2 inch (LABEL_SIZE_IN to change), for label-printer apps
+ *   labels-2x2.pdf    one label per page, 2 x 2 inch (LABEL_SIZE_IN to change), for label-printer apps;
+ *                     LABEL_TOP_PADDING_MM=8 adds more white above the QR code if the top prints cut off;
+ *                     LABEL_EDGE_GUARD=marks adds visible corner brackets (default is near-invisible dots) so apps
+ *                     that auto-crop PDFs don't erase the label's margins; LABEL_EDGE_GUARD=none turns it off
  *   labels.csv        isbn/title/author/price/url columns for apps that import spreadsheets
  *
  * Venue: you normally do NOT need LOCATION. The same books travel between venues, so sticker links stay
@@ -72,7 +75,7 @@ async function main() {
 </style><div class="sheet">${labels.join('\n')}</div>`;
   fs.writeFileSync(path.join(outDir, 'labels.html'), html);
   fs.writeFileSync(path.join(outDir, 'labels.csv'), '\uFEFF' + csvRows.join('\n') + '\n'); // BOM so Excel/Numbers read UTF-8 titles correctly
-  fs.writeFileSync(path.join(outDir, 'labels-2x2.pdf'), await buildLabelsPdf(pdfLabels, Number(process.env.LABEL_SIZE_IN) || 2));
+  fs.writeFileSync(path.join(outDir, 'labels-2x2.pdf'), await buildLabelsPdf(pdfLabels, Number(process.env.LABEL_SIZE_IN) || 2, { topPaddingMm: process.env.LABEL_TOP_PADDING_MM ? Number(process.env.LABEL_TOP_PADDING_MM) : undefined, edgeGuard: (['marks', 'none'] as const).find((v) => v === process.env.LABEL_EDGE_GUARD) }));
 
   const noIsbn = books.filter((b) => !b.isbn).length;
   console.log(`Generated ${books.length} QR codes in ${outDir} (labels-2x2.pdf, labels.csv, labels.html, one .svg per book)`);

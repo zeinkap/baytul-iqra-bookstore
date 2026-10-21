@@ -49,26 +49,94 @@ function wrap(text: string, font: PDFFont, size: number, maxWidth: number, maxLi
   return lines.slice(0, maxLines);
 }
 
+const PT_PER_MM = 72 / 25.4;
+
+export interface LabelPdfOptions {
+  /**
+   * Blank space above the QR code's own quiet zone, in millimetres (default 5). Label printers often feed a
+   * little off and apps may crop the page's edge, so raise this if the top of your printed label looks cut off.
+   */
+  topPaddingMm?: number;
+  /**
+   * How to stop label apps (FlashLabel) that crop an imported PDF to its printed content from erasing the
+   * margins, by making the content span the whole label:
+   *  - 'invisible' (default): four tiny near-white dots in the corners. Too light to print, but a cropper sees them.
+   *  - 'marks': visible corner brackets (a reliable fallback if 'invisible' still gets cropped).
+   *  - 'none': nothing.
+   */
+  edgeGuard?: 'invisible' | 'marks' | 'none';
+}
+
+/** Greedy word wrap with no line limit. */
+function wrapAll(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(' ').filter(Boolean)) {
+    const attempt = line ? `${line} ${word}` : word;
+    if (font.widthOfTextAtSize(attempt, size) <= maxWidth || !line) line = attempt;
+    else {
+      lines.push(line);
+      line = word;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+/**
+ * Picks the largest title size that fits on at most two lines (none wider than the label). Long titles shrink a
+ * little first; a title still too long at the smallest size is cut after two lines and ends in "...".
+ */
+function fitTitle(text: string, font: PDFFont, maxSize: number, minSize: number, maxWidth: number, maxHeight: number) {
+  const lineHeight = 1.05;
+  for (let size = maxSize; size >= minSize - 0.001; size -= 0.2) {
+    const lines = wrapAll(text, font, size, maxWidth);
+    const fitsWidth = lines.every((l) => font.widthOfTextAtSize(l, size) <= maxWidth);
+    if (lines.length <= 2 && fitsWidth && lines.length * size * lineHeight <= maxHeight) return { size, lines, lineHeight };
+  }
+  return { size: minSize, lines: wrap(text, font, minSize, maxWidth, 2), lineHeight };
+}
+
 /**
  * One square label per PDF page (default 2 x 2 inch): black vector QR code, book title, "Scan to buy".
  * Pure black on white so thermal label printers print it crisply.
  */
-export async function buildLabelsPdf(labels: LabelInput[], sizeInches = 2): Promise<Uint8Array> {
+export async function buildLabelsPdf(labels: LabelInput[], sizeInches = 2, options: LabelPdfOptions = {}): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const size = sizeInches * PT_PER_INCH;
-  const margin = size * 0.04;
-  const quietModules = 4; // QR spec: keep a 4-moduleSize white border around the code
+  const topPad = (options.topPaddingMm ?? 5) * PT_PER_MM; // extra white above the code
+  // Printers leave a thin unprintable strip and labels feed slightly off, so keep title text well inside the edges
+  const titleSidePad = 5 * PT_PER_MM;
+  const bottomPad = size * 0.045;
+  const quietModules = 4; // QR spec: keep a 4-module white border around the code
+  const qrArea = size * 0.66; // QR code plus its quiet zone
+  const markInset = 2 * PT_PER_MM; // corner marks sit 2 mm in from the label edge
+  const markLength = 4.5 * PT_PER_MM;
+  const markThickness = 0.9;
 
   for (const label of labels) {
     const page = pdf.addPage([size, size]);
+    const guard = options.edgeGuard ?? 'invisible';
+    if (guard === 'invisible') {
+      // A near-white dot (250/255) in each corner: below any printer's black/white threshold, yet not pure white
+      for (const [cx, cy] of [[markInset, size - markInset - 1.5], [size - markInset - 1.5, size - markInset - 1.5], [markInset, markInset], [size - markInset - 1.5, markInset]]) {
+        page.drawRectangle({ x: cx, y: cy, width: 1.5, height: 1.5, color: rgb(0.98, 0.98, 0.98) });
+      }
+    }
+    if (guard === 'marks') {
+      // Four L-shaped corner brackets (two thin bars each)
+      for (const [cx, cy, dx, dy] of [[markInset, size - markInset, 1, -1], [size - markInset, size - markInset, -1, -1], [markInset, markInset, 1, 1], [size - markInset, markInset, -1, 1]] as const) {
+        page.drawRectangle({ x: dx > 0 ? cx : cx - markLength, y: dy > 0 ? cy : cy - markThickness, width: markLength, height: markThickness, color: rgb(0, 0, 0) });
+        page.drawRectangle({ x: dx > 0 ? cx : cx - markThickness, y: dy > 0 ? cy : cy - markLength, width: markThickness, height: markLength, color: rgb(0, 0, 0) });
+      }
+    }
     const qr = QRCode.create(label.url, { errorCorrectionLevel: 'M' });
     const count = qr.modules.size;
-    const qrArea = size * 0.74; // QR code plus its quiet zone
     const moduleSize = qrArea / (count + quietModules * 2);
     const qrLeft = (size - qrArea) / 2 + quietModules * moduleSize;
-    const qrTop = size - margin - quietModules * moduleSize; // y of the top edge of the first moduleSize row
+    const qrTop = size - topPad - quietModules * moduleSize; // y of the top edge of the first module row
 
     for (let row = 0; row < count; row++) {
       for (let col = 0; col < count; col++) {
@@ -84,20 +152,21 @@ export async function buildLabelsPdf(labels: LabelInput[], sizeInches = 2): Prom
       }
     }
 
-    const textWidth = size - margin * 2;
-    const title = toLatin(label.title, bold) || 'Book';
-    const lines = wrap(title, bold, size * 0.062, textWidth, 2);
-    let y = size - margin - qrArea + size * 0.02;
-    for (const line of lines) {
-      const w = bold.widthOfTextAtSize(line, size * 0.062);
-      y -= size * 0.07;
-      page.drawText(line, { x: (size - w) / 2, y, size: size * 0.062, font: bold, color: rgb(0, 0, 0) });
-    }
     const cta = 'Scan to buy';
-    const ctaSize = size * 0.05;
+    const ctaSize = size * 0.047;
+    // Title block sits between the QR code's quiet zone and the "Scan to buy" line
+    const titleTop = size - topPad - qrArea;
+    const titleBottom = bottomPad + ctaSize + size * 0.02;
+    const title = toLatin(label.title, bold) || 'Book';
+    const fit = fitTitle(title, bold, size * 0.058, size * 0.046, size - titleSidePad * 2, titleTop - titleBottom);
+    let y = titleTop + fit.size * 0.1;
+    for (const line of fit.lines) {
+      y -= fit.size * fit.lineHeight;
+      page.drawText(line, { x: (size - bold.widthOfTextAtSize(line, fit.size)) / 2, y, size: fit.size, font: bold, color: rgb(0, 0, 0) });
+    }
     page.drawText(cta, {
       x: (size - regular.widthOfTextAtSize(cta, ctaSize)) / 2,
-      y: margin * 0.9,
+      y: bottomPad,
       size: ctaSize,
       font: regular,
       color: rgb(0, 0, 0),
