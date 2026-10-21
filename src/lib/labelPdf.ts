@@ -57,6 +57,12 @@ export interface LabelPdfOptions {
    * little off and apps may crop the page's edge, so raise this if the top of your printed label looks cut off.
    */
   topPaddingMm?: number;
+  /**
+   * Draw small corner marks near the label's corners (default true). Label apps such as FlashLabel crop an imported
+   * PDF to its printed content and stretch that to the label, which erases any blank margin. Corner marks make the
+   * "content" the whole label, so the margins survive. Set false for a plain label with no marks.
+   */
+  cornerMarks?: boolean;
 }
 
 /** Greedy word wrap with no line limit. */
@@ -104,9 +110,19 @@ export async function buildLabelsPdf(labels: LabelInput[], sizeInches = 2, optio
   const bottomPad = size * 0.045;
   const quietModules = 4; // QR spec: keep a 4-module white border around the code
   const qrArea = size * 0.66; // QR code plus its quiet zone
+  const markInset = 2 * PT_PER_MM; // corner marks sit 2 mm in from the label edge
+  const markLength = 4.5 * PT_PER_MM;
+  const markThickness = 0.9;
 
   for (const label of labels) {
     const page = pdf.addPage([size, size]);
+    if (options.cornerMarks !== false) {
+      // Four L-shaped corner brackets (two thin bars each)
+      for (const [cx, cy, dx, dy] of [[markInset, size - markInset, 1, -1], [size - markInset, size - markInset, -1, -1], [markInset, markInset, 1, 1], [size - markInset, markInset, -1, 1]] as const) {
+        page.drawRectangle({ x: dx > 0 ? cx : cx - markLength, y: dy > 0 ? cy : cy - markThickness, width: markLength, height: markThickness, color: rgb(0, 0, 0) });
+        page.drawRectangle({ x: dx > 0 ? cx : cx - markThickness, y: dy > 0 ? cy : cy - markLength, width: markThickness, height: markLength, color: rgb(0, 0, 0) });
+      }
+    }
     const qr = QRCode.create(label.url, { errorCorrectionLevel: 'M' });
     const count = qr.modules.size;
     const moduleSize = qrArea / (count + quietModules * 2);
