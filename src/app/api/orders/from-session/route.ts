@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import Stripe from 'stripe';
 import { sendOrderNotificationToSales } from '@/lib/sendEmail';
+import { finalizePaidOrder, paymentMethodLabel } from '@/lib/finalizeOrder';
 
 export async function POST(req: NextRequest) {
   try {
@@ -189,9 +190,13 @@ export async function POST(req: NextRequest) {
     });
 
     // Check if order already exists
-    const existing = await prisma.order.findUnique({ where: { id: orderId } });
+    let existing = await prisma.order.findUnique({ where: { id: orderId } });
     
     if (existing) {
+      // Same finalizing the webhook does (paid time, payment method, name, email + receipt), in case the
+      // webhook is slow or never reached us. Only fills fields that are still empty.
+      existing = (await finalizePaidOrder(orderId, { email, customerName, paymentMethod: await paymentMethodLabel(stripe, session) })) ?? existing;
+
       // Check if existing order is missing customer information
       const needsUpdate = !existing.customerName || !existing.shippingAddress || !existing.email;
       

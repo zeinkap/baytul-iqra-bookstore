@@ -185,9 +185,24 @@ export default function SuccessClient({
   useEffect(() => {
     if (!inShopId || !needsRefresh) return;
     let tries = 0;
+    let fallbackTried = false;
     const timer = setInterval(async () => {
       tries += 1;
       try {
+        // If Stripe's webhook hasn't landed after a few seconds (slow, or not running), ask the server to
+        // finalize the order straight from the paid Stripe session so the receipt can still complete.
+        if (tries >= 2 && sessionId && !fallbackTried) {
+          fallbackTried = true;
+          const res = await fetch('/api/orders/from-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId }),
+          });
+          if (res.ok) {
+            const fresh: Order = await res.json();
+            setOrder((prev) => (prev ? { ...prev, ...fresh } : fresh));
+          }
+        }
         const res = await fetch(`/api/orders/${inShopId}`, { cache: 'no-store' });
         if (res.ok) {
           const fresh: Order = await res.json();
@@ -199,7 +214,7 @@ export default function SuccessClient({
       if (tries >= 10) clearInterval(timer);
     }, 2000);
     return () => clearInterval(timer);
-  }, [inShopId, needsRefresh]);
+  }, [inShopId, needsRefresh, sessionId]);
 
   if (!orderId) {
     return <div className="max-w-2xl mx-auto p-8 text-center text-red-600 font-bold">Missing order ID.</div>;

@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
 import { updateBookStock, extractBookItems, hasStockBeenUpdated } from '@/lib/stockManager';
 import { sendOrderConfirmationEmail } from '@/lib/sendEmail';
+import { finalizePaidOrder, paymentMethodLabel } from '@/lib/finalizeOrder';
 
 // Extended Stripe session type to include shipping_details which may not be in all TypeScript definitions
 interface StripeSessionWithShipping extends Stripe.Checkout.Session {
@@ -86,21 +87,6 @@ export async function POST(req: NextRequest) {
       error: (error as Error).message,
       timestamp: new Date().toISOString()
     }, { status: 400 });
-  }
-}
-
-/** How the customer paid, from Stripe: "apple_pay", "google_pay", "link", "card"... (null if it can't be read). */
-async function paymentMethodLabel(stripe: Stripe, session: Stripe.Checkout.Session): Promise<string | null> {
-  try {
-    const intentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id;
-    if (!intentId) return null;
-    const intent = await stripe.paymentIntents.retrieve(intentId, { expand: ['payment_method'] });
-    const method = intent.payment_method;
-    if (!method || typeof method === 'string') return null;
-    return method.type === 'card' ? (method.card?.wallet?.type ?? 'card') : method.type;
-  } catch (error) {
-    console.error('Could not read payment method:', error);
-    return null;
   }
 }
 
@@ -474,13 +460,9 @@ async function createOrder({
     });
 
     if (existingOrder) {
-      if (!existingOrder.paidAt) {
-        try {
-          await prisma.order.update({ where: { id: existingOrder.id }, data: { paidAt: new Date(), ...(paymentMethod ? { paymentMethod } : {}) } });
-        } catch (error) {
-          console.error('Failed to mark order paid:', existingOrder.id, error);
-        }
-      }
+      // Mark paid and save what Stripe collected (email, name, payment method). Shared with the receipt page's
+      // fallback so whichever runs first does the work and the receipt email goes out exactly once.
+      const finalized = await finalizePaidOrder(existingOrder.id, { email, customerName, paymentMethod });
       console.log(`Order ${orderId} already exists, ensuring stock updated and skipping duplicate creation`);
       // Still deduct inventory: order was created before payment, so stock wasn't updated yet
       try {
@@ -496,28 +478,7 @@ async function createOrder({
         console.error('Failed to update stock for existing order:', existingOrder.id, stockError);
       }
 
-      // Orders created before payment may not have an email yet (in-shop "buy now" lets Stripe collect it).
-      // Save what Stripe collected and send the confirmation that would otherwise never go out.
-      if (!existingOrder.email && email) {
-        try {
-          const updated = await prisma.order.update({
-            where: { id: existingOrder.id },
-            data: { email, customerName: existingOrder.customerName || customerName || undefined },
-          });
-          await sendOrderConfirmationEmail({
-            to: email,
-            orderId: updated.id,
-            items: updated.items as { title: string; quantity: number; price: number }[],
-            total: updated.finalTotal,
-            fulfillmentType: updated.fulfillmentType,
-            source: updated.source,
-          });
-          return updated;
-        } catch (error) {
-          console.error('Failed to backfill email for existing order:', existingOrder.id, error);
-        }
-      }
-      return existingOrder;
+      return finalized ?? existingOrder;
     }
   }
 
