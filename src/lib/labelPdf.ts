@@ -76,17 +76,17 @@ function wrapAll(text: string, font: PDFFont, size: number, maxWidth: number): s
 }
 
 /**
- * Picks the largest title size that fits: 1-3 lines inside the available height, none wider than the label.
- * Long titles shrink instead of being cut off; only a title too long even at the smallest size gets "...".
+ * Picks the largest title size that fits on at most two lines (none wider than the label). Long titles shrink a
+ * little first; a title still too long at the smallest size is cut after two lines and ends in "...".
  */
 function fitTitle(text: string, font: PDFFont, maxSize: number, minSize: number, maxWidth: number, maxHeight: number) {
   const lineHeight = 1.05;
   for (let size = maxSize; size >= minSize - 0.001; size -= 0.2) {
     const lines = wrapAll(text, font, size, maxWidth);
     const fitsWidth = lines.every((l) => font.widthOfTextAtSize(l, size) <= maxWidth);
-    if (lines.length <= 3 && fitsWidth && lines.length * size * lineHeight <= maxHeight) return { size, lines, lineHeight };
+    if (lines.length <= 2 && fitsWidth && lines.length * size * lineHeight <= maxHeight) return { size, lines, lineHeight };
   }
-  return { size: minSize, lines: wrap(text, font, minSize, maxWidth, 3), lineHeight };
+  return { size: minSize, lines: wrap(text, font, minSize, maxWidth, 2), lineHeight };
 }
 
 /**
@@ -132,7 +132,7 @@ export async function buildLabelsPdf(labels: LabelInput[], sizeInches = 2, optio
     const titleTop = size - topPad - qrArea;
     const titleBottom = bottomPad + ctaSize + size * 0.02;
     const title = toLatin(label.title, bold) || 'Book';
-    const fit = fitTitle(title, bold, size * 0.058, size * 0.04, size - sidePad * 2, titleTop - titleBottom);
+    const fit = fitTitle(title, bold, size * 0.058, size * 0.046, size - sidePad * 2, titleTop - titleBottom);
     let y = titleTop + fit.size * 0.1;
     for (const line of fit.lines) {
       y -= fit.size * fit.lineHeight;
