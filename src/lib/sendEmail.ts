@@ -108,7 +108,7 @@ export async function sendOrderConfirmationEmail({
       </p>
     </div>
     <p style="font-size:13px; color:#6b7280; text-align:center; margin:16px 0 0;">
-      Questions? Reply to this email, or call or text 718-312-2048.<br>
+      Questions? Just reply to this email.<br>
       Thanks, Zein (Founder of Baytul Iqra)
     </p>
   </div>
@@ -127,7 +127,7 @@ export async function sendOrderConfirmationEmail({
     '',
     `View your receipt: ${receiptUrl}`,
     '',
-    'Questions? Reply to this email, or call or text 718-312-2048.',
+    'Questions? Just reply to this email.',
     'Thanks, Zein (Founder of Baytul Iqra)',
   ].join('\n');
 
