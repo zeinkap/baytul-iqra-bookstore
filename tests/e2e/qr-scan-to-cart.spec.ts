@@ -61,6 +61,14 @@ test.describe('QR scan to cart', () => {
     await expect(page.locator('.yarl__container')).toBeVisible();
   });
 
+  test('the venue tag in the link is recorded with the scan', async ({ page }) => {
+    const book = await initializeAPIHelper(page).findInStockBook();
+
+    const scanRequest = page.waitForRequest((r) => r.url().includes('/api/scans') && r.method() === 'POST');
+    await page.goto(`/b/${book.id}?loc=test-venue`);
+    expect((await scanRequest).postDataJSON()).toEqual({ code: book.id, location: 'test-venue' });
+  });
+
   test('scans are recorded', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
 

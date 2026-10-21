@@ -256,6 +256,7 @@ export async function POST(req: NextRequest) {
           customerName,
           source: session.metadata?.source === 'in-shop' ? 'in-shop' : 'online',
           paidAt: new Date(),
+          location: session.metadata?.location || null,
         },
       });
 

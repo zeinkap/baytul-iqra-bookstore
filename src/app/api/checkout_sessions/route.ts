@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { findStockProblems, stockProblemMessage } from '@/lib/stockManager';
 import { priceItems, discountForPromoId } from '@/lib/pricing';
 import { isAdminRequest } from '@/lib/adminAuth';
+import { normalizeLocation } from '@/lib/location';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -17,7 +18,8 @@ type CartItem = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { items: rawItems, fulfillmentType, orderId, email, phone, promoCodeId, createPaymentLink, pickupLocation, source, cancelPath } = await req.json();
+    const { items: rawItems, fulfillmentType, orderId, email, phone, promoCodeId, createPaymentLink, pickupLocation, source, cancelPath, location } = await req.json();
+    const venue = normalizeLocation(location);
     const inShop = source === 'in-shop';
     // Prices, titles and discounts come from the database; the browser only supplies ids and quantities.
     // Exception: the admin "custom payment link" tool sends free-form items (no book id), so it keeps
@@ -357,7 +359,7 @@ export async function POST(req: NextRequest) {
       // In-shop buyers get the focused receipt page; everyone else the normal order confirmation
       success_url: `${req.nextUrl.origin}${inShop ? '/receipt' : '/checkout/success'}?orderId=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
       // In-shop buy-now purchases return to the book they scanned; only same-site /b/ paths are accepted
-      cancel_url: `${req.nextUrl.origin}${inShop && typeof cancelPath === 'string' && /^\/b\/[\w-]+$/.test(cancelPath) ? cancelPath : '/cart'}`,
+      cancel_url: `${req.nextUrl.origin}${inShop && typeof cancelPath === 'string' && /^\/b\/[\w-]+(\?loc=[a-z0-9-]{1,40})?$/.test(cancelPath) ? cancelPath : '/cart'}`,
       // Only collect shipping address if fulfillment type is shipping
       ...(fulfillmentType === 'shipping' && {
         shipping_address_collection: { allowed_countries: ['US', 'CA'] }
@@ -375,6 +377,7 @@ export async function POST(req: NextRequest) {
         discountAmount: discountAmount ? String(discountAmount) : '0',
         pickupLocation: pickupLocation || '',
         source: inShop ? 'in-shop' : 'online',
+        location: venue || '',
         customerPhone: phone || '',
         // Store cart items as JSON for display in admin panel
         cartItems: cartItemsJson,

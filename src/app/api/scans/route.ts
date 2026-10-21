@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { normalizeIsbn } from '@/lib/isbn';
 import { isRateLimited } from '@/lib/chat/rateLimit';
+import { normalizeLocation } from '@/lib/location';
 
 // POST /api/scans - records one QR label scan. Public (customers aren't logged in), so:
 // the book and status are resolved server-side from the code, and writes are rate limited.
@@ -28,6 +29,7 @@ export async function POST(req: NextRequest) {
       code,
       bookId: book?.id ?? null,
       status: !book ? 'not-found' : book.stock > 0 ? 'ok' : 'sold-out',
+      location: normalizeLocation(body?.location),
     },
   });
   return new NextResponse(null, { status: 204 });

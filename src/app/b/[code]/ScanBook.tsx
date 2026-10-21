@@ -23,6 +23,7 @@ export default function ScanBook({
   description,
   ageRange,
   images,
+  location,
 }: {
   book: ScannedBook;
   code: string;
@@ -30,6 +31,7 @@ export default function ScanBook({
   description?: string;
   ageRange?: string;
   images: string[];
+  location?: string;
 }) {
   const router = useRouter();
   const [buying, setBuying] = useState(false);
@@ -52,6 +54,7 @@ export default function ScanBook({
           fulfillmentType: "pickup",
           pickupLocation: "In shop",
           source: "in-shop",
+          location,
         }),
       });
       const order = await orderRes.json();
@@ -72,7 +75,8 @@ export default function ScanBook({
           pickupLocation: "In shop",
           orderId: order.id,
           source: "in-shop",
-          cancelPath: `/b/${code}`,
+          location,
+          cancelPath: `/b/${code}${location ? `?loc=${location}` : ""}`,
         }),
       });
       const data = await sessionRes.json();

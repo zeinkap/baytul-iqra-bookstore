@@ -25,6 +25,7 @@ model Book {
   isbn        String?  @unique // Normalized ISBN-10/13 (no hyphens); used in direct-to-cart QR URLs (/b/<isbn>)
   categories  Category[] @relation("BookCategories")
   scans       Scan[]
+  stockCounts StockCount[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 }
@@ -36,6 +37,7 @@ model Scan {
   bookId    String?
   book      Book?    @relation(fields: [bookId], references: [id], onDelete: SetNull)
   status    String   // "ok" | "sold-out" | "not-found"
+  location  String?  // venue slug from the QR link (?loc=cafe-a)
   createdAt DateTime @default(now())
 
   @@index([bookId, createdAt])
@@ -80,6 +82,35 @@ model Order {
   customerName     String?
   source           String   @default("online") // "online" or "in-shop" (QR scan at the shop)
   paidAt           DateTime? // set when Stripe confirms payment (orders are created before payment)
+  location         String?  // venue slug from the QR link (?loc=cafe-a)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+}
+
+// Physical shelf count vs the system's stock number, to measure shrinkage (books that left unpaid, miscounts)
+model StockCount {
+  id           String   @id @default(uuid())
+  bookId       String?
+  book         Book?    @relation(fields: [bookId], references: [id], onDelete: SetNull)
+  bookTitle    String   // kept so history still reads well if the book is deleted
+  costPrice    Float?   // snapshot, to value the shrinkage
+  systemStock  Int
+  countedStock Int
+  difference   Int      // counted - system (negative = missing books)
+  adjusted     Boolean  @default(false) // true if the book's stock was updated to the counted number
+  location     String?
+  countedAt    DateTime @default(now())
+
+  @@index([countedAt])
+}
+
+// "What book do you wish we had?" answers from the in-shop receipt page
+model Feedback {
+  id        String   @id @default(uuid())
+  orderId   String?
+  message   String
+  location  String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }

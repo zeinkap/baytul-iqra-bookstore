@@ -240,6 +240,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     email: session.customer_details?.email || session.customer_email || undefined,
     customerName: customerName,
     source: session.metadata?.source === 'in-shop' ? 'in-shop' : 'online',
+    location: session.metadata?.location || undefined,
   });
 }
 
@@ -423,6 +424,7 @@ async function createOrder({
   email,
   customerName,
   source,
+  location,
 }: {
   orderId?: string;
   promoCodeId?: string;
@@ -443,6 +445,7 @@ async function createOrder({
   email?: string;
   customerName?: string;
   source?: 'online' | 'in-shop';
+  location?: string;
 }) {
   console.log('Creating order:', { orderId, email, customerName, totalCents });
 
@@ -515,6 +518,7 @@ async function createOrder({
         email: email,
         customerName: customerName,
         source: source || 'online',
+        location: location || null,
         paidAt: new Date(),
       },
   });
