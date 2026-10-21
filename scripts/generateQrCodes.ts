@@ -6,6 +6,8 @@
  * Writes to qr-labels/:
  *   <isbn-or-id>.svg  one QR per book (for custom label software)
  *   labels.html       printable sheet; open in a browser and print (Ctrl/Cmd+P)
+ *   labels-2x2.pdf    one label per page, 2 x 2 inch (LABEL_SIZE_IN to change), for label-printer apps
+ *   labels.csv        isbn/title/author/price/url columns for apps that import spreadsheets
  *
  * Each QR encodes {BASE_URL}/b/<isbn>, falling back to the book id when a book
  * has no ISBN. Books with stock 0 are skipped unless INCLUDE_OUT_OF_STOCK=1.
@@ -13,6 +15,7 @@
 import fs from 'fs';
 import path from 'path';
 import QRCode from 'qrcode';
+import { buildLabelsPdf } from '../src/lib/labelPdf';
 import { prisma } from '../src/lib/prisma';
 
 const baseUrl = (process.env.BASE_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? '').replace(/\/$/, '');
@@ -33,12 +36,17 @@ async function main() {
   fs.mkdirSync(outDir, { recursive: true });
 
   const labels: string[] = [];
+  const pdfLabels: { url: string; title: string }[] = [];
+  const csvRows: string[] = ['isbn,title,author,price,url'];
+  const csvCell = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
   for (const book of books) {
     const code = book.isbn ?? book.id;
     const url = `${baseUrl}/b/${code}`;
     // Error correction M: tolerates scuffs but keeps the pattern simple for small labels
     const svg = await QRCode.toString(url, { type: 'svg', errorCorrectionLevel: 'M', margin: 4 });
     fs.writeFileSync(path.join(outDir, `${code}.svg`), svg);
+    pdfLabels.push({ url, title: book.title });
+    csvRows.push([book.isbn ?? '', book.title, book.author, book.price.toFixed(2), url].map(csvCell).join(','));
     labels.push(`<div class="label">${svg}<div class="t">${esc(book.title)}</div><div class="c">Scan to buy</div></div>`);
   }
 
@@ -52,9 +60,11 @@ async function main() {
   .c{font-size:7pt;color:#555}
 </style><div class="sheet">${labels.join('\n')}</div>`;
   fs.writeFileSync(path.join(outDir, 'labels.html'), html);
+  fs.writeFileSync(path.join(outDir, 'labels.csv'), '\uFEFF' + csvRows.join('\n') + '\n'); // BOM so Excel/Numbers read UTF-8 titles correctly
+  fs.writeFileSync(path.join(outDir, 'labels-2x2.pdf'), await buildLabelsPdf(pdfLabels, Number(process.env.LABEL_SIZE_IN) || 2));
 
   const noIsbn = books.filter((b) => !b.isbn).length;
-  console.log(`Generated ${books.length} QR codes in ${outDir}`);
+  console.log(`Generated ${books.length} QR codes in ${outDir} (labels-2x2.pdf, labels.csv, labels.html, one .svg per book)`);
   if (noIsbn) console.log(`${noIsbn} books have no ISBN and use their database id in the URL (run npm run isbn:export to add ISBNs).`);
 }
 
