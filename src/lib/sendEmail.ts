@@ -163,7 +163,7 @@ export async function sendRefundEmail({
   const full = totalRefunded >= orderTotal - 0.005;
   const wallet = paymentMethod === 'apple_pay' || paymentMethod === 'google_pay';
   const where = wallet ? 'your original payment method' : 'your original card';
-  const intro = `We've refunded ${money(refundAmount)} to ${where}. It usually shows up within 5-10 business days, depending on your bank.`;
+  const intro = `We've refunded ${money(refundAmount)} to ${where}. It usually shows up within 5-10 business days, depending on your bank. If you don't see it after 10 business days, please contact your bank or reply to this email.`;
   const detail = full
     ? 'This order has now been refunded in full.'
     : `So far ${money(totalRefunded)} of your ${money(orderTotal)} order has been refunded.`;
@@ -191,7 +191,7 @@ export async function sendRefundEmail({
       <p style="margin:16px 0 0; font-size:13px; color:#6b7280;">Order #${shortRef}</p>
     </div>
     <p style="font-size:13px; color:#6b7280; text-align:center; margin:16px 0 0;">
-      Questions? Reply to this email, or call or text 718-312-2048.<br>
+      Questions? Just reply to this email.<br>
       Thanks, Zein (Founder of Baytul Iqra)
     </p>
   </div>
@@ -206,7 +206,7 @@ export async function sendRefundEmail({
     detail,
     `Order #${shortRef}`,
     '',
-    'Questions? Reply to this email, or call or text 718-312-2048.',
+    'Questions? Just reply to this email.',
     'Thanks, Zein (Founder of Baytul Iqra)',
   ].join('\n');
 
