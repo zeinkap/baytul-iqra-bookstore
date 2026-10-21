@@ -56,6 +56,10 @@ export async function finalizePaidOrder(
         total: order.finalTotal,
         fulfillmentType: order.fulfillmentType,
         source: order.source,
+        discount: order.discountAmount,
+        paidAt: order.paidAt,
+        paymentMethod: order.paymentMethod,
+        shippingAddress: (order.shippingAddress as Record<string, string> | null) ?? undefined,
       });
     } catch (error) {
       console.error('Error sending order confirmation email:', error);

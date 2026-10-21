@@ -32,6 +32,10 @@ export async function POST(
       total: order.finalTotal,
       fulfillmentType: order.fulfillmentType,
       source: order.source,
+      discount: order.discountAmount,
+      paidAt: order.paidAt,
+      paymentMethod: order.paymentMethod,
+      shippingAddress: (order.shippingAddress as Record<string, string> | null) ?? undefined,
     });
     return NextResponse.json({ ok: true });
   } catch (error) {
