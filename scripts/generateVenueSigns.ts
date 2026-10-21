@@ -3,16 +3,18 @@
  *
  *   BASE_URL=https://www.baytuliqra.com npm run qr:venue-signs -- cafe-a bazaar-oct
  *
- * Writes qr-labels/venue-signs.html: one page per venue. Customers who scan a sign get a short "how to buy"
- * page and their purchases are credited to that venue for the day. Book stickers stay the same.
+ * Writes qr-labels/venue-signs.html: one letter-size page per venue, styled like the welcome page the QR code
+ * opens (/venue/welcome) and using the same steps (src/lib/venueCopy.ts). Customers who scan a sign get that page
+ * and their purchases are credited to that venue for the day. Book stickers stay the same.
  */
 import fs from 'fs';
 import path from 'path';
 import QRCode from 'qrcode';
 import { normalizeLocation } from '../src/lib/location';
+import { VENUE_STEPS, VENUE_STORE_NAME, boldSegments, prettyVenue } from '../src/lib/venueCopy';
 
 const baseUrl = (process.env.BASE_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? '').replace(/\/$/, '');
-const pretty = (slug: string) => slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+const escapeHtml = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 async function main() {
   const venues = process.argv.slice(2);
@@ -20,6 +22,18 @@ async function main() {
     console.error('Usage: BASE_URL=https://yourshop.com npm run qr:venue-signs -- <venue> [<venue> ...]   (e.g. cafe-a bazaar-oct)');
     process.exit(1);
   }
+
+  // The logo is embedded so the sign prints correctly offline
+  const logoPath = path.resolve('public', 'logo-baytul-iqra.png');
+  const logo = `data:image/png;base64,${fs.readFileSync(logoPath).toString('base64')}`;
+
+  const steps = VENUE_STEPS.map(
+    (step, i) =>
+      `<li><span class="n">${i + 1}.</span> ${boldSegments(step)
+        .map((seg) => (seg.bold ? `<strong>${escapeHtml(seg.text)}</strong>` : escapeHtml(seg.text)))
+        .join('')}</li>`
+  ).join('\n      ');
+
   const pages: string[] = [];
   for (const raw of venues) {
     const venue = normalizeLocation(raw);
@@ -29,29 +43,36 @@ async function main() {
     }
     const svg = await QRCode.toString(`${baseUrl}/v/${venue}`, { type: 'svg', errorCorrectionLevel: 'M', margin: 4 });
     pages.push(`<section class="page">
-  <h1>Self-service books</h1>
-  <h2>${pretty(venue)}</h2>
-  <div class="qr">${svg}</div>
-  <p class="big">Scan to see how it works</p>
+  <img class="logo" src="${logo}" alt="${escapeHtml(VENUE_STORE_NAME)}">
+  <h1>Welcome to ${escapeHtml(prettyVenue(venue))}!</h1>
+  <p class="store">${escapeHtml(VENUE_STORE_NAME)}</p>
   <ol>
-    <li>Find the QR sticker on the back of any book</li>
-    <li>Scan it with your phone camera</li>
-    <li>Tap <b>Buy now</b> and pay with Apple Pay, Google Pay or card</li>
+      ${steps}
   </ol>
-  <p class="small">Baytul Iqra Bookstore · Tax included</p>
+  <div class="qr">${svg}</div>
+  <p class="scan">Scan this code to get started</p>
 </section>`);
   }
   if (pages.length === 0) process.exit(1);
 
   const outDir = path.resolve('qr-labels');
   fs.mkdirSync(outDir, { recursive: true });
+  // Mirrors the welcome page: centered logo, bold heading, grey store name, left-aligned numbered steps
   const html = `<!doctype html><meta charset="utf-8"><title>Venue signs</title>
 <style>
-  body{font-family:sans-serif;margin:0}
-  .page{page-break-after:always;text-align:center;padding:1.5cm}
-  h1{font-size:28pt;margin:0 0 .2cm} h2{font-size:22pt;margin:0 0 .6cm;color:#047857}
-  .qr svg{width:11cm;height:11cm} .big{font-size:20pt;font-weight:700;margin:.4cm 0}
-  ol{display:inline-block;text-align:left;font-size:15pt;line-height:1.6} .small{font-size:11pt;color:#555}
+  @page { size: letter; margin: 0 }
+  * { box-sizing: border-box }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color: #1f2937 }
+  .page { width: 8.5in; height: 11in; padding: 0.9in 0.7in 0.7in; text-align: center; page-break-after: always; display: flex; flex-direction: column; align-items: center }
+  .logo { width: 1.5in; height: 1.5in; object-fit: contain }
+  h1 { margin: 0.25in 0 0; font-size: 44pt; font-weight: 700; color: #111827 }
+  .store { margin: 0.1in 0 0; font-size: 20pt; color: #4b5563 }
+  ol { list-style: none; padding: 0; margin: 0.4in 0 0; text-align: left; font-size: 19pt; line-height: 1.35; max-width: 6.9in }
+  li { margin-bottom: 0.16in }
+  .n { font-weight: 600 }
+  .qr { margin-top: auto }
+  .qr svg { width: 3.4in; height: 3.4in }
+  .scan { margin: 0.1in 0 0; font-size: 16pt; font-weight: 600; color: #111827 }
 </style>${pages.join('\n')}`;
   fs.writeFileSync(path.join(outDir, 'venue-signs.html'), html);
   console.log(`Wrote ${pages.length} venue sign(s) to ${path.join(outDir, 'venue-signs.html')} (open in a browser and print)`);
