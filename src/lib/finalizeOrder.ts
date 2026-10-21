@@ -60,3 +60,19 @@ export async function finalizePaidOrder(
   }
   return order;
 }
+
+/** Records a Stripe refund on the order. `refundedAmount` is the cumulative total refunded (dollars), so repeats are harmless. */
+export async function recordRefund(orderId: string, refundedAmount: number): Promise<Order | null> {
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order) return null;
+  return prisma.order.update({
+    where: { id: orderId },
+    data: { refundedAmount, refundedAt: order.refundedAt ?? new Date() },
+  });
+}
+
+/** What the order is actually worth after refunds. */
+export const netOrderTotal = (o: { finalTotal: number; refundedAmount: number | null }) => o.finalTotal - (o.refundedAmount ?? 0);
+
+/** True when the whole order was refunded (reports should ignore it). */
+export const isFullyRefunded = (o: { finalTotal: number; refundedAmount: number | null }) => netOrderTotal(o) <= 0.005;

@@ -2,6 +2,11 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+const escapeHtml = (text: string) =>
+  text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+const money = (n: number) => `$${n.toFixed(2)}`;
+const siteUrl = () => (process.env.NEXT_PUBLIC_BASE_URL || 'https://www.baytuliqra.com').replace(/\/$/, '');
+
 export async function sendOrderConfirmationEmail({
   to,
   orderId,
@@ -27,60 +32,91 @@ export async function sendOrderConfirmationEmail({
     country?: string;
   };
 }) {
-  const subject = 'Your Baytul Iqra Bookstore Order Confirmation';
-  const pickupText = source === 'in-shop'
-    ? `<p>Thanks for your purchase at the shop. Enjoy your book! This email is your receipt.</p>`
-    : fulfillmentType === 'pickup'
-    ? `<p>Your order is ready for <b>free local pickup</b> in <b>Alpharetta, GA</b>. We'll contact you soon with pickup instructions.</p>`
-    : `<p>Your order will be shipped to your address. You'll receive a confirmation email with tracking details soon.</p>`;
+  const inShop = source === 'in-shop';
+  const base = siteUrl();
+  const shortRef = orderId.slice(-8).toUpperCase();
+  const receiptUrl = `${base}/${inShop ? 'receipt' : 'checkout/success'}?orderId=${encodeURIComponent(orderId)}`;
+  const orderDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
+  const subject = inShop ? `Your Baytul Iqra receipt, ${money(total)}` : 'Your Baytul Iqra Bookstore Order Confirmation';
 
-  const orderDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  let shippingAddressHtml = '';
-  if (fulfillmentType === 'shipping' && shippingAddress && typeof shippingAddress === 'object') {
-    const addr = shippingAddress;
-    shippingAddressHtml = `<h3>Shipping Address</h3><p>${[addr.name, addr.line1, addr.line2, addr.city, addr.state, addr.postal_code, addr.country].filter(Boolean).join('<br>')}</p>`;
-  }
-  const trackingNote = fulfillmentType === 'shipping'
-    ? `<p style="margin-top:8px;">You'll receive another email with tracking information once your order ships.</p>`
-    : '';
-  const tableRows = items.map(item => `
-    <tr>
-      <td style="padding:4px 8px; border:1px solid #eee;">${item.title}</td>
-      <td style="padding:4px 8px; border:1px solid #eee; text-align:center;">${item.quantity}</td>
-      <td style="padding:4px 8px; border:1px solid #eee; text-align:right;">$${item.price.toFixed(2)}</td>
-      <td style="padding:4px 8px; border:1px solid #eee; text-align:right;">$${(item.price * item.quantity).toFixed(2)}</td>
-    </tr>`).join('');
-  const html = `
-    <h2>Thank you for your order!</h2>
-    ${pickupText}
-    <p><b>Order Date:</b> ${orderDate}</p>
-    ${shippingAddressHtml}
-    ${trackingNote}
-    <h3>Order Summary</h3>
-    <table style="border-collapse:collapse; width:100%; margin-bottom:12px;">
-      <thead>
+  const intro = inShop
+    ? 'Thanks for your purchase at the shop. Enjoy your book! This email is your receipt.'
+    : fulfillmentType === 'pickup'
+    ? "Your order is ready for free local pickup in Alpharetta, GA. We'll contact you soon with pickup instructions."
+    : "Your order will be shipped to your address. You'll receive another email with tracking details once it ships.";
+
+  const addressLines =
+    fulfillmentType === 'shipping' && shippingAddress && typeof shippingAddress === 'object'
+      ? [shippingAddress.name, shippingAddress.line1, shippingAddress.line2, [shippingAddress.city, shippingAddress.state, shippingAddress.postal_code].filter(Boolean).join(', '), shippingAddress.country].filter(Boolean) as string[]
+      : [];
+
+  const rows = items
+    .map(
+      (item) => `
         <tr>
-          <th style="padding:6px 8px; border:1px solid #eee; background:#f8f8f8;">Title</th>
-          <th style="padding:6px 8px; border:1px solid #eee; background:#f8f8f8;">Quantity</th>
-          <th style="padding:6px 8px; border:1px solid #eee; background:#f8f8f8; text-align:right;">Price</th>
-          <th style="padding:6px 8px; border:1px solid #eee; background:#f8f8f8; text-align:right;">Subtotal</th>
+          <td style="padding:8px 0; border-bottom:1px solid #eee;">${escapeHtml(item.title)}<br><span style="color:#6b7280; font-size:13px;">Qty ${item.quantity} &times; ${money(item.price)}</span></td>
+          <td style="padding:8px 0; border-bottom:1px solid #eee; text-align:right; white-space:nowrap;">${money(item.price * item.quantity)}</td>
+        </tr>`
+    )
+    .join('');
+
+  const html = `<!doctype html>
+<html>
+<body style="margin:0; padding:0; background:#f3f4f6; font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif; color:#111827;">
+  <div style="max-width:560px; margin:0 auto; padding:24px 16px;">
+    <div style="text-align:center; margin-bottom:16px;">
+      <img src="${base}/logo-baytul-iqra.png" width="64" height="64" alt="Baytul Iqra Bookstore" style="border-radius:8px;">
+      <div style="font-weight:700; color:#065f46; margin-top:6px;">Baytul Iqra Bookstore</div>
+    </div>
+    <div style="background:#ffffff; border-radius:12px; padding:24px;">
+      <h1 style="font-size:22px; margin:0 0 8px;">${inShop ? 'Paid. Thank you!' : 'Thank you for your order!'}</h1>
+      <p style="margin:0 0 16px; color:#374151;">${intro}</p>
+      <table style="border-collapse:collapse; width:100%; font-size:15px;">${rows}
+        <tr>
+          <td style="padding:12px 0 0; font-weight:700;">Total <span style="font-weight:400; color:#6b7280; font-size:13px;">(tax included)</span></td>
+          <td style="padding:12px 0 0; font-weight:700; text-align:right;">${money(total)}</td>
         </tr>
-      </thead>
-      <tbody>
-        ${tableRows}
-      </tbody>
-    </table>
-    <p><b>Total:</b> $${total.toFixed(2)} (tax included)</p>
-    <p>Order ID: ${orderId}</p>
-    <p>If you have any questions please give us a call or text at my personal number 718-312-2048.</p>
-    <p>Thanks,<br>Zein (Founder of Baytul Iqra)</p>
-  `;
+      </table>
+      <p style="margin:16px 0 0; font-size:13px; color:#6b7280;">Order #${shortRef} &middot; ${orderDate}</p>
+      ${
+        addressLines.length
+          ? `<p style="margin:16px 0 0; font-size:14px;"><b>Shipping to</b><br>${addressLines.map(escapeHtml).join('<br>')}</p>`
+          : ''
+      }
+      <p style="text-align:center; margin:24px 0 8px;">
+        <a href="${receiptUrl}" style="display:inline-block; background:#059669; color:#ffffff; text-decoration:none; padding:12px 22px; border-radius:8px; font-weight:600;">View your receipt</a>
+      </p>
+    </div>
+    <p style="font-size:13px; color:#6b7280; text-align:center; margin:16px 0 0;">
+      Questions? Reply to this email, or call or text 718-312-2048.<br>
+      Thanks, Zein (Founder of Baytul Iqra)
+    </p>
+  </div>
+</body>
+</html>`;
+
+  const text = [
+    inShop ? 'Paid. Thank you!' : 'Thank you for your order!',
+    intro,
+    '',
+    ...items.map((item) => `${item.title}  (Qty ${item.quantity} x ${money(item.price)})  ${money(item.price * item.quantity)}`),
+    `Total: ${money(total)} (tax included)`,
+    `Order #${shortRef} - ${orderDate}`,
+    ...(addressLines.length ? ['', 'Shipping to:', ...addressLines] : []),
+    '',
+    `View your receipt: ${receiptUrl}`,
+    '',
+    'Questions? Reply to this email, or call or text 718-312-2048.',
+    'Thanks, Zein (Founder of Baytul Iqra)',
+  ].join('\n');
 
   return resend.emails.send({
-    from: 'sales@baytuliqra.com',
+    from: 'Baytul Iqra Bookstore <sales@baytuliqra.com>',
+    replyTo: 'sales@baytuliqra.com',
     to,
     subject,
     html,
+    text,
   });
 }
 

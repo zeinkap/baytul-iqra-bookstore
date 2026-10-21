@@ -109,15 +109,7 @@ export default function SuccessClient({
               fetch('/api/orders/notify-sales', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  orderId: data.id,
-                  items: data.items,
-                  total: data.total,
-                  fulfillmentType: data.fulfillmentType,
-                  customerEmail: data.email || 'Collected by Stripe (see Stripe receipt)',
-                  source: data.source,
-                  shippingAddress: data.shippingAddress,
-                }),
+                body: JSON.stringify({ orderId: data.id }),
               }).catch((err) => console.error('Failed to send sales notification:', err));
             }
             // Trigger backup stock update
@@ -145,15 +137,7 @@ export default function SuccessClient({
                 fetch('/api/orders/notify-sales', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    orderId: data.id,
-                    items: data.items,
-                    total: data.total,
-                    fulfillmentType: data.fulfillmentType,
-                    customerEmail: data.email || 'Collected by Stripe (see Stripe receipt)',
-                  source: data.source,
-                    shippingAddress: data.shippingAddress,
-                  }),
+                  body: JSON.stringify({ orderId: data.id }),
                 }).catch((err) => console.error('Failed to send sales notification:', err));
               }
               // Trigger backup stock update

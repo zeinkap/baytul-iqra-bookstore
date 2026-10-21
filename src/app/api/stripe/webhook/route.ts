@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
 import { updateBookStock, extractBookItems, hasStockBeenUpdated } from '@/lib/stockManager';
 import { sendOrderConfirmationEmail } from '@/lib/sendEmail';
-import { finalizePaidOrder, paymentMethodLabel } from '@/lib/finalizeOrder';
+import { finalizePaidOrder, paymentMethodLabel, recordRefund } from '@/lib/finalizeOrder';
 
 // Extended Stripe session type to include shipping_details which may not be in all TypeScript definitions
 interface StripeSessionWithShipping extends Stripe.Checkout.Session {
@@ -66,6 +66,8 @@ export async function POST(req: NextRequest) {
     if (event.type === 'checkout.session.completed') {
       console.log('Processing checkout.session.completed event');
       await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+    } else if (event.type === 'charge.refunded') {
+      await handleChargeRefunded(event.data.object as Stripe.Charge);
     } else if (event.type === 'payment_intent.succeeded') {
       console.log('Processing payment_intent.succeeded event');
       await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
@@ -88,6 +90,22 @@ export async function POST(req: NextRequest) {
       timestamp: new Date().toISOString()
     }, { status: 400 });
   }
+}
+
+/** A refund (full or partial) in Stripe: record it on the order so reports stop counting that money. */
+async function handleChargeRefunded(charge: Stripe.Charge) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  const intentId = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id;
+  if (!intentId) return;
+  // The order id lives on the Checkout Session that created this payment
+  const sessions = await stripe.checkout.sessions.list({ payment_intent: intentId, limit: 1 });
+  const orderId = sessions.data[0]?.metadata?.orderId;
+  if (!orderId) {
+    console.log('Refund for a payment with no checkout order (ignored):', charge.id);
+    return;
+  }
+  await recordRefund(orderId, charge.amount_refunded / 100);
+  console.log(`Recorded refund of $${(charge.amount_refunded / 100).toFixed(2)} on order ${orderId}`);
 }
 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
