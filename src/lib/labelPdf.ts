@@ -99,7 +99,8 @@ export async function buildLabelsPdf(labels: LabelInput[], sizeInches = 2, optio
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const size = sizeInches * PT_PER_INCH;
   const topPad = (options.topPaddingMm ?? 5) * PT_PER_MM; // extra white above the code
-  const sidePad = size * 0.05;
+  // Printers leave a thin unprintable strip and labels feed slightly off, so keep title text well inside the edges
+  const titleSidePad = 5 * PT_PER_MM;
   const bottomPad = size * 0.045;
   const quietModules = 4; // QR spec: keep a 4-module white border around the code
   const qrArea = size * 0.66; // QR code plus its quiet zone
@@ -132,7 +133,7 @@ export async function buildLabelsPdf(labels: LabelInput[], sizeInches = 2, optio
     const titleTop = size - topPad - qrArea;
     const titleBottom = bottomPad + ctaSize + size * 0.02;
     const title = toLatin(label.title, bold) || 'Book';
-    const fit = fitTitle(title, bold, size * 0.058, size * 0.046, size - sidePad * 2, titleTop - titleBottom);
+    const fit = fitTitle(title, bold, size * 0.058, size * 0.046, size - titleSidePad * 2, titleTop - titleBottom);
     let y = titleTop + fit.size * 0.1;
     for (const line of fit.lines) {
       y -= fit.size * fit.lineHeight;
