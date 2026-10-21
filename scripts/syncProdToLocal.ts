@@ -67,9 +67,17 @@ const tables = ['"Book"', '"Category"', '"_BookCategories"', '"PromoCode"', ...(
 const truncate = `TRUNCATE TABLE "_BookCategories", "Book", "Category", "PromoCode"${includeOrders ? ', "Order"' : ''} RESTART IDENTITY CASCADE;`;
 
 function psql(extra: string[], stdio: 'inherit' | 'pipe' = 'inherit'): string {
-  const out = execFileSync('psql', [localUrl as string, '-v', 'ON_ERROR_STOP=1', ...extra], { stdio: stdio === 'pipe' ? ['ignore', 'pipe', 'inherit'] : 'inherit' });
-  return out ? out.toString() : '';
+  try {
+    const out = execFileSync('psql', [localUrl as string, '-v', 'ON_ERROR_STOP=1', ...extra], { stdio: stdio === 'pipe' ? ['ignore', 'pipe', 'inherit'] : 'inherit' });
+    return out ? out.toString() : '';
+  } catch {
+    // Not the original error: its message would contain the full command, including the database password
+    throw new Error('psql failed. The reason is printed just above this line. Nothing local was changed.');
+  }
 }
+
+/** Never show a connection string (it holds the password) in an error message. */
+const scrub = (text: string) => text.replace(/postgres(?:ql)?:\/\/\S+/g, 'postgresql://***');
 
 async function confirm(): Promise<void> {
   if (skipPrompt) return;
@@ -117,6 +125,9 @@ async function main() {
     } finally {
       fs.closeSync(fd);
     }
+    // A dump from Postgres 17 sets transaction_timeout, which older local servers reject. It is only a safety
+    // timeout, so drop it and the same dump restores on any version.
+    fs.writeFileSync(dumpFile, fs.readFileSync(dumpFile, 'utf-8').replace(/^SET transaction_timeout = 0;\r?\n/m, ''));
     console.log('✅ Dump complete');
 
     console.log('\n3️⃣  Replacing local data (one transaction: all or nothing)...');
@@ -149,6 +160,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error('❌ Sync failed:', error instanceof Error ? error.message : error);
+  console.error('❌ Sync failed:', scrub(error instanceof Error ? error.message : String(error)));
   process.exit(1);
 });
