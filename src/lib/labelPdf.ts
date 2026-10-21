@@ -58,11 +58,13 @@ export interface LabelPdfOptions {
    */
   topPaddingMm?: number;
   /**
-   * Draw small corner marks near the label's corners (default true). Label apps such as FlashLabel crop an imported
-   * PDF to its printed content and stretch that to the label, which erases any blank margin. Corner marks make the
-   * "content" the whole label, so the margins survive. Set false for a plain label with no marks.
+   * How to stop label apps (FlashLabel) that crop an imported PDF to its printed content from erasing the
+   * margins, by making the content span the whole label:
+   *  - 'invisible' (default): four tiny near-white dots in the corners. Too light to print, but a cropper sees them.
+   *  - 'marks': visible corner brackets (a reliable fallback if 'invisible' still gets cropped).
+   *  - 'none': nothing.
    */
-  cornerMarks?: boolean;
+  edgeGuard?: 'invisible' | 'marks' | 'none';
 }
 
 /** Greedy word wrap with no line limit. */
@@ -116,7 +118,14 @@ export async function buildLabelsPdf(labels: LabelInput[], sizeInches = 2, optio
 
   for (const label of labels) {
     const page = pdf.addPage([size, size]);
-    if (options.cornerMarks !== false) {
+    const guard = options.edgeGuard ?? 'invisible';
+    if (guard === 'invisible') {
+      // A near-white dot (250/255) in each corner: below any printer's black/white threshold, yet not pure white
+      for (const [cx, cy] of [[markInset, size - markInset - 1.5], [size - markInset - 1.5, size - markInset - 1.5], [markInset, markInset], [size - markInset - 1.5, markInset]]) {
+        page.drawRectangle({ x: cx, y: cy, width: 1.5, height: 1.5, color: rgb(0.98, 0.98, 0.98) });
+      }
+    }
+    if (guard === 'marks') {
       // Four L-shaped corner brackets (two thin bars each)
       for (const [cx, cy, dx, dy] of [[markInset, size - markInset, 1, -1], [size - markInset, size - markInset, -1, -1], [markInset, markInset, 1, 1], [size - markInset, markInset, -1, 1]] as const) {
         page.drawRectangle({ x: dx > 0 ? cx : cx - markLength, y: dy > 0 ? cy : cy - markThickness, width: markLength, height: markThickness, color: rgb(0, 0, 0) });
