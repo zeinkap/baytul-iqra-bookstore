@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/adminAuth';
 import { extractBookItems } from '@/lib/stockManager';
 import { normalizeLocation } from '@/lib/location';
+import { SCAN_STATUSES } from '@/lib/scanStatus';
 
 // A buyer who tapped Buy now but never paid is only "abandoned" after this long (they may still be paying)
 const ABANDONED_AFTER_MS = 30 * 60 * 1000;
@@ -21,12 +22,17 @@ export async function GET(req: NextRequest) {
   const locWhere = loc === 'none' ? { location: null } : loc ? { location: loc } : {};
 
   const inShop = { source: 'in-shop' };
-  const [scansByBook, scansByStatus, scansByVenue, paidOrders, abandonedOrders] = await Promise.all([
-    prisma.scan.groupBy({ by: ['bookId'], where: { createdAt: { gte: since }, bookId: { not: null }, ...locWhere }, _count: { _all: true } }),
+  const scanWhere = { createdAt: { gte: since }, ...locWhere };
+  const [scansByBook, scansByStatus, scansByVenue, paidOrders, abandonedOrders, unknownCodes, soldOutByBook, buyFailureReasons] = await Promise.all([
+    prisma.scan.groupBy({ by: ['bookId'], where: { ...scanWhere, bookId: { not: null }, status: { in: SCAN_STATUSES } }, _count: { _all: true } }),
     prisma.scan.groupBy({ by: ['status'], where: { createdAt: { gte: since }, ...locWhere }, _count: { _all: true } }),
-    prisma.scan.groupBy({ by: ['location'], where: { createdAt: { gte: since } }, _count: { _all: true } }),
+    prisma.scan.groupBy({ by: ['location'], where: { createdAt: { gte: since }, status: { in: SCAN_STATUSES } }, _count: { _all: true } }),
     prisma.order.findMany({ where: { ...inShop, paidAt: { gte: since } }, select: { items: true, finalTotal: true, location: true } }),
     prisma.order.findMany({ where: { ...inShop, paidAt: null, createdAt: { gte: since, lte: abandonedBefore } }, select: { items: true, location: true } }),
+    // Failed scans: labels that point nowhere, books that were sold out, and Buy now errors
+    prisma.scan.groupBy({ by: ['code'], where: { ...scanWhere, status: 'not-found' }, _count: { _all: true }, _max: { createdAt: true }, orderBy: { _count: { code: 'desc' } }, take: 20 }),
+    prisma.scan.groupBy({ by: ['bookId'], where: { ...scanWhere, status: 'sold-out', bookId: { not: null } }, _count: { _all: true }, orderBy: { _count: { bookId: 'desc' } }, take: 10 }),
+    prisma.scan.groupBy({ by: ['detail'], where: { ...scanWhere, status: 'buy-failed' }, _count: { _all: true }, orderBy: { _count: { detail: 'desc' } } }),
   ]);
 
   const matchesVenue = (venue: string | null) => (loc === 'none' ? venue === null : loc ? venue === loc : true);
@@ -71,7 +77,8 @@ export async function GET(req: NextRequest) {
 
   const scans = new Map(scansByBook.map((s) => [s.bookId as string, s._count._all]));
   const bookIds = [...new Set([...scans.keys(), ...purchases.keys(), ...abandonedByBook.keys()])];
-  const books = await prisma.book.findMany({ where: { id: { in: bookIds } }, select: { id: true, title: true, isbn: true, stock: true } });
+  const missedIds = soldOutByBook.map((s) => s.bookId as string);
+  const books = await prisma.book.findMany({ where: { id: { in: [...bookIds, ...missedIds] } }, select: { id: true, title: true, isbn: true, stock: true } });
   const bookById = new Map(books.map((b) => [b.id, b]));
 
   const rows = bookIds
@@ -97,13 +104,20 @@ export async function GET(req: NextRequest) {
     days,
     location: loc,
     totals: {
-      scans: scansByStatus.reduce((sum, s) => sum + s._count._all, 0),
+      scans: scansByStatus.filter((s) => SCAN_STATUSES.includes(s.status)).reduce((sum, s) => sum + s._count._all, 0),
       soldOutScans: statusCount('sold-out'),
       notFoundScans: statusCount('not-found'),
+      buyFailures: statusCount('buy-failed'),
+      pageErrors: statusCount('page-error'),
       paidOrders: paidCount,
       purchases: [...purchases.values()].reduce((a, b) => a + b, 0),
       revenue: paidRevenue,
       abandoned: abandonedCount,
+    },
+    failures: {
+      unknownCodes: unknownCodes.map((u) => ({ code: u.code, count: u._count._all, lastSeen: u._max.createdAt })),
+      soldOutBooks: soldOutByBook.map((s) => ({ bookId: s.bookId as string, title: bookById.get(s.bookId as string)?.title ?? 'Deleted book', count: s._count._all })),
+      buyFailureReasons: buyFailureReasons.map((r) => ({ reason: r.detail ?? 'other', count: r._count._all })),
     },
     venues: [...venues.entries()].map(([name, v]) => ({ location: name, ...v })).sort((a, b) => b.revenue - a.revenue || b.scans - a.scans),
     rows,

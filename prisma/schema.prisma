@@ -36,7 +36,8 @@ model Scan {
   code      String   // what was in the URL (ISBN or book id)
   bookId    String?
   book      Book?    @relation(fields: [bookId], references: [id], onDelete: SetNull)
-  status    String   // "ok" | "sold-out" | "not-found"
+  status    String   // scans: "ok" | "sold-out" | "not-found"; failures: "buy-failed" | "page-error"
+  detail    String?  // short reason for buy-failed / page-error events
   location  String?  // venue slug from the QR link (?loc=cafe-a)
   device    String?  // "ios" | "android" | "desktop" | "other"
   createdAt DateTime @default(now())

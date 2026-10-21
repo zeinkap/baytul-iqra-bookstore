@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/adminAuth';
 import { normalizeLocation } from '@/lib/location';
 import { computeInsights, type InsightOrder } from '@/lib/insights';
+import { SCAN_STATUSES } from '@/lib/scanStatus';
 
 // GET /api/admin/insights?days=30&source=in-shop|all&loc=<venue>|none
 // Sales by time, profit, baskets and repeat buyers, restock list, payment method and device.
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
     prisma.book.findMany({ select: { id: true, title: true, stock: true, costPrice: true, createdAt: true } }),
     prisma.scan.groupBy({
       by: ['device'],
-      where: { createdAt: { gte: since }, ...(venue === 'none' ? { location: null } : venue ? { location: venue } : {}) },
+      where: { createdAt: { gte: since }, status: { in: SCAN_STATUSES }, ...(venue === 'none' ? { location: null } : venue ? { location: venue } : {}) },
       _count: { _all: true },
     }),
   ]);

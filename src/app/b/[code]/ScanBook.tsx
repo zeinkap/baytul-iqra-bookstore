@@ -8,6 +8,7 @@ import "yet-another-react-lightbox/styles.css";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import type { CartItem } from "@/components/CartProvider";
+import { reportScanFailure } from "@/lib/reportScanFailure";
 
 type ScannedBook = Omit<CartItem, "quantity">;
 
@@ -43,6 +44,8 @@ export default function ScanBook({
   const handleBuyNow = async () => {
     setBuying(true);
     let navigating = false;
+    // What to record if something throws: a failed fetch (no connection) counts as "network"
+    let failure: "network" | "order-failed" | "checkout-failed" = "network";
     try {
       const items = [{ ...book, quantity: 1 }];
       const orderRes = await fetch("/api/orders", {
@@ -61,10 +64,14 @@ export default function ScanBook({
       if (orderRes.status === 409) {
         // Someone bought the last copy since this page loaded: re-render the server page (out-of-stock message)
         toast.error(order.error || "Sorry, this book just sold out.");
+        reportScanFailure(code, "buy-failed", "sold-out-race", location);
         router.refresh();
         return;
       }
-      if (!orderRes.ok) throw new Error(order.error || "Failed to create order");
+      if (!orderRes.ok) {
+        failure = "order-failed";
+        throw new Error(order.error || "Failed to create order");
+      }
 
       const sessionRes = await fetch("/api/checkout_sessions", {
         method: "POST",
@@ -82,13 +89,18 @@ export default function ScanBook({
       const data = await sessionRes.json();
       if (sessionRes.status === 409) {
         toast.error(data.error || "Sorry, this book just sold out.");
+        reportScanFailure(code, "buy-failed", "sold-out-race", location);
         router.refresh();
         return;
       }
-      if (!data.url) throw new Error(data.error || "Failed to start checkout");
+      if (!data.url) {
+        failure = "checkout-failed";
+        throw new Error(data.error || "Failed to start checkout");
+      }
       navigating = true;
       window.location.href = data.url;
     } catch (e) {
+      reportScanFailure(code, "buy-failed", failure, location);
       toast.error(e instanceof Error ? e.message : "Something went wrong. Please try again.");
     } finally {
       // Stay disabled while navigating to Stripe; on any failure the buttons must work again

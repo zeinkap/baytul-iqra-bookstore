@@ -22,13 +22,25 @@ interface Venue {
 interface Stats {
   days: number;
   location: string | null;
-  totals: { scans: number; soldOutScans: number; notFoundScans: number; paidOrders: number; purchases: number; revenue: number; abandoned: number };
+  totals: { scans: number; soldOutScans: number; notFoundScans: number; buyFailures: number; pageErrors: number; paidOrders: number; purchases: number; revenue: number; abandoned: number };
+  failures: {
+    unknownCodes: { code: string; count: number; lastSeen: string | null }[];
+    soldOutBooks: { bookId: string; title: string; count: number }[];
+    buyFailureReasons: { reason: string; count: number }[];
+  };
   venues: Venue[];
   rows: Row[];
 }
 
 const NO_VENUE = "(no venue tag)";
 const money = (n: number) => `$${n.toFixed(2)}`;
+const reasonLabel: Record<string, string> = {
+  "sold-out-race": "Sold out while checking out",
+  "order-failed": "Could not create the order",
+  "checkout-failed": "Could not open Stripe checkout",
+  network: "Connection problem (no signal / Wi-Fi)",
+  other: "Other",
+};
 
 export default function AdminScansPage() {
   const [days, setDays] = useState(30);
@@ -174,6 +186,41 @@ export default function AdminScansPage() {
             <Stat label="Unknown codes" value={String(stats.totals.notFoundScans)} hint="Label points to a missing book" />
           </div>
 
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Failed scans</h2>
+          <p className="text-xs text-gray-500 mb-2" data-testid="failed-scans-summary">
+            {stats.totals.scans > 0
+              ? `${Math.round(((stats.totals.notFoundScans + stats.totals.soldOutScans) / stats.totals.scans) * 100)}% of scans couldn't lead to a sale (unknown code or sold out). `
+              : ""}
+            A phone that can&apos;t read a sticker at all can&apos;t be detected: if people say scanning is hard, test your printed labels.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3" data-testid="failed-scans-cards">
+            <Stat label="Unknown codes" value={String(stats.totals.notFoundScans)} hint="Sticker points to no book" />
+            <Stat label="Sold-out scans" value={String(stats.totals.soldOutScans)} hint="Lost sales" />
+            <Stat label="Buy now errors" value={String(stats.totals.buyFailures)} hint="Tapped Buy now, it broke" />
+            <Stat label="Page errors" value={String(stats.totals.pageErrors)} hint="The scan page crashed" />
+          </div>
+          <div className="grid md:grid-cols-3 gap-4 mb-6">
+            <SmallTable
+              title="Stickers to fix (unknown codes)"
+              head={["Code", "Scans", "Last seen"]}
+              rows={stats.failures.unknownCodes.map((u) => [u.code, u.count, u.lastSeen ? new Date(u.lastSeen).toLocaleDateString() : ""])}
+              empty="No unknown codes. 🎉"
+              testId="unknown-codes"
+            />
+            <SmallTable
+              title="Most-missed books (sold out)"
+              head={["Book", "Scans"]}
+              rows={stats.failures.soldOutBooks.map((b) => [b.title, b.count])}
+              empty="No sold-out scans."
+            />
+            <SmallTable
+              title="Buy now problems"
+              head={["Reason", "Count"]}
+              rows={stats.failures.buyFailureReasons.map((r) => [reasonLabel[r.reason] ?? r.reason, r.count])}
+              empty="No Buy now errors."
+            />
+          </div>
+
           <h2 className="text-lg font-semibold text-gray-900 mb-2">By venue</h2>
           <div className="bg-white rounded-xl shadow border border-gray-100 overflow-x-auto mb-6">
             <table className="w-full text-sm text-gray-900" data-testid="venue-table">
@@ -249,6 +296,29 @@ export default function AdminScansPage() {
           </p>
         </>
       )}
+    </div>
+  );
+}
+
+function SmallTable({ title, head, rows, empty, testId }: { title: string; head: string[]; rows: (string | number)[][]; empty: string; testId?: string }) {
+  return (
+    <div className="bg-white rounded-xl shadow border border-gray-100 overflow-hidden" data-testid={testId}>
+      <h3 className="text-sm font-semibold text-gray-900 px-3 pt-3 pb-1">{title}</h3>
+      <table className="w-full text-sm text-gray-900">
+        <thead>
+          <tr className="text-left text-xs text-gray-500">
+            {head.map((h, i) => <th key={h} className={`py-1 px-3 ${i > 0 ? "text-right" : ""}`}>{h}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 && <tr><td colSpan={head.length} className="py-3 px-3 text-gray-500">{empty}</td></tr>}
+          {rows.map((r, ri) => (
+            <tr key={ri} className="border-t border-gray-100">
+              {r.map((cell, ci) => <td key={ci} className={`py-1.5 px-3 ${ci > 0 ? "text-right" : "break-all"}`}>{cell}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
