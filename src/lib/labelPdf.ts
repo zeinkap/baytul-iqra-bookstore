@@ -59,6 +59,36 @@ export interface LabelPdfOptions {
   topPaddingMm?: number;
 }
 
+/** Greedy word wrap with no line limit. */
+function wrapAll(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(' ').filter(Boolean)) {
+    const attempt = line ? `${line} ${word}` : word;
+    if (font.widthOfTextAtSize(attempt, size) <= maxWidth || !line) line = attempt;
+    else {
+      lines.push(line);
+      line = word;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+/**
+ * Picks the largest title size that fits: 1-3 lines inside the available height, none wider than the label.
+ * Long titles shrink instead of being cut off; only a title too long even at the smallest size gets "...".
+ */
+function fitTitle(text: string, font: PDFFont, maxSize: number, minSize: number, maxWidth: number, maxHeight: number) {
+  const lineHeight = 1.05;
+  for (let size = maxSize; size >= minSize - 0.001; size -= 0.2) {
+    const lines = wrapAll(text, font, size, maxWidth);
+    const fitsWidth = lines.every((l) => font.widthOfTextAtSize(l, size) <= maxWidth);
+    if (lines.length <= 3 && fitsWidth && lines.length * size * lineHeight <= maxHeight) return { size, lines, lineHeight };
+  }
+  return { size: minSize, lines: wrap(text, font, minSize, maxWidth, 3), lineHeight };
+}
+
 /**
  * One square label per PDF page (default 2 x 2 inch): black vector QR code, book title, "Scan to buy".
  * Pure black on white so thermal label printers print it crisply.
@@ -96,16 +126,18 @@ export async function buildLabelsPdf(labels: LabelInput[], sizeInches = 2, optio
       }
     }
 
-    const titleSize = size * 0.058;
-    const title = toLatin(label.title, bold) || 'Book';
-    const lines = wrap(title, bold, titleSize, size - sidePad * 2, 2);
-    let y = size - topPad - qrArea + titleSize * 0.1;
-    for (const line of lines) {
-      y -= titleSize * 1.05;
-      page.drawText(line, { x: (size - bold.widthOfTextAtSize(line, titleSize)) / 2, y, size: titleSize, font: bold, color: rgb(0, 0, 0) });
-    }
     const cta = 'Scan to buy';
     const ctaSize = size * 0.047;
+    // Title block sits between the QR code's quiet zone and the "Scan to buy" line
+    const titleTop = size - topPad - qrArea;
+    const titleBottom = bottomPad + ctaSize + size * 0.02;
+    const title = toLatin(label.title, bold) || 'Book';
+    const fit = fitTitle(title, bold, size * 0.058, size * 0.04, size - sidePad * 2, titleTop - titleBottom);
+    let y = titleTop + fit.size * 0.1;
+    for (const line of fit.lines) {
+      y -= fit.size * fit.lineHeight;
+      page.drawText(line, { x: (size - bold.widthOfTextAtSize(line, fit.size)) / 2, y, size: fit.size, font: bold, color: rgb(0, 0, 0) });
+    }
     page.drawText(cta, {
       x: (size - regular.widthOfTextAtSize(cta, ctaSize)) / 2,
       y: bottomPad,
