@@ -15,6 +15,8 @@ export async function sendOrderConfirmationEmail({
   fulfillmentType,
   source,
   shippingAddress,
+  discount,
+  paidAt,
 }: {
   to: string;
   orderId: string;
@@ -22,6 +24,10 @@ export async function sendOrderConfirmationEmail({
   total: number;
   fulfillmentType: string;
   source?: string;
+  /** Promo discount in dollars, shown as its own line when above zero */
+  discount?: number | null;
+  /** When the order was paid, so a resent receipt keeps the original date */
+  paidAt?: Date | null;
   shippingAddress?: {
     name?: string;
     line1?: string;
@@ -36,7 +42,7 @@ export async function sendOrderConfirmationEmail({
   const base = siteUrl();
   const shortRef = orderId.slice(-8).toUpperCase();
   const receiptUrl = `${base}/${inShop ? 'receipt' : 'checkout/success'}?orderId=${encodeURIComponent(orderId)}`;
-  const orderDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
+  const orderDate = (paidAt ?? new Date()).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
   const subject = inShop ? `Your Baytul Iqra receipt, ${money(total)}` : 'Your Baytul Iqra Bookstore Order Confirmation';
 
   const intro = inShop
@@ -50,6 +56,15 @@ export async function sendOrderConfirmationEmail({
       ? [shippingAddress.name, shippingAddress.line1, shippingAddress.line2, [shippingAddress.city, shippingAddress.state, shippingAddress.postal_code].filter(Boolean).join(', '), shippingAddress.country].filter(Boolean) as string[]
       : [];
 
+  const discountRow =
+    discount && discount > 0.005
+      ? `
+        <tr>
+          <td style="padding:8px 0; color:#047857;">Discount</td>
+          <td style="padding:8px 0; text-align:right; color:#047857; white-space:nowrap;">-${money(discount)}</td>
+        </tr>`
+      : '';
+
   const rows = items
     .map(
       (item) => `
@@ -58,7 +73,7 @@ export async function sendOrderConfirmationEmail({
           <td style="padding:8px 0; border-bottom:1px solid #eee; text-align:right; white-space:nowrap;">${money(item.price * item.quantity)}</td>
         </tr>`
     )
-    .join('');
+    .join('') + discountRow;
 
   const html = `<!doctype html>
 <html>
@@ -100,6 +115,7 @@ export async function sendOrderConfirmationEmail({
     intro,
     '',
     ...items.map((item) => `${item.title}  (Qty ${item.quantity} x ${money(item.price)})  ${money(item.price * item.quantity)}`),
+    ...(discount && discount > 0.005 ? [`Discount: -${money(discount)}`] : []),
     `Total: ${money(total)} (tax included)`,
     `Order #${shortRef} - ${orderDate}`,
     ...(addressLines.length ? ['', 'Shipping to:', ...addressLines] : []),

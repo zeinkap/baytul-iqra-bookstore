@@ -560,10 +560,12 @@ async function createOrder({
         to: created.email,
         orderId: created.id,
         items: productItems,
-        total: created.total,
+        total: created.finalTotal,
         fulfillmentType: created.fulfillmentType,
         source: created.source,
-        shippingAddress: undefined,
+        discount: created.discountAmount,
+        paidAt: created.paidAt,
+        shippingAddress: (created.shippingAddress as Record<string, string> | null) ?? undefined,
       });
       console.log('Order confirmation email sent to:', created.email);
     } catch (error) {
