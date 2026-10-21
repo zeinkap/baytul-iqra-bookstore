@@ -49,26 +49,38 @@ function wrap(text: string, font: PDFFont, size: number, maxWidth: number, maxLi
   return lines.slice(0, maxLines);
 }
 
+const PT_PER_MM = 72 / 25.4;
+
+export interface LabelPdfOptions {
+  /**
+   * Blank space above the QR code's own quiet zone, in millimetres (default 5). Label printers often feed a
+   * little off and apps may crop the page's edge, so raise this if the top of your printed label looks cut off.
+   */
+  topPaddingMm?: number;
+}
+
 /**
  * One square label per PDF page (default 2 x 2 inch): black vector QR code, book title, "Scan to buy".
  * Pure black on white so thermal label printers print it crisply.
  */
-export async function buildLabelsPdf(labels: LabelInput[], sizeInches = 2): Promise<Uint8Array> {
+export async function buildLabelsPdf(labels: LabelInput[], sizeInches = 2, options: LabelPdfOptions = {}): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const size = sizeInches * PT_PER_INCH;
-  const margin = size * 0.04;
-  const quietModules = 4; // QR spec: keep a 4-moduleSize white border around the code
+  const topPad = (options.topPaddingMm ?? 5) * PT_PER_MM; // extra white above the code
+  const sidePad = size * 0.05;
+  const bottomPad = size * 0.045;
+  const quietModules = 4; // QR spec: keep a 4-module white border around the code
+  const qrArea = size * 0.66; // QR code plus its quiet zone
 
   for (const label of labels) {
     const page = pdf.addPage([size, size]);
     const qr = QRCode.create(label.url, { errorCorrectionLevel: 'M' });
     const count = qr.modules.size;
-    const qrArea = size * 0.74; // QR code plus its quiet zone
     const moduleSize = qrArea / (count + quietModules * 2);
     const qrLeft = (size - qrArea) / 2 + quietModules * moduleSize;
-    const qrTop = size - margin - quietModules * moduleSize; // y of the top edge of the first moduleSize row
+    const qrTop = size - topPad - quietModules * moduleSize; // y of the top edge of the first module row
 
     for (let row = 0; row < count; row++) {
       for (let col = 0; col < count; col++) {
@@ -84,20 +96,19 @@ export async function buildLabelsPdf(labels: LabelInput[], sizeInches = 2): Prom
       }
     }
 
-    const textWidth = size - margin * 2;
+    const titleSize = size * 0.058;
     const title = toLatin(label.title, bold) || 'Book';
-    const lines = wrap(title, bold, size * 0.062, textWidth, 2);
-    let y = size - margin - qrArea + size * 0.02;
+    const lines = wrap(title, bold, titleSize, size - sidePad * 2, 2);
+    let y = size - topPad - qrArea + titleSize * 0.1;
     for (const line of lines) {
-      const w = bold.widthOfTextAtSize(line, size * 0.062);
-      y -= size * 0.07;
-      page.drawText(line, { x: (size - w) / 2, y, size: size * 0.062, font: bold, color: rgb(0, 0, 0) });
+      y -= titleSize * 1.05;
+      page.drawText(line, { x: (size - bold.widthOfTextAtSize(line, titleSize)) / 2, y, size: titleSize, font: bold, color: rgb(0, 0, 0) });
     }
     const cta = 'Scan to buy';
-    const ctaSize = size * 0.05;
+    const ctaSize = size * 0.047;
     page.drawText(cta, {
       x: (size - regular.widthOfTextAtSize(cta, ctaSize)) / 2,
-      y: margin * 0.9,
+      y: bottomPad,
       size: ctaSize,
       font: regular,
       color: rgb(0, 0, 0),
