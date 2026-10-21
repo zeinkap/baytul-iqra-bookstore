@@ -1,7 +1,8 @@
 import Stripe from 'stripe';
 import type { Order } from '@prisma/client';
 import { prisma } from './prisma';
-import { sendOrderConfirmationEmail } from './sendEmail';
+import { sendOrderConfirmationEmail, sendOrderNotificationToSales } from './sendEmail';
+import { extractBookItems } from './stockManager';
 
 /** How the customer paid, from Stripe: "apple_pay", "google_pay", "link", "card"... (null if it can't be read). */
 export async function paymentMethodLabel(stripe: Stripe, session: Stripe.Checkout.Session): Promise<string | null> {
@@ -31,7 +32,8 @@ export async function finalizePaidOrder(
   const existing = await prisma.order.findUnique({ where: { id: orderId } });
   if (!existing) return null;
 
-  await prisma.order.updateMany({ where: { id: orderId, paidAt: null }, data: { paidAt: new Date() } });
+  // Only the call that flips the order from unpaid to paid sends the shop's sale alert, so it goes out once
+  const justPaid = (await prisma.order.updateMany({ where: { id: orderId, paidAt: null }, data: { paidAt: new Date() } })).count === 1;
   if (details.paymentMethod) {
     await prisma.order.updateMany({ where: { id: orderId, paymentMethod: null }, data: { paymentMethod: details.paymentMethod } });
   }
@@ -44,6 +46,7 @@ export async function finalizePaidOrder(
   }
 
   const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (order && justPaid) await notifySalesOfPaidOrder(order);
   if (order && savedEmail && order.email) {
     try {
       await sendOrderConfirmationEmail({
@@ -76,3 +79,32 @@ export const netOrderTotal = (o: { finalTotal: number; refundedAmount: number | 
 
 /** True when the whole order was refunded (reports should ignore it). */
 export const isFullyRefunded = (o: { finalTotal: number; refundedAmount: number | null }) => netOrderTotal(o) <= 0.005;
+
+/** Tells the shop about a paid order (venue, payment method, device, estimated profit). Never throws. */
+export async function notifySalesOfPaidOrder(order: Order): Promise<void> {
+  try {
+    const items = extractBookItems(order.items);
+    const ids = items.map((i) => i.id).filter((id): id is string => !!id);
+    const books = ids.length ? await prisma.book.findMany({ where: { id: { in: ids } }, select: { id: true, costPrice: true } }) : [];
+    const costById = new Map(books.map((b) => [b.id, b.costPrice]));
+    const known = items.filter((i) => i.id && costById.get(i.id) != null);
+    const estimatedProfit = known.length === items.length && items.length > 0
+      ? order.finalTotal - items.reduce((sum, i) => sum + (costById.get(i.id as string) as number) * i.quantity, 0)
+      : null;
+    await sendOrderNotificationToSales({
+      orderId: order.id,
+      items: order.items as { title: string; quantity: number; price: number }[],
+      total: order.finalTotal,
+      fulfillmentType: order.fulfillmentType,
+      customerEmail: order.email || 'Collected by Stripe (see the Stripe receipt)',
+      source: order.source,
+      venue: order.location,
+      paymentMethod: order.paymentMethod,
+      device: order.device,
+      estimatedProfit,
+      shippingAddress: (order.shippingAddress as Record<string, string> | null) ?? undefined,
+    });
+  } catch (error) {
+    console.error('Error sending sales notification:', error);
+  }
+}

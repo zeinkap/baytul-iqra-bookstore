@@ -25,6 +25,8 @@ test.describe('Admin authentication', () => {
     expect((await request.get('/api/admin/feedback')).status()).toBe(401);
     expect((await request.get('/api/admin/insights')).status()).toBe(401);
     expect((await request.post('/api/admin/orders/some-order-id/restock')).status()).toBe(401);
+    expect((await request.get('/api/cron/daily-summary')).status()).toBe(401);
+    expect((await request.get('/api/cron/daily-summary', { headers: { authorization: 'Bearer wrong' } })).status()).toBe(401);
     expect((await request.get('/api/admin/venue')).status()).toBe(401);
     expect((await request.put('/api/admin/venue', { data: { venue: 'cafe-a' } })).status()).toBe(401);
   });

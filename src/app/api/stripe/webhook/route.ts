@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
 import { updateBookStock, extractBookItems, hasStockBeenUpdated } from '@/lib/stockManager';
 import { sendOrderConfirmationEmail } from '@/lib/sendEmail';
-import { finalizePaidOrder, paymentMethodLabel, recordRefund } from '@/lib/finalizeOrder';
+import { finalizePaidOrder, notifySalesOfPaidOrder, paymentMethodLabel, recordRefund } from '@/lib/finalizeOrder';
 
 // Extended Stripe session type to include shipping_details which may not be in all TypeScript definitions
 interface StripeSessionWithShipping extends Stripe.Checkout.Session {
@@ -63,8 +63,8 @@ export async function POST(req: NextRequest) {
     console.log('Webhook event processed:', event.type, event.id);
     
     // Handle both checkout.session.completed (regular checkout) and payment_intent.succeeded (payment links)
-    if (event.type === 'checkout.session.completed') {
-      console.log('Processing checkout.session.completed event');
+    if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
+      console.log(`Processing ${event.type} event`);
       await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
     } else if (event.type === 'charge.refunded') {
       await handleChargeRefunded(event.data.object as Stripe.Charge);
@@ -109,6 +109,12 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
 }
 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+  // Delayed payment methods (e.g. bank debits) complete the checkout before the money arrives. Wait for
+  // checkout.session.async_payment_succeeded instead of marking the order paid, stocked and emailed too early.
+  if (session.payment_status === 'unpaid') {
+    console.log('Checkout completed but payment still pending; waiting for async payment confirmation:', session.id);
+    return;
+  }
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
   const orderId = session.metadata?.orderId as string | undefined;
   const promoCodeId = session.metadata?.promoCodeId as string | undefined;
@@ -522,6 +528,9 @@ async function createOrder({
   });
 
   console.log('Order created successfully:', created.id);
+
+  // Alert the shop about this sale (once: this branch only runs when the order didn't exist yet)
+  await notifySalesOfPaidOrder(created);
 
   // Update promo code usage if applicable
   if (promoCodeId) {
