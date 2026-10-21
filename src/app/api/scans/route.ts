@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { normalizeIsbn } from '@/lib/isbn';
 import { isRateLimited } from '@/lib/chat/rateLimit';
+import { normalizeLocation } from '@/lib/location';
+import { deviceFromUserAgent } from '@/lib/device';
+import { FAILURE_EVENTS, BUY_FAILURE_REASONS, type FailureEvent } from '@/lib/scanStatus';
 
 // POST /api/scans - records one QR label scan. Public (customers aren't logged in), so:
 // the book and status are resolved server-side from the code, and writes are rate limited.
@@ -23,11 +26,20 @@ export async function POST(req: NextRequest) {
     select: { id: true, stock: true },
   });
 
+  // A failure event (Buy now broke, or the page crashed) is logged against the same code; the status and
+  // reason are checked against fixed lists so the table can't be filled with arbitrary text.
+  const event = FAILURE_EVENTS.includes(body?.event) ? (body.event as FailureEvent) : null;
+  const reason = typeof body?.detail === 'string' ? body.detail.trim() : '';
+  const detail = event === 'buy-failed' ? ((BUY_FAILURE_REASONS as readonly string[]).includes(reason) ? reason : 'other') : event === 'page-error' ? reason.slice(0, 80) || 'unknown' : null;
+
   await prisma.scan.create({
     data: {
       code,
       bookId: book?.id ?? null,
-      status: !book ? 'not-found' : book.stock > 0 ? 'ok' : 'sold-out',
+      status: event ?? (!book ? 'not-found' : book.stock > 0 ? 'ok' : 'sold-out'),
+      detail,
+      location: normalizeLocation(body?.location),
+      device: deviceFromUserAgent(req.headers.get('user-agent')),
     },
   });
   return new NextResponse(null, { status: 204 });

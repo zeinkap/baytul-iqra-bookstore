@@ -5,6 +5,7 @@ import { normalizeIsbn } from '@/lib/isbn';
 import { htmlToText } from '@/lib/htmlToText';
 import ScanBook from './ScanBook';
 import ScanLogger from './ScanLogger';
+import { resolveVenue } from '@/lib/venue';
 import BookSuggestions from '@/components/BookSuggestions';
 import { similarBooks, popularBooks, type Suggestion } from '@/lib/suggestions';
 
@@ -15,8 +16,15 @@ export const dynamic = 'force-dynamic';
  * Direct-to-cart landing page for QR labels stuck on physical books.
  * `code` is an ISBN (preferred) or the book id (fallback for books without one).
  */
-export default async function ScanBookPage({ params }: { params: Promise<{ code: string }> }) {
+export default async function ScanBookPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ code: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
   const { code } = await params;
+  const location = await resolveVenue((await searchParams).loc);
   const isbn = normalizeIsbn(decodeURIComponent(code));
 
   const book = await prisma.book.findFirst({
@@ -26,7 +34,7 @@ export default async function ScanBookPage({ params }: { params: Promise<{ code:
 
   if (!book) {
     return (
-      <Message code={code} title="We couldn't find that book" suggestions={await popularBooks()} suggestionsTitle="Popular right now">
+      <Message code={code} location={location} title="We couldn't find that book" suggestions={await popularBooks()} suggestionsTitle="Popular right now">
         Sorry, that label isn&apos;t linked to a book. Here are some books you might like.
       </Message>
     );
@@ -34,7 +42,7 @@ export default async function ScanBookPage({ params }: { params: Promise<{ code:
 
   if (book.stock <= 0) {
     return (
-      <Message code={code} title={`"${book.title}" is out of stock`} suggestions={await similarBooks(book)} suggestionsTitle="Similar books you can buy now">
+      <Message code={code} location={location} title={`"${book.title}" is out of stock`} suggestions={await similarBooks(book)} suggestionsTitle="Similar books you can buy now">
         Sorry about that. These are similar and available right now.
       </Message>
     );
@@ -42,8 +50,9 @@ export default async function ScanBookPage({ params }: { params: Promise<{ code:
 
   return (
     <>
-      <ScanLogger code={code} />
+      <ScanLogger code={code} location={location} />
       <ScanBook
+        location={location}
         code={book.isbn ?? book.id}
         stock={book.stock}
         description={htmlToText(book.description)}
@@ -64,12 +73,14 @@ export default async function ScanBookPage({ params }: { params: Promise<{ code:
 
 function Message({
   code,
+  location,
   title,
   children,
   suggestions,
   suggestionsTitle,
 }: {
   code: string;
+  location?: string;
   title: string;
   children: React.ReactNode;
   suggestions: Suggestion[];
@@ -77,7 +88,7 @@ function Message({
 }) {
   return (
     <main className="max-w-md mx-auto px-4 pt-6 pb-10 text-center">
-      <ScanLogger code={code} />
+      <ScanLogger code={code} location={location} />
       <div className="flex flex-col items-center mb-4">
         <Image src="/logo-baytul-iqra.png" alt="Baytul Iqra Bookstore" width={64} height={64} className="w-16 h-16 object-contain" priority />
         <p className="mt-1 text-sm font-semibold text-emerald-800">Baytul Iqra Bookstore</p>

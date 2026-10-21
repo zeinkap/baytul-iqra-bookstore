@@ -38,6 +38,23 @@ export default function InShopReceipt({ order, footer }: { order: InShopOrder; f
   const [sendMessage, setSendMessage] = useState("");
   const canSend = !!order.email && !!order.paidAt;
 
+  const [wish, setWish] = useState("");
+  const [wishState, setWishState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const sendWish = async () => {
+    setWishState("sending");
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: order.id, message: wish }),
+      });
+      if (!res.ok) throw new Error();
+      setWishState("sent");
+    } catch {
+      setWishState("error");
+    }
+  };
+
   const emailReceipt = async () => {
     setSendState("sending");
     setSendMessage("");
@@ -136,6 +153,35 @@ export default function InShopReceipt({ order, footer }: { order: InShopOrder; f
             ? `We'll send it to ${maskEmail(order.email as string)}.`
             : "Your receipt email is being prepared…"}
         </p>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow border border-gray-100 p-5 mb-6" data-testid="receipt-wish">
+        {wishState === "sent" ? (
+          <p className="text-center text-gray-800 font-medium">Thank you! We read every request. 💚</p>
+        ) : (
+          <>
+            <label htmlFor="wish" className="block font-semibold text-gray-900 mb-2">What book do you wish we had here?</label>
+            <textarea
+              id="wish"
+              value={wish}
+              onChange={(e) => setWish(e.target.value)}
+              maxLength={500}
+              rows={2}
+              placeholder="A title, author or topic (optional)"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 bg-white"
+              data-testid="receipt-wish-input"
+            />
+            <button
+              onClick={sendWish}
+              disabled={wish.trim().length < 2 || wishState === "sending"}
+              className="mt-2 px-4 py-2 rounded-lg font-semibold text-gray-800 border border-gray-300 bg-white disabled:opacity-60"
+              data-testid="receipt-wish-send"
+            >
+              {wishState === "sending" ? "Sending…" : "Send"}
+            </button>
+            {wishState === "error" && <p className="mt-2 text-sm text-red-600">Couldn&apos;t send that. Please try again.</p>}
+          </>
+        )}
       </div>
 
       {footer && <div className="mb-6">{footer}</div>}

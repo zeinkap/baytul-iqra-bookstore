@@ -1,29 +1,96 @@
 "use client";
 import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 
 interface Row {
   bookId: string;
   title: string;
-  isbn: string | null;
   stock: number;
   scans: number;
   purchases: number;
+  abandoned: number;
+  revenue: number;
   conversion: number | null;
+}
+interface Venue {
+  location: string;
+  scans: number;
+  paidOrders: number;
+  revenue: number;
+  abandoned: number;
 }
 interface Stats {
   days: number;
-  totals: { scans: number; soldOutScans: number; notFoundScans: number; purchases: number };
+  location: string | null;
+  totals: { scans: number; soldOutScans: number; notFoundScans: number; buyFailures: number; pageErrors: number; paidOrders: number; purchases: number; revenue: number; abandoned: number };
+  failures: {
+    unknownCodes: { code: string; count: number; lastSeen: string | null }[];
+    soldOutBooks: { bookId: string; title: string; count: number }[];
+    buyFailureReasons: { reason: string; count: number }[];
+  };
+  venues: Venue[];
   rows: Row[];
 }
 
+const NO_VENUE = "(no venue tag)";
+const money = (n: number) => `$${n.toFixed(2)}`;
+const reasonLabel: Record<string, string> = {
+  "sold-out-race": "Sold out while checking out",
+  "order-failed": "Could not create the order",
+  "checkout-failed": "Could not open Stripe checkout",
+  network: "Connection problem (no signal / Wi-Fi)",
+  other: "Other",
+};
+
 export default function AdminScansPage() {
   const [days, setDays] = useState(30);
+  const [venue, setVenue] = useState(""); // "" = all venues, "none" = untagged, otherwise a slug
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Where the books are today (applies to scans that arrive without a venue sign or tagged link)
+  const [currentVenue, setCurrentVenue] = useState<string | null>(null);
+  const [knownVenues, setKnownVenues] = useState<string[]>([]);
+  const [venueInput, setVenueInput] = useState("");
+  const [savingVenue, setSavingVenue] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/venue")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Failed to load venue"))))
+      .then((d) => {
+        setCurrentVenue(d.current);
+        setKnownVenues(d.known);
+        setVenueInput(d.current ?? "");
+      })
+      .catch(() => {});
+  }, []);
+
+  async function saveVenue(venueValue: string | null) {
+    setSavingVenue(true);
+    try {
+      const res = await fetch("/api/admin/venue", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venue: venueValue }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save venue");
+      setCurrentVenue(data.current);
+      setVenueInput(data.current ?? "");
+      if (data.current && !knownVenues.includes(data.current)) setKnownVenues((v) => [...v, data.current].sort());
+      toast.success(data.current ? `Books are now at: ${data.current}` : "Venue cleared");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save venue");
+    } finally {
+      setSavingVenue(false);
+    }
+  }
+
   useEffect(() => {
     let cancelled = false;
-    fetch(`/api/admin/scan-stats?days=${days}`)
+    const params = new URLSearchParams({ days: String(days) });
+    if (venue) params.set("loc", venue);
+    fetch(`/api/admin/scan-stats?${params}`)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Failed to load scan stats"))))
       .then((data) => {
         if (!cancelled) {
@@ -35,22 +102,72 @@ export default function AdminScansPage() {
     return () => {
       cancelled = true;
     };
-  }, [days]);
+  }, [days, venue]);
+
+  const venueValue = (name: string) => (name === NO_VENUE ? "none" : name);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h1 className="text-2xl font-bold text-gray-900">QR Scans</h1>
-        <select
-          value={days}
-          onChange={(e) => setDays(Number(e.target.value))}
-          className="border border-gray-300 rounded px-3 py-2 text-gray-900 bg-white"
-          data-testid="scan-days"
-        >
-          <option value={7}>Last 7 days</option>
-          <option value={30}>Last 30 days</option>
-          <option value={90}>Last 90 days</option>
-        </select>
+        <div className="flex gap-2">
+          <select
+            value={venue}
+            onChange={(e) => setVenue(e.target.value)}
+            className="border border-gray-300 rounded px-3 py-2 text-gray-900 bg-white"
+            data-testid="scan-venue"
+          >
+            <option value="">All venues</option>
+            {stats?.venues.map((v) => (
+              <option key={v.location} value={venueValue(v.location)}>{v.location}</option>
+            ))}
+          </select>
+          <select
+            value={days}
+            onChange={(e) => setDays(Number(e.target.value))}
+            className="border border-gray-300 rounded px-3 py-2 text-gray-900 bg-white"
+            data-testid="scan-days"
+          >
+            <option value={7}>Last 7 days</option>
+            <option value={30}>Last 30 days</option>
+            <option value={90}>Last 90 days</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow border border-gray-100 p-4 mb-4" data-testid="current-venue-panel">
+        <label htmlFor="current-venue" className="block font-semibold text-gray-900">Where are the books today?</label>
+        <p className="text-xs text-gray-500 mb-2">
+          Every scan and sale is credited to this venue unless the customer scanned a venue sign. Update it when the books move.
+          {currentVenue ? <> Right now: <strong>{currentVenue}</strong>.</> : " Right now: no venue set."}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <input
+            id="current-venue"
+            list="known-venues"
+            value={venueInput}
+            onChange={(e) => setVenueInput(e.target.value.toLowerCase())}
+            placeholder="e.g. cafe-a"
+            className="border border-gray-300 rounded px-3 py-2 text-gray-900 bg-white"
+            data-testid="current-venue-input"
+          />
+          <datalist id="known-venues">
+            {knownVenues.map((v) => <option key={v} value={v} />)}
+          </datalist>
+          <button
+            onClick={() => saveVenue(venueInput.trim() || null)}
+            disabled={savingVenue}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold"
+            data-testid="current-venue-save"
+          >
+            Save
+          </button>
+          {currentVenue && (
+            <button onClick={() => saveVenue(null)} disabled={savingVenue} className="border border-gray-300 px-4 py-2 rounded-lg text-gray-800 bg-white">
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {error && <p className="text-red-600 mb-4">{error}</p>}
@@ -58,13 +175,82 @@ export default function AdminScansPage() {
 
       {stats && (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-            <Stat label="Scans" value={stats.totals.scans} />
-            <Stat label="Paid in-shop copies" value={stats.totals.purchases} />
-            <Stat label="Sold-out scans" value={stats.totals.soldOutScans} hint="Lost sales: restock these" />
-            <Stat label="Unknown codes" value={stats.totals.notFoundScans} hint="Label points to a missing book" />
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+            <Stat label="Scans" value={String(stats.totals.scans)} />
+            <Stat label="Paid orders" value={String(stats.totals.paidOrders)} hint={`${stats.totals.purchases} copies`} />
+            <Stat label="Revenue" value={money(stats.totals.revenue)} />
+            <Stat label="Abandoned checkouts" value={String(stats.totals.abandoned)} hint="Tapped Buy now, never paid (30+ min ago)" />
+          </div>
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <Stat label="Sold-out scans" value={String(stats.totals.soldOutScans)} hint="Lost sales: restock these" />
+            <Stat label="Unknown codes" value={String(stats.totals.notFoundScans)} hint="Label points to a missing book" />
           </div>
 
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Failed scans</h2>
+          <p className="text-xs text-gray-500 mb-2" data-testid="failed-scans-summary">
+            {stats.totals.scans > 0
+              ? `${Math.round(((stats.totals.notFoundScans + stats.totals.soldOutScans) / stats.totals.scans) * 100)}% of scans couldn't lead to a sale (unknown code or sold out). `
+              : ""}
+            A phone that can&apos;t read a sticker at all can&apos;t be detected: if people say scanning is hard, test your printed labels.
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3" data-testid="failed-scans-cards">
+            <Stat label="Unknown codes" value={String(stats.totals.notFoundScans)} hint="Sticker points to no book" />
+            <Stat label="Sold-out scans" value={String(stats.totals.soldOutScans)} hint="Lost sales" />
+            <Stat label="Buy now errors" value={String(stats.totals.buyFailures)} hint="Tapped Buy now, it broke" />
+            <Stat label="Page errors" value={String(stats.totals.pageErrors)} hint="The scan page crashed" />
+          </div>
+          <div className="grid md:grid-cols-3 gap-4 mb-6">
+            <SmallTable
+              title="Stickers to fix (unknown codes)"
+              head={["Code", "Scans", "Last seen"]}
+              rows={stats.failures.unknownCodes.map((u) => [u.code, u.count, u.lastSeen ? new Date(u.lastSeen).toLocaleDateString() : ""])}
+              empty="No unknown codes. 🎉"
+              testId="unknown-codes"
+            />
+            <SmallTable
+              title="Most-missed books (sold out)"
+              head={["Book", "Scans"]}
+              rows={stats.failures.soldOutBooks.map((b) => [b.title, b.count])}
+              empty="No sold-out scans."
+            />
+            <SmallTable
+              title="Buy now problems"
+              head={["Reason", "Count"]}
+              rows={stats.failures.buyFailureReasons.map((r) => [reasonLabel[r.reason] ?? r.reason, r.count])}
+              empty="No Buy now errors."
+            />
+          </div>
+
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">By venue</h2>
+          <div className="bg-white rounded-xl shadow border border-gray-100 overflow-x-auto mb-6">
+            <table className="w-full text-sm text-gray-900" data-testid="venue-table">
+              <thead>
+                <tr className="text-left bg-gray-50">
+                  <th className="py-2 px-3">Venue</th>
+                  <th className="py-2 px-3 text-right">Scans</th>
+                  <th className="py-2 px-3 text-right">Paid orders</th>
+                  <th className="py-2 px-3 text-right">Revenue</th>
+                  <th className="py-2 px-3 text-right">Abandoned</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.venues.length === 0 && (
+                  <tr><td colSpan={5} className="py-4 px-3 text-center text-gray-500">No activity yet in this period.</td></tr>
+                )}
+                {stats.venues.map((v) => (
+                  <tr key={v.location} className="border-t border-gray-100">
+                    <td className="py-2 px-3">{v.location}</td>
+                    <td className="py-2 px-3 text-right">{v.scans}</td>
+                    <td className="py-2 px-3 text-right">{v.paidOrders}</td>
+                    <td className="py-2 px-3 text-right">{money(v.revenue)}</td>
+                    <td className="py-2 px-3 text-right">{v.abandoned}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">By book{venue ? " (filtered venue)" : ""}</h2>
           <div className="bg-white rounded-xl shadow border border-gray-100 overflow-x-auto">
             <table className="w-full text-sm text-gray-900">
               <thead>
@@ -72,15 +258,15 @@ export default function AdminScansPage() {
                   <th className="py-2 px-3">Book</th>
                   <th className="py-2 px-3 text-right">Scans</th>
                   <th className="py-2 px-3 text-right">Bought</th>
+                  <th className="py-2 px-3 text-right">Abandoned</th>
+                  <th className="py-2 px-3 text-right">Revenue</th>
                   <th className="py-2 px-3 text-right">Conversion</th>
                   <th className="py-2 px-3 text-right">Stock</th>
                 </tr>
               </thead>
               <tbody>
                 {stats.rows.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="py-6 px-3 text-center text-gray-500">No scans yet in this period.</td>
-                  </tr>
+                  <tr><td colSpan={7} className="py-6 px-3 text-center text-gray-500">No scans yet in this period.</td></tr>
                 )}
                 {stats.rows.map((r) => {
                   // Scanned several times but never bought: the label or the page isn't converting
@@ -93,9 +279,9 @@ export default function AdminScansPage() {
                       </td>
                       <td className="py-2 px-3 text-right">{r.scans}</td>
                       <td className="py-2 px-3 text-right">{r.purchases}</td>
-                      <td className="py-2 px-3 text-right">
-                        {r.conversion === null ? "n/a" : `${Math.round(r.conversion * 100)}%`}
-                      </td>
+                      <td className="py-2 px-3 text-right">{r.abandoned}</td>
+                      <td className="py-2 px-3 text-right">{money(r.revenue)}</td>
+                      <td className="py-2 px-3 text-right">{r.conversion === null ? "n/a" : `${Math.round(r.conversion * 100)}%`}</td>
                       <td className="py-2 px-3 text-right">{r.stock}</td>
                     </tr>
                   );
@@ -104,8 +290,9 @@ export default function AdminScansPage() {
             </table>
           </div>
           <p className="text-xs text-gray-500 mt-3">
-            Scans are counted once per phone session. Purchases count paid in-shop orders (Buy now and scan-cart), so
-            conversion can pass 100% if a customer buys without a counted scan.
+            Scans are counted once per phone session. Paid orders and revenue count paid in-shop purchases (Buy now). Venues come from a scanned venue sign,
+            a <code>?loc=</code> tag in the link, or the venue set above; scans from before one was set show as {NO_VENUE}. Abandoned means the buyer tapped Buy now
+            but never paid within 30 minutes.
           </p>
         </>
       )}
@@ -113,11 +300,35 @@ export default function AdminScansPage() {
   );
 }
 
-function Stat({ label, value, hint }: { label: string; value: number; hint?: string }) {
+function SmallTable({ title, head, rows, empty, testId }: { title: string; head: string[]; rows: (string | number)[][]; empty: string; testId?: string }) {
+  return (
+    <div className="bg-white rounded-xl shadow border border-gray-100 overflow-hidden" data-testid={testId}>
+      <h3 className="text-sm font-semibold text-gray-900 px-3 pt-3 pb-1">{title}</h3>
+      <table className="w-full text-sm text-gray-900">
+        <thead>
+          <tr className="text-left text-xs text-gray-500">
+            {head.map((h, i) => <th key={h} className={`py-1 px-3 ${i > 0 ? "text-right" : ""}`}>{h}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 && <tr><td colSpan={head.length} className="py-3 px-3 text-gray-500">{empty}</td></tr>}
+          {rows.map((r, ri) => (
+            <tr key={ri} className="border-t border-gray-100">
+              {r.map((cell, ci) => <td key={ci} className={`py-1.5 px-3 ${ci > 0 ? "text-right" : "break-all"}`}>{cell}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="bg-white rounded-xl shadow border border-gray-100 p-4" title={hint}>
       <div className="text-2xl font-bold text-gray-900">{value}</div>
       <div className="text-sm text-gray-600">{label}</div>
+      {hint && <div className="text-xs text-gray-500 mt-0.5">{hint}</div>}
     </div>
   );
 }

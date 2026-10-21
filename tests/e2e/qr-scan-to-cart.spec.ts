@@ -61,6 +61,27 @@ test.describe('QR scan to cart', () => {
     await expect(page.locator('.yarl__container')).toBeVisible();
   });
 
+  test('the venue tag in the link is recorded with the scan', async ({ page }) => {
+    const book = await initializeAPIHelper(page).findInStockBook();
+
+    const scanRequest = page.waitForRequest((r) => r.url().includes('/api/scans') && r.method() === 'POST');
+    await page.goto(`/b/${book.id}?loc=test-venue`);
+    expect((await scanRequest).postDataJSON()).toEqual({ code: book.id, location: 'test-venue' });
+  });
+
+  test('a Buy now failure is reported so it shows up as a failed scan', async ({ page }) => {
+    const book = await initializeAPIHelper(page).findInStockBook();
+    // Make the order request fail like a server error
+    await page.route('**/api/orders', (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"boom"}' }));
+
+    await page.goto(`/b/${book.id}`);
+    const failureRequest = page.waitForRequest((r) => r.url().includes('/api/scans') && r.postDataJSON()?.event === 'buy-failed');
+    await page.getByTestId('scan-buy-now').click();
+
+    expect((await failureRequest).postDataJSON()).toMatchObject({ code: book.id, event: 'buy-failed', detail: 'order-failed' });
+    await expect(page.getByTestId('scan-buy-now')).toBeEnabled();
+  });
+
   test('scans are recorded', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
 

@@ -9,6 +9,11 @@
  *   labels-2x2.pdf    one label per page, 2 x 2 inch (LABEL_SIZE_IN to change), for label-printer apps
  *   labels.csv        isbn/title/author/price/url columns for apps that import spreadsheets
  *
+ * Venue: you normally do NOT need LOCATION. The same books travel between venues, so sticker links stay
+ * venue-free and the venue comes from the admin's "Where are the books today?" setting or a venue sign
+ * (see npm run qr:venue-signs). LOCATION=cafe-a is only for a set of books that stays at one venue: it adds
+ * ?loc=cafe-a to every link and writes to qr-labels/cafe-a/.
+ *
  * Each QR encodes {BASE_URL}/b/<isbn>, falling back to the book id when a book
  * has no ISBN. Books with stock 0 are skipped unless INCLUDE_OUT_OF_STOCK=1.
  */
@@ -17,13 +22,19 @@ import path from 'path';
 import QRCode from 'qrcode';
 import { buildLabelsPdf } from '../src/lib/labelPdf';
 import { prisma } from '../src/lib/prisma';
+import { normalizeLocation } from '../src/lib/location';
 
 const baseUrl = (process.env.BASE_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? '').replace(/\/$/, '');
-const outDir = path.resolve('qr-labels');
+const location = process.env.LOCATION ? normalizeLocation(process.env.LOCATION) : null;
+const outDir = path.resolve('qr-labels', location ?? '');
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 async function main() {
+  if (process.env.LOCATION && !location) {
+    console.error('LOCATION must be a short lowercase slug (letters, numbers, dashes), e.g. LOCATION=cafe-a');
+    process.exit(1);
+  }
   if (!baseUrl) {
     console.error('Set BASE_URL to your live site, e.g. BASE_URL=https://yourshop.com npm run qr:generate');
     process.exit(1);
@@ -41,7 +52,7 @@ async function main() {
   const csvCell = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
   for (const book of books) {
     const code = book.isbn ?? book.id;
-    const url = `${baseUrl}/b/${code}`;
+    const url = `${baseUrl}/b/${code}${location ? `?loc=${location}` : ''}`;
     // Error correction M: tolerates scuffs but keeps the pattern simple for small labels
     const svg = await QRCode.toString(url, { type: 'svg', errorCorrectionLevel: 'M', margin: 4 });
     fs.writeFileSync(path.join(outDir, `${code}.svg`), svg);

@@ -16,8 +16,10 @@ export default async function ReceiptPage({
   const orderId = typeof resolved.orderId === "string" ? resolved.orderId : undefined;
 
   let suggestions = await popularBooks();
+  let location: string | undefined;
   if (orderId) {
-    const order = await prisma.order.findUnique({ where: { id: orderId }, select: { items: true } });
+    const order = await prisma.order.findUnique({ where: { id: orderId }, select: { items: true, location: true } });
+    location = order?.location ?? undefined;
     const bookId = order ? extractBookItems(order.items).find((i) => i.id)?.id : undefined;
     const book = bookId
       ? await prisma.book.findUnique({ where: { id: bookId }, include: { categories: { select: { id: true } } } })
@@ -28,7 +30,7 @@ export default async function ReceiptPage({
   return (
     <SuccessClient
       searchParams={resolved}
-      footer={<BookSuggestions title="You might also like" suggestions={suggestions} />}
+      footer={<BookSuggestions title="You might also like" suggestions={suggestions} location={location} />}
     />
   );
 }

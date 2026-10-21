@@ -5,6 +5,8 @@ import Stripe from 'stripe';
 import type { Prisma } from '@prisma/client';
 import { findStockProblems, stockProblemMessage } from '@/lib/stockManager';
 import { priceItems, discountForPromoId } from '@/lib/pricing';
+import { normalizeLocation } from '@/lib/location';
+import { deviceFromUserAgent } from '@/lib/device';
 
 // Extended Stripe session type to include shipping_details which may not be in all TypeScript definitions
 interface StripeSessionWithShipping extends Stripe.Response<Stripe.Checkout.Session> {
@@ -107,7 +109,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const data = await req.json();
-    const { items: rawItems, fulfillmentType, pickupLocation, shippingAddress, email, promoCodeId, source } = data;
+    const { items: rawItems, fulfillmentType, pickupLocation, shippingAddress, email, promoCodeId, source, location } = data;
     if (!rawItems || !Array.isArray(rawItems) || !fulfillmentType) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
@@ -153,6 +155,8 @@ export async function POST(req: NextRequest) {
         shippingAddress: fulfillmentType === 'shipping' ? shippingAddress : null,
         email,
         source: source ?? 'online',
+        location: normalizeLocation(location),
+        device: deviceFromUserAgent(req.headers.get('user-agent')),
       },
     });
 
@@ -280,6 +284,7 @@ export async function PUT(req: NextRequest) {
         email: session.customer_details?.email || session.customer_email || undefined,
         source: session.metadata?.source === 'in-shop' ? 'in-shop' : 'online',
         paidAt: new Date(),
+        location: normalizeLocation(session.metadata?.location),
       },
     });
 

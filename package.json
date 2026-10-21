@@ -19,6 +19,7 @@
     "isbn:apply": "npx tsx scripts/isbnCsv.ts apply",
     "images:export": "npx tsx scripts/imageUrlsCsv.ts export",
     "images:apply": "npx tsx scripts/imageUrlsCsv.ts apply",
+    "qr:venue-signs": "npx tsx scripts/generateVenueSigns.ts",
     "qr:generate": "npx tsx scripts/generateQrCodes.ts",
     "db:sync-from-prod": "npx tsx scripts/syncProdToLocal.ts",
     "db:migrate": "npx prisma migrate dev",

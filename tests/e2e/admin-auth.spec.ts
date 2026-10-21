@@ -19,6 +19,13 @@ test.describe('Admin authentication', () => {
 
     const scanStats = await request.get('/api/admin/scan-stats');
     expect(scanStats.status()).toBe(401);
+
+    expect((await request.get('/api/admin/stock-counts')).status()).toBe(401);
+    expect((await request.post('/api/admin/stock-counts', { data: { counts: [] } })).status()).toBe(401);
+    expect((await request.get('/api/admin/feedback')).status()).toBe(401);
+    expect((await request.get('/api/admin/insights')).status()).toBe(401);
+    expect((await request.get('/api/admin/venue')).status()).toBe(401);
+    expect((await request.put('/api/admin/venue', { data: { venue: 'cafe-a' } })).status()).toBe(401);
   });
 
   test('forged cookies do not grant access', async ({ page, baseURL }) => {

@@ -51,6 +51,24 @@ test.describe('In-shop receipt', () => {
     expect(response.status()).toBe(409);
   });
 
+  test('customers can leave a book request on the receipt', async ({ page }) => {
+    const apiHelper = initializeAPIHelper(page);
+    const book = await apiHelper.findInStockBook();
+    const order = await apiHelper.createOrder({
+      items: [{ id: book.id, title: book.title, author: book.author, price: book.price, quantity: 1 }],
+      total: book.price,
+      fulfillmentType: 'pickup',
+      source: 'in-shop',
+    });
+
+    await page.goto(`/receipt?orderId=${order.id}`);
+    await expect(page.getByTestId('receipt-wish-send')).toBeDisabled();
+    await page.getByTestId('receipt-wish-input').fill('E2E test request: more Seerah books for teens');
+    await page.getByTestId('receipt-wish-send').click();
+
+    await expect(page.getByTestId('receipt-wish')).toContainText('Thank you');
+  });
+
   test('suggests other books to buy', async ({ page }) => {
     const apiHelper = initializeAPIHelper(page);
     const book = await apiHelper.findInStockBook();
