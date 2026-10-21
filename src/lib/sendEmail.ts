@@ -17,6 +17,7 @@ export async function sendOrderConfirmationEmail({
   shippingAddress,
   discount,
   paidAt,
+  paymentMethod,
 }: {
   to: string;
   orderId: string;
@@ -28,6 +29,8 @@ export async function sendOrderConfirmationEmail({
   discount?: number | null;
   /** When the order was paid, so a resent receipt keeps the original date */
   paidAt?: Date | null;
+  /** How the customer paid ("apple_pay", "card"...), shown as "Paid with" when known */
+  paymentMethod?: string | null;
   shippingAddress?: {
     name?: string;
     line1?: string;
@@ -55,6 +58,8 @@ export async function sendOrderConfirmationEmail({
     fulfillmentType === 'shipping' && shippingAddress && typeof shippingAddress === 'object'
       ? [shippingAddress.name, shippingAddress.line1, shippingAddress.line2, [shippingAddress.city, shippingAddress.state, shippingAddress.postal_code].filter(Boolean).join(', '), shippingAddress.country].filter(Boolean) as string[]
       : [];
+
+  const paidWith = paymentMethod ? METHOD_LABELS[paymentMethod] ?? paymentMethod.replace(/_/g, ' ') : null;
 
   const discountRow =
     discount && discount > 0.005
@@ -92,7 +97,7 @@ export async function sendOrderConfirmationEmail({
           <td style="padding:12px 0 0; font-weight:700; text-align:right;">${money(total)}</td>
         </tr>
       </table>
-      <p style="margin:16px 0 0; font-size:13px; color:#6b7280;">Order #${shortRef} &middot; ${orderDate}</p>
+      <p style="margin:16px 0 0; font-size:13px; color:#6b7280;">Order #${shortRef} &middot; ${orderDate}${paidWith ? ` &middot; Paid with ${escapeHtml(paidWith)}` : ''}</p>
       ${
         addressLines.length
           ? `<p style="margin:16px 0 0; font-size:14px;"><b>Shipping to</b><br>${addressLines.map(escapeHtml).join('<br>')}</p>`
@@ -117,7 +122,7 @@ export async function sendOrderConfirmationEmail({
     ...items.map((item) => `${item.title}  (Qty ${item.quantity} x ${money(item.price)})  ${money(item.price * item.quantity)}`),
     ...(discount && discount > 0.005 ? [`Discount: -${money(discount)}`] : []),
     `Total: ${money(total)} (tax included)`,
-    `Order #${shortRef} - ${orderDate}`,
+    `Order #${shortRef} - ${orderDate}${paidWith ? ` - Paid with ${paidWith}` : ''}`,
     ...(addressLines.length ? ['', 'Shipping to:', ...addressLines] : []),
     '',
     `View your receipt: ${receiptUrl}`,

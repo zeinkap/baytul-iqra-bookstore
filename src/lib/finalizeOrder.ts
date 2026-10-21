@@ -58,6 +58,7 @@ export async function finalizePaidOrder(
         source: order.source,
         discount: order.discountAmount,
         paidAt: order.paidAt,
+        paymentMethod: order.paymentMethod,
         shippingAddress: (order.shippingAddress as Record<string, string> | null) ?? undefined,
       });
     } catch (error) {

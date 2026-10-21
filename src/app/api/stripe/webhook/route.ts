@@ -565,6 +565,7 @@ async function createOrder({
         source: created.source,
         discount: created.discountAmount,
         paidAt: created.paidAt,
+        paymentMethod: created.paymentMethod,
         shippingAddress: (created.shippingAddress as Record<string, string> | null) ?? undefined,
       });
       console.log('Order confirmation email sent to:', created.email);
