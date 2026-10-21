@@ -15,7 +15,7 @@ export default function ConditionalLayout({
   const pathname = usePathname();
   const isAdminRoute = pathname.startsWith('/admin');
   // QR scan landing pages (/b/<code>) and the in-shop receipt (/receipt) are focused screens: no navbar, footer or chat button
-  const isScanRoute = pathname.startsWith('/b/') || pathname.startsWith('/receipt');
+  const isScanRoute = pathname.startsWith('/b/') || pathname.startsWith('/receipt') || pathname.startsWith('/venue');
 
   return (
     <>

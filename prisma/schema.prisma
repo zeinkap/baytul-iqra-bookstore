@@ -38,6 +38,7 @@ model Scan {
   book      Book?    @relation(fields: [bookId], references: [id], onDelete: SetNull)
   status    String   // "ok" | "sold-out" | "not-found"
   location  String?  // venue slug from the QR link (?loc=cafe-a)
+  device    String?  // "ios" | "android" | "desktop" | "other"
   createdAt DateTime @default(now())
 
   @@index([bookId, createdAt])
@@ -83,6 +84,8 @@ model Order {
   source           String   @default("online") // "online" or "in-shop" (QR scan at the shop)
   paidAt           DateTime? // set when Stripe confirms payment (orders are created before payment)
   location         String?  // venue slug from the QR link (?loc=cafe-a)
+  paymentMethod    String?  // "apple_pay" | "google_pay" | "card" | "link" | ... (from Stripe, set by the webhook)
+  device           String?  // "ios" | "android" | "desktop" | "other" (from the browser, never the raw user agent)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
@@ -113,4 +116,11 @@ model Feedback {
   createdAt DateTime @default(now())
 
   @@index([createdAt])
+}
+
+// Small key/value settings editable from the admin (e.g. current_venue: where the books are today)
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
 }

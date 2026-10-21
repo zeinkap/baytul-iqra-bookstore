@@ -9,8 +9,10 @@
  *   labels-2x2.pdf    one label per page, 2 x 2 inch (LABEL_SIZE_IN to change), for label-printer apps
  *   labels.csv        isbn/title/author/price/url columns for apps that import spreadsheets
  *
- * Venue tag: LOCATION=cafe-a adds ?loc=cafe-a to every link (so scans and sales are tracked per venue)
- * and writes to qr-labels/cafe-a/ so batches for different venues don't overwrite each other.
+ * Venue: you normally do NOT need LOCATION. The same books travel between venues, so sticker links stay
+ * venue-free and the venue comes from the admin's "Where are the books today?" setting or a venue sign
+ * (see npm run qr:venue-signs). LOCATION=cafe-a is only for a set of books that stays at one venue: it adds
+ * ?loc=cafe-a to every link and writes to qr-labels/cafe-a/.
  *
  * Each QR encodes {BASE_URL}/b/<isbn>, falling back to the book id when a book
  * has no ISBN. Books with stock 0 are skipped unless INCLUDE_OUT_OF_STOCK=1.

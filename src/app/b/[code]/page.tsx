@@ -5,7 +5,7 @@ import { normalizeIsbn } from '@/lib/isbn';
 import { htmlToText } from '@/lib/htmlToText';
 import ScanBook from './ScanBook';
 import ScanLogger from './ScanLogger';
-import { normalizeLocation } from '@/lib/location';
+import { resolveVenue } from '@/lib/venue';
 import BookSuggestions from '@/components/BookSuggestions';
 import { similarBooks, popularBooks, type Suggestion } from '@/lib/suggestions';
 
@@ -24,7 +24,7 @@ export default async function ScanBookPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { code } = await params;
-  const location = normalizeLocation((await searchParams).loc) ?? undefined;
+  const location = await resolveVenue((await searchParams).loc);
   const isbn = normalizeIsbn(decodeURIComponent(code));
 
   const book = await prisma.book.findFirst({

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { toast } from "react-hot-toast";
 
 interface Row {
   bookId: string;
@@ -34,6 +35,44 @@ export default function AdminScansPage() {
   const [venue, setVenue] = useState(""); // "" = all venues, "none" = untagged, otherwise a slug
   const [stats, setStats] = useState<Stats | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Where the books are today (applies to scans that arrive without a venue sign or tagged link)
+  const [currentVenue, setCurrentVenue] = useState<string | null>(null);
+  const [knownVenues, setKnownVenues] = useState<string[]>([]);
+  const [venueInput, setVenueInput] = useState("");
+  const [savingVenue, setSavingVenue] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/venue")
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Failed to load venue"))))
+      .then((d) => {
+        setCurrentVenue(d.current);
+        setKnownVenues(d.known);
+        setVenueInput(d.current ?? "");
+      })
+      .catch(() => {});
+  }, []);
+
+  async function saveVenue(venueValue: string | null) {
+    setSavingVenue(true);
+    try {
+      const res = await fetch("/api/admin/venue", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venue: venueValue }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save venue");
+      setCurrentVenue(data.current);
+      setVenueInput(data.current ?? "");
+      if (data.current && !knownVenues.includes(data.current)) setKnownVenues((v) => [...v, data.current].sort());
+      toast.success(data.current ? `Books are now at: ${data.current}` : "Venue cleared");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save venue");
+    } finally {
+      setSavingVenue(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -81,6 +120,41 @@ export default function AdminScansPage() {
             <option value={30}>Last 30 days</option>
             <option value={90}>Last 90 days</option>
           </select>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow border border-gray-100 p-4 mb-4" data-testid="current-venue-panel">
+        <label htmlFor="current-venue" className="block font-semibold text-gray-900">Where are the books today?</label>
+        <p className="text-xs text-gray-500 mb-2">
+          Every scan and sale is credited to this venue unless the customer scanned a venue sign. Update it when the books move.
+          {currentVenue ? <> Right now: <strong>{currentVenue}</strong>.</> : " Right now: no venue set."}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <input
+            id="current-venue"
+            list="known-venues"
+            value={venueInput}
+            onChange={(e) => setVenueInput(e.target.value.toLowerCase())}
+            placeholder="e.g. cafe-a"
+            className="border border-gray-300 rounded px-3 py-2 text-gray-900 bg-white"
+            data-testid="current-venue-input"
+          />
+          <datalist id="known-venues">
+            {knownVenues.map((v) => <option key={v} value={v} />)}
+          </datalist>
+          <button
+            onClick={() => saveVenue(venueInput.trim() || null)}
+            disabled={savingVenue}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold"
+            data-testid="current-venue-save"
+          >
+            Save
+          </button>
+          {currentVenue && (
+            <button onClick={() => saveVenue(null)} disabled={savingVenue} className="border border-gray-300 px-4 py-2 rounded-lg text-gray-800 bg-white">
+              Clear
+            </button>
+          )}
         </div>
       </div>
 
@@ -169,8 +243,8 @@ export default function AdminScansPage() {
             </table>
           </div>
           <p className="text-xs text-gray-500 mt-3">
-            Scans are counted once per phone session. Paid orders and revenue count paid in-shop purchases (Buy now). Venues come from
-            the <code>?loc=</code> tag in the QR link; labels made without one show as {NO_VENUE}. Abandoned means the buyer tapped Buy now
+            Scans are counted once per phone session. Paid orders and revenue count paid in-shop purchases (Buy now). Venues come from a scanned venue sign,
+            a <code>?loc=</code> tag in the link, or the venue set above; scans from before one was set show as {NO_VENUE}. Abandoned means the buyer tapped Buy now
             but never paid within 30 minutes.
           </p>
         </>

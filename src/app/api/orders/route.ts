@@ -6,6 +6,7 @@ import type { Prisma } from '@prisma/client';
 import { findStockProblems, stockProblemMessage } from '@/lib/stockManager';
 import { priceItems, discountForPromoId } from '@/lib/pricing';
 import { normalizeLocation } from '@/lib/location';
+import { deviceFromUserAgent } from '@/lib/device';
 
 // Extended Stripe session type to include shipping_details which may not be in all TypeScript definitions
 interface StripeSessionWithShipping extends Stripe.Response<Stripe.Checkout.Session> {
@@ -155,6 +156,7 @@ export async function POST(req: NextRequest) {
         email,
         source: source ?? 'online',
         location: normalizeLocation(location),
+        device: deviceFromUserAgent(req.headers.get('user-agent')),
       },
     });
 

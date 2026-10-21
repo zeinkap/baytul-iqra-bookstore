@@ -12,6 +12,7 @@ export default function AdminNav() {
     { href: '/admin/promo-codes', label: 'Promo Codes' },
     { href: '/admin/payment-links', label: 'Payment Links' },
     { href: '/admin/scans', label: 'QR Scans' },
+    { href: '/admin/insights', label: 'Insights' },
     { href: '/admin/stock-counts', label: 'Stock Counts' },
     { href: '/admin/feedback', label: 'Requests' },
     { href: '/admin/profit-margins', label: 'Profit Margins' },

@@ -89,6 +89,21 @@ export async function POST(req: NextRequest) {
   }
 }
 
+/** How the customer paid, from Stripe: "apple_pay", "google_pay", "link", "card"... (null if it can't be read). */
+async function paymentMethodLabel(stripe: Stripe, session: Stripe.Checkout.Session): Promise<string | null> {
+  try {
+    const intentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id;
+    if (!intentId) return null;
+    const intent = await stripe.paymentIntents.retrieve(intentId, { expand: ['payment_method'] });
+    const method = intent.payment_method;
+    if (!method || typeof method === 'string') return null;
+    return method.type === 'card' ? (method.card?.wallet?.type ?? 'card') : method.type;
+  } catch (error) {
+    console.error('Could not read payment method:', error);
+    return null;
+  }
+}
+
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
   const orderId = session.metadata?.orderId as string | undefined;
@@ -241,6 +256,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     customerName: customerName,
     source: session.metadata?.source === 'in-shop' ? 'in-shop' : 'online',
     location: session.metadata?.location || undefined,
+    paymentMethod: await paymentMethodLabel(stripe, session),
   });
 }
 
@@ -425,6 +441,7 @@ async function createOrder({
   customerName,
   source,
   location,
+  paymentMethod,
 }: {
   orderId?: string;
   promoCodeId?: string;
@@ -446,6 +463,7 @@ async function createOrder({
   customerName?: string;
   source?: 'online' | 'in-shop';
   location?: string;
+  paymentMethod?: string | null;
 }) {
   console.log('Creating order:', { orderId, email, customerName, totalCents });
 
@@ -458,7 +476,7 @@ async function createOrder({
     if (existingOrder) {
       if (!existingOrder.paidAt) {
         try {
-          await prisma.order.update({ where: { id: existingOrder.id }, data: { paidAt: new Date() } });
+          await prisma.order.update({ where: { id: existingOrder.id }, data: { paidAt: new Date(), ...(paymentMethod ? { paymentMethod } : {}) } });
         } catch (error) {
           console.error('Failed to mark order paid:', existingOrder.id, error);
         }
@@ -519,6 +537,7 @@ async function createOrder({
         customerName: customerName,
         source: source || 'online',
         location: location || null,
+        paymentMethod: paymentMethod || null,
         paidAt: new Date(),
       },
   });
