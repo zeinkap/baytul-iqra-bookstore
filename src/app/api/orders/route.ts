@@ -6,7 +6,9 @@ import type { Prisma } from '@prisma/client';
 import { findStockProblems, stockProblemMessage } from '@/lib/stockManager';
 import { priceItems, discountForPromoId } from '@/lib/pricing';
 import { normalizeLocation } from '@/lib/location';
+import { toPublicOrder } from '@/lib/publicOrder';
 import { deviceFromUserAgent } from '@/lib/device';
+import { extractBookItems } from '@/lib/stockManager';
 
 // Extended Stripe session type to include shipping_details which may not be in all TypeScript definitions
 interface StripeSessionWithShipping extends Stripe.Response<Stripe.Checkout.Session> {
@@ -143,6 +145,23 @@ export async function POST(req: NextRequest) {
     const shippingCost = fulfillmentType === 'shipping' ? 5.00 : 0;
     const finalTotal = total + shippingCost - discountAmount;
     
+    // Backing out of Stripe and tapping Buy now again would create a second unpaid order for the same book and
+    // inflate the abandoned count, so reuse a recent unpaid in-shop order for the same book, price, venue and device.
+    const venue = normalizeLocation(location);
+    const device = deviceFromUserAgent(req.headers.get('user-agent'));
+    if (source === 'in-shop' && items.length === 1) {
+      const recent = await prisma.order.findMany({
+        where: { source: 'in-shop', paidAt: null, email: null, location: venue, device, createdAt: { gte: new Date(Date.now() - 10 * 60_000) } },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+      });
+      const match = recent.find((o) => {
+        const prev = extractBookItems(o.items);
+        return prev.length === 1 && prev[0].id === items[0].id && prev[0].quantity === items[0].quantity && Math.abs(o.finalTotal - finalTotal) < 0.005;
+      });
+      if (match) return NextResponse.json({ id: match.id, reused: true });
+    }
+
     const order = await prisma.order.create({
       data: {
         items: items as unknown as Prisma.InputJsonValue,
@@ -155,8 +174,8 @@ export async function POST(req: NextRequest) {
         shippingAddress: fulfillmentType === 'shipping' ? shippingAddress : null,
         email,
         source: source ?? 'online',
-        location: normalizeLocation(location),
-        device: deviceFromUserAgent(req.headers.get('user-agent')),
+        location: venue,
+        device,
       },
     });
 
@@ -189,7 +208,7 @@ export async function PUT(req: NextRequest) {
     }
     // If already exists, return it
     const existing = await prisma.order.findUnique({ where: { id: orderId } });
-    if (existing) return NextResponse.json(existing);
+    if (existing) return NextResponse.json(toPublicOrder(existing));
 
     // Build from line items similar to webhook
     const lineItems = await stripe.checkout.sessions.listLineItems(sessionId);
@@ -291,7 +310,7 @@ export async function PUT(req: NextRequest) {
     // Note: Stock updates are handled after successful payment in webhooks
     // This endpoint creates orders from completed Stripe sessions
 
-    return NextResponse.json(created);
+    return NextResponse.json(toPublicOrder(created));
   } catch (error) {
     console.error('Failed to create order from session:', error);
     return NextResponse.json({ error: 'Failed to create order from session' }, { status: 500 });

@@ -43,6 +43,9 @@ interface Order {
   email: string | null;
   customerName: string | null;
   source: string;
+  refundedAmount?: number | null;
+  refundedAt?: string | null;
+  restockedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -196,6 +199,20 @@ export default function AdminOrdersPage() {
 
   function handlePageChange(page: number) {
     setPagination(prev => ({ ...prev, page }));
+  }
+
+  const fullyRefunded = (order: Order) => !!order.refundedAt && order.finalTotal - (order.refundedAmount ?? 0) <= 0.005;
+
+  async function restockOrder(order: Order) {
+    if (!confirm('Add the books from this refunded order back to stock? Only do this if the books came back.')) return;
+    const res = await fetch(`/api/admin/orders/${order.id}/restock`, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(data.error || 'Could not restock this order');
+      return;
+    }
+    alert(`${data.restocked} book(s) added back to stock.`);
+    fetchOrders();
   }
 
   function viewOrderDetails(order: Order) {
@@ -540,6 +557,11 @@ export default function AdminOrdersPage() {
                       {order.source === 'in-shop' && (
                         <span className="ml-2 px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800">In shop</span>
                       )}
+                      {order.refundedAt && (
+                        <span className="ml-2 px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800" data-testid="refunded-badge">
+                          {fullyRefunded(order) ? 'Refunded' : `Refunded $${(order.refundedAmount ?? 0).toFixed(2)}`}
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       <button
@@ -548,6 +570,17 @@ export default function AdminOrdersPage() {
                       >
                         View Details
                       </button>
+                      {fullyRefunded(order) && !order.restockedAt && (
+                        <button
+                          onClick={() => restockOrder(order)}
+                          className="ml-3 text-red-700 hover:underline"
+                          title="Add this order's books back to stock (use only if the books came back)"
+                          data-testid="restock-button"
+                        >
+                          Put books back in stock
+                        </button>
+                      )}
+                      {order.restockedAt && <span className="ml-3 text-xs text-gray-500">Restocked</span>}
                     </td>
                   </tr>
                 ))

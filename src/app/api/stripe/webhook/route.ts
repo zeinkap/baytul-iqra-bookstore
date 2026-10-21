@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
 import { updateBookStock, extractBookItems, hasStockBeenUpdated } from '@/lib/stockManager';
 import { sendOrderConfirmationEmail } from '@/lib/sendEmail';
+import { finalizePaidOrder, notifySalesOfPaidOrder, paymentMethodLabel, recordRefund } from '@/lib/finalizeOrder';
 
 // Extended Stripe session type to include shipping_details which may not be in all TypeScript definitions
 interface StripeSessionWithShipping extends Stripe.Checkout.Session {
@@ -62,9 +63,11 @@ export async function POST(req: NextRequest) {
     console.log('Webhook event processed:', event.type, event.id);
     
     // Handle both checkout.session.completed (regular checkout) and payment_intent.succeeded (payment links)
-    if (event.type === 'checkout.session.completed') {
-      console.log('Processing checkout.session.completed event');
+    if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
+      console.log(`Processing ${event.type} event`);
       await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session);
+    } else if (event.type === 'charge.refunded') {
+      await handleChargeRefunded(event.data.object as Stripe.Charge);
     } else if (event.type === 'payment_intent.succeeded') {
       console.log('Processing payment_intent.succeeded event');
       await handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
@@ -89,22 +92,29 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/** How the customer paid, from Stripe: "apple_pay", "google_pay", "link", "card"... (null if it can't be read). */
-async function paymentMethodLabel(stripe: Stripe, session: Stripe.Checkout.Session): Promise<string | null> {
-  try {
-    const intentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id;
-    if (!intentId) return null;
-    const intent = await stripe.paymentIntents.retrieve(intentId, { expand: ['payment_method'] });
-    const method = intent.payment_method;
-    if (!method || typeof method === 'string') return null;
-    return method.type === 'card' ? (method.card?.wallet?.type ?? 'card') : method.type;
-  } catch (error) {
-    console.error('Could not read payment method:', error);
-    return null;
+/** A refund (full or partial) in Stripe: record it on the order so reports stop counting that money. */
+async function handleChargeRefunded(charge: Stripe.Charge) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  const intentId = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id;
+  if (!intentId) return;
+  // The order id lives on the Checkout Session that created this payment
+  const sessions = await stripe.checkout.sessions.list({ payment_intent: intentId, limit: 1 });
+  const orderId = sessions.data[0]?.metadata?.orderId;
+  if (!orderId) {
+    console.log('Refund for a payment with no checkout order (ignored):', charge.id);
+    return;
   }
+  await recordRefund(orderId, charge.amount_refunded / 100);
+  console.log(`Recorded refund of $${(charge.amount_refunded / 100).toFixed(2)} on order ${orderId}`);
 }
 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+  // Delayed payment methods (e.g. bank debits) complete the checkout before the money arrives. Wait for
+  // checkout.session.async_payment_succeeded instead of marking the order paid, stocked and emailed too early.
+  if (session.payment_status === 'unpaid') {
+    console.log('Checkout completed but payment still pending; waiting for async payment confirmation:', session.id);
+    return;
+  }
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
   const orderId = session.metadata?.orderId as string | undefined;
   const promoCodeId = session.metadata?.promoCodeId as string | undefined;
@@ -474,13 +484,9 @@ async function createOrder({
     });
 
     if (existingOrder) {
-      if (!existingOrder.paidAt) {
-        try {
-          await prisma.order.update({ where: { id: existingOrder.id }, data: { paidAt: new Date(), ...(paymentMethod ? { paymentMethod } : {}) } });
-        } catch (error) {
-          console.error('Failed to mark order paid:', existingOrder.id, error);
-        }
-      }
+      // Mark paid and save what Stripe collected (email, name, payment method). Shared with the receipt page's
+      // fallback so whichever runs first does the work and the receipt email goes out exactly once.
+      const finalized = await finalizePaidOrder(existingOrder.id, { email, customerName, paymentMethod });
       console.log(`Order ${orderId} already exists, ensuring stock updated and skipping duplicate creation`);
       // Still deduct inventory: order was created before payment, so stock wasn't updated yet
       try {
@@ -496,28 +502,7 @@ async function createOrder({
         console.error('Failed to update stock for existing order:', existingOrder.id, stockError);
       }
 
-      // Orders created before payment may not have an email yet (in-shop "buy now" lets Stripe collect it).
-      // Save what Stripe collected and send the confirmation that would otherwise never go out.
-      if (!existingOrder.email && email) {
-        try {
-          const updated = await prisma.order.update({
-            where: { id: existingOrder.id },
-            data: { email, customerName: existingOrder.customerName || customerName || undefined },
-          });
-          await sendOrderConfirmationEmail({
-            to: email,
-            orderId: updated.id,
-            items: updated.items as { title: string; quantity: number; price: number }[],
-            total: updated.finalTotal,
-            fulfillmentType: updated.fulfillmentType,
-            source: updated.source,
-          });
-          return updated;
-        } catch (error) {
-          console.error('Failed to backfill email for existing order:', existingOrder.id, error);
-        }
-      }
-      return existingOrder;
+      return finalized ?? existingOrder;
     }
   }
 
@@ -543,6 +528,9 @@ async function createOrder({
   });
 
   console.log('Order created successfully:', created.id);
+
+  // Alert the shop about this sale (once: this branch only runs when the order didn't exist yet)
+  await notifySalesOfPaidOrder(created);
 
   // Update promo code usage if applicable
   if (promoCodeId) {

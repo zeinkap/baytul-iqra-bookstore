@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import Stripe from 'stripe';
 import { sendOrderNotificationToSales } from '@/lib/sendEmail';
+import { finalizePaidOrder, paymentMethodLabel } from '@/lib/finalizeOrder';
+import { toPublicOrder } from '@/lib/publicOrder';
 
 export async function POST(req: NextRequest) {
   try {
@@ -189,9 +191,13 @@ export async function POST(req: NextRequest) {
     });
 
     // Check if order already exists
-    const existing = await prisma.order.findUnique({ where: { id: orderId } });
+    let existing = await prisma.order.findUnique({ where: { id: orderId } });
     
     if (existing) {
+      // Same finalizing the webhook does (paid time, payment method, name, email + receipt), in case the
+      // webhook is slow or never reached us. Only fills fields that are still empty.
+      existing = (await finalizePaidOrder(orderId, { email, customerName, paymentMethod: await paymentMethodLabel(stripe, session) })) ?? existing;
+
       // Check if existing order is missing customer information
       const needsUpdate = !existing.customerName || !existing.shippingAddress || !existing.email;
       
@@ -218,11 +224,11 @@ export async function POST(req: NextRequest) {
         });
         
         console.log('Order updated successfully with customer info');
-        return NextResponse.json(updated);
+        return NextResponse.json(toPublicOrder(updated));
       }
       
       // Order exists and has all necessary information
-      return NextResponse.json(existing);
+      return NextResponse.json(toPublicOrder(existing));
     }
 
     // Create new order
@@ -280,12 +286,12 @@ export async function POST(req: NextRequest) {
       // Note: Stock updates are handled after successful payment in webhooks
       // This endpoint creates orders from completed Stripe sessions
 
-      return NextResponse.json(created);
+      return NextResponse.json(toPublicOrder(created));
     } catch (err: unknown) {
       // If already created by webhook, return existing idempotently
       if (err && typeof err === 'object' && 'code' in err && (err as { code?: string }).code === 'P2002') {
         const existing = await prisma.order.findUnique({ where: { id: orderId } });
-        if (existing) return NextResponse.json(existing);
+        if (existing) return NextResponse.json(toPublicOrder(existing));
       }
       throw err;
     }

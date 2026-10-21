@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/adminAuth';
 import { extractBookItems } from '@/lib/stockManager';
 import { normalizeLocation } from '@/lib/location';
 import { SCAN_STATUSES } from '@/lib/scanStatus';
+import { isFullyRefunded, netOrderTotal } from '@/lib/finalizeOrder';
 
 // A buyer who tapped Buy now but never paid is only "abandoned" after this long (they may still be paying)
 const ABANDONED_AFTER_MS = 30 * 60 * 1000;
@@ -23,17 +24,20 @@ export async function GET(req: NextRequest) {
 
   const inShop = { source: 'in-shop' };
   const scanWhere = { createdAt: { gte: since }, ...locWhere };
-  const [scansByBook, scansByStatus, scansByVenue, paidOrders, abandonedOrders, unknownCodes, soldOutByBook, buyFailureReasons] = await Promise.all([
+  const [scansByBook, scansByStatus, scansByVenue, paidRaw, abandonedOrders, unknownCodes, soldOutByBook, buyFailureReasons] = await Promise.all([
     prisma.scan.groupBy({ by: ['bookId'], where: { ...scanWhere, bookId: { not: null }, status: { in: SCAN_STATUSES } }, _count: { _all: true } }),
     prisma.scan.groupBy({ by: ['status'], where: { createdAt: { gte: since }, ...locWhere }, _count: { _all: true } }),
     prisma.scan.groupBy({ by: ['location'], where: { createdAt: { gte: since }, status: { in: SCAN_STATUSES } }, _count: { _all: true } }),
-    prisma.order.findMany({ where: { ...inShop, paidAt: { gte: since } }, select: { items: true, finalTotal: true, location: true } }),
+    prisma.order.findMany({ where: { ...inShop, paidAt: { gte: since } }, select: { items: true, finalTotal: true, refundedAmount: true, location: true } }),
     prisma.order.findMany({ where: { ...inShop, paidAt: null, createdAt: { gte: since, lte: abandonedBefore } }, select: { items: true, location: true } }),
     // Failed scans: labels that point nowhere, books that were sold out, and Buy now errors
     prisma.scan.groupBy({ by: ['code'], where: { ...scanWhere, status: 'not-found' }, _count: { _all: true }, _max: { createdAt: true }, orderBy: { _count: { code: 'desc' } }, take: 20 }),
     prisma.scan.groupBy({ by: ['bookId'], where: { ...scanWhere, status: 'sold-out', bookId: { not: null } }, _count: { _all: true }, orderBy: { _count: { bookId: 'desc' } }, take: 10 }),
     prisma.scan.groupBy({ by: ['detail'], where: { ...scanWhere, status: 'buy-failed' }, _count: { _all: true }, orderBy: { _count: { detail: 'desc' } } }),
   ]);
+
+  // Fully refunded sales don't count; partial refunds reduce the amount
+  const paidOrders = paidRaw.filter((o) => !isFullyRefunded(o)).map((o) => ({ ...o, finalTotal: netOrderTotal(o) }));
 
   const matchesVenue = (venue: string | null) => (loc === 'none' ? venue === null : loc ? venue === loc : true);
 

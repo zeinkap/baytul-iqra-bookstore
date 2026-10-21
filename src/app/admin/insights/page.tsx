@@ -75,7 +75,12 @@ export default function AdminInsightsPage() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 text-gray-900">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <h1 className="text-2xl font-bold">Insights</h1>
+        <div>
+          <h1 className="text-2xl font-bold">Insights</h1>
+          <a href="/api/cron/daily-summary?preview=1" target="_blank" rel="noreferrer" className="text-xs text-blue-600 underline" data-testid="summary-preview-link">
+            Preview the daily summary email
+          </a>
+        </div>
         <div className="flex flex-wrap gap-2">
           <Select value={source} onChange={(v) => setSource(v as "in-shop" | "all")} testId="insights-source">
             <option value="in-shop">In-shop sales</option>

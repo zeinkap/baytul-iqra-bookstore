@@ -47,11 +47,14 @@ export default function SuccessClient({
   const orderId = typeof searchParams.orderId === 'string' ? searchParams.orderId : undefined;
   const sessionId = typeof searchParams.session_id === 'string' ? searchParams.session_id : undefined;
   const [order, setOrder] = useState<Order | null>(null);
+  // Stripe says the checkout isn't paid yet (a delayed payment method, or the payment didn't go through)
+  const [sessionUnpaid, setSessionUnpaid] = useState(false);
+  // After ~25s without a confirmation, stop saying "confirming" and explain that the payment is still processing
+  const [waitedLong, setWaitedLong] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { clearCart } = useCart();
   const clearedRef = useRef(false);
-  const notificationSentRef = useRef(false);
   const stockUpdateAttemptedRef = useRef(false);
 
   // Backup stock update function
@@ -103,23 +106,6 @@ export default function SuccessClient({
               clearCart();
               clearedRef.current = true;
             }
-            // Send sales notification once
-            if (!notificationSentRef.current && (data.email || data.source === 'in-shop')) {
-              notificationSentRef.current = true;
-              fetch('/api/orders/notify-sales', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  orderId: data.id,
-                  items: data.items,
-                  total: data.total,
-                  fulfillmentType: data.fulfillmentType,
-                  customerEmail: data.email || 'Collected by Stripe (see Stripe receipt)',
-                  source: data.source,
-                  shippingAddress: data.shippingAddress,
-                }),
-              }).catch((err) => console.error('Failed to send sales notification:', err));
-            }
             // Trigger backup stock update
             updateStockBackup(data.id);
             return; // success
@@ -139,22 +125,6 @@ export default function SuccessClient({
               if (!clearedRef.current) {
                 clearCart();
                 clearedRef.current = true;
-              }
-              if (!notificationSentRef.current && (data.email || data.source === 'in-shop')) {
-                notificationSentRef.current = true;
-                fetch('/api/orders/notify-sales', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    orderId: data.id,
-                    items: data.items,
-                    total: data.total,
-                    fulfillmentType: data.fulfillmentType,
-                    customerEmail: data.email || 'Collected by Stripe (see Stripe receipt)',
-                  source: data.source,
-                    shippingAddress: data.shippingAddress,
-                  }),
-                }).catch((err) => console.error('Failed to send sales notification:', err));
               }
               // Trigger backup stock update
               updateStockBackup(data.id);
@@ -182,12 +152,38 @@ export default function SuccessClient({
   // later (via the webhook). Refresh the receipt for ~20s so the real values replace the placeholders.
   const inShopId = order?.source === 'in-shop' ? order.id : null;
   const needsRefresh = !order?.email || !order?.paidAt;
+  const unpaidInShop = !!inShopId && !order?.paidAt;
+  useEffect(() => {
+    if (!unpaidInShop) return;
+    const timer = setTimeout(() => setWaitedLong(true), 25_000);
+    return () => clearTimeout(timer);
+  }, [unpaidInShop]);
   useEffect(() => {
     if (!inShopId || !needsRefresh) return;
     let tries = 0;
+    let unpaid = false;
     const timer = setInterval(async () => {
       tries += 1;
       try {
+        // If Stripe's webhook hasn't landed after a few seconds (slow, or not running), ask the server to
+        // finalize the order straight from the Stripe session so the receipt can still complete. If Stripe says
+        // it isn't paid yet (delayed payment methods can take minutes), keep asking every ~15s.
+        if (sessionId && (tries === 2 || (unpaid && tries % 6 === 0))) {
+          const res = await fetch('/api/orders/from-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId }),
+          });
+          if (res.ok) {
+            unpaid = false;
+            setSessionUnpaid(false);
+            const fresh: Order = await res.json();
+            setOrder((prev) => (prev ? { ...prev, ...fresh } : fresh));
+          } else if (res.status === 400) {
+            unpaid = true;
+            setSessionUnpaid(true);
+          }
+        }
         const res = await fetch(`/api/orders/${inShopId}`, { cache: 'no-store' });
         if (res.ok) {
           const fresh: Order = await res.json();
@@ -196,10 +192,10 @@ export default function SuccessClient({
       } catch {
         // ignore and try again
       }
-      if (tries >= 10) clearInterval(timer);
-    }, 2000);
+      if (tries >= 120) clearInterval(timer); // about 5 minutes
+    }, 2500);
     return () => clearInterval(timer);
-  }, [inShopId, needsRefresh]);
+  }, [inShopId, needsRefresh, sessionId]);
 
   if (!orderId) {
     return <div className="max-w-2xl mx-auto p-8 text-center text-red-600 font-bold">Missing order ID.</div>;
@@ -246,7 +242,10 @@ export default function SuccessClient({
   }
 
   if (order.source === 'in-shop') {
-    return <InShopReceipt order={order} footer={footer} />;
+    // "Paid" only once the server has confirmed the payment. A receipt link for an unpaid or still-processing order
+    // must never look like proof of purchase.
+    const status = order.paidAt ? 'paid' : !sessionId || sessionUnpaid || waitedLong ? 'processing' : 'confirming';
+    return <InShopReceipt order={order} footer={footer} status={status} />;
   }
 
   const formatCurrency = (n: number) => `$${Number(n || 0).toFixed(2)}`;

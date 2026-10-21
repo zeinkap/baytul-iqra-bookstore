@@ -365,6 +365,8 @@ export async function POST(req: NextRequest) {
         shipping_address_collection: { allowed_countries: ['US', 'CA'] }
       }),
       customer_email: email,
+      // In-shop checkouts expire after about half an hour: a stale link can't be paid after the book has moved on
+      ...(inShop && { expires_at: Math.floor(Date.now() / 1000) + 31 * 60 }),
       // In-shop scans: keep checkout to email + payment (wallet-friendly), no billing address or phone
       billing_address_collection: inShop ? 'auto' : 'required', // 'required' collects customer name
       phone_number_collection: {

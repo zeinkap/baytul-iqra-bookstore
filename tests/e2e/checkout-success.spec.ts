@@ -134,9 +134,11 @@ test.describe('Checkout Success Page', () => {
     await page.goto(`/checkout/success?orderId=${order.id}`);
     await checkoutSuccessPage.waitForSuccessPage();
 
-    // Verify customer email is displayed
+    // The order link only ever shows a masked email (a***@domain), never the full address
+    const [localPart, domain] = testEmail.split('@');
     const displayedEmail = await checkoutSuccessPage.getCustomerEmail();
-    expect(displayedEmail).toContain(testEmail);
+    expect(displayedEmail).toContain(`${localPart.charAt(0)}***@${domain}`);
+    expect(displayedEmail).not.toContain(testEmail);
     
     // Verify pickup details are shown (not shipping address)
     const pickupDetails = await checkoutSuccessPage.getPickupDetails();

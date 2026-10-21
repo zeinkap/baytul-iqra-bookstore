@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { NextRequest, NextResponse } from 'next/server';
+import { toPublicOrder } from '@/lib/publicOrder';
 
 export async function GET(
   req: NextRequest,
@@ -14,7 +15,7 @@ export async function GET(
 
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
-    return NextResponse.json(order);
+    return NextResponse.json(toPublicOrder(order));
   } catch {
     return NextResponse.json({ error: 'Failed to fetch order' }, { status: 500 });
   }

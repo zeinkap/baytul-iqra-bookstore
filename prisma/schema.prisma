@@ -84,6 +84,9 @@ model Order {
   customerName     String?
   source           String   @default("online") // "online" or "in-shop" (QR scan at the shop)
   paidAt           DateTime? // set when Stripe confirms payment (orders are created before payment)
+  refundedAmount   Float?   // total refunded so far, from Stripe (equals finalTotal when fully refunded)
+  refundedAt       DateTime?
+  restockedAt      DateTime? // set when an admin put a refunded order's books back in stock
   location         String?  // venue slug from the QR link (?loc=cafe-a)
   paymentMethod    String?  // "apple_pay" | "google_pay" | "card" | "link" | ... (from Stripe, set by the webhook)
   device           String?  // "ios" | "android" | "desktop" | "other" (from the browser, never the raw user agent)
