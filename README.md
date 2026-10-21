@@ -187,7 +187,7 @@ A floating chat widget (`src/components/ChatWidget.tsx`) answers book recommenda
 - `npm run db:migrate` - Run database migrations
 - `npm run db:reset` - Reset database (⚠️ destructive)
 - `npm run db:seed` - Seed database with books from CSV
-- `npx ts-node --project tsconfig.scripts.json scripts/syncProdToLocal.ts` - **Sync production data to local database**
+- `npm run db:sync-from-prod` - **Sync the production catalog to your local database** (see below)
 
 ### Promo Code Management
 - `npx tsx scripts/addPromoCodes.ts` - Add sample promo codes to database
@@ -237,18 +237,23 @@ The restoration script will:
 
 ### Sync Production to Local Development
 
-To work with production data in your local development environment without affecting the live database:
+To make your local database match production (books, ISBNs, images, categories, promo codes) without touching the live database:
 
 ```bash
-npx ts-node --project tsconfig.scripts.json scripts/syncProdToLocal.ts
+npm run db:sync-from-prod                      # catalog only (recommended)
+npm run db:sync-from-prod -- --include-orders  # also copies customer orders (emails, addresses)
 ```
 
-This script will:
-1. 📦 **Export data** from your production database (Neon)
-2. 🧹 **Clear** your local PostgreSQL database
-3. 📥 **Import** all production data (books, categories, promo codes, orders)
-4. ✅ **Verify** the import was successful
-5. 🎉 Provide summary statistics
+The script only **reads** from production. It:
+1. 🛡️ Refuses to run unless your local `DATABASE_URL` is on `localhost`, and asks you to type `yes` first (`--yes` skips the prompt).
+2. 🧱 Applies pending migrations to your local database so the schema matches production.
+3. 📦 Dumps the production tables to a temporary file.
+4. 🔁 In **one transaction**, clears the local Book/Category/PromoCode data (this also clears local orders, scans and stock counts, which point at books) and imports the dump. If anything fails, nothing local is changed.
+5. ✅ Prints counts (books, books with an ISBN, books with 2+ images, ...).
+
+Connection strings: production comes from `PROD_DATABASE_URL`, or `DATABASE_URL` inside `.env.production`; local comes from `DATABASE_URL` in the environment or `.env`.
+
+Requires the `psql` and `pg_dump` command-line tools. `pg_dump` must be the same version as (or newer than) the production server; if you see a "server version mismatch", install a newer one (`brew install postgresql@17`) and put it first on your `PATH`.
 
 **Benefits:**
 - ✅ Safe development with real data
