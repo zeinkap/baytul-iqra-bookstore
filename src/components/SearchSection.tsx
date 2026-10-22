@@ -101,7 +101,7 @@ export default function SearchSection({
             Discover Your Next Read
           </h2>
           <p className="text-sm sm:text-base lg:text-lg text-gray-600 max-w-2xl mx-auto">
-            Search through our extensive collection of Islamic literature. Filter by category, author, or browse our curated selections.
+            Browse our collection of Islamic books by title, author, or category.
           </p>
         </div>
         
