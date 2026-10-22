@@ -14,7 +14,7 @@ export interface PricedItem {
 }
 
 type PriceResult =
-  | { ok: true; items: PricedItem[]; subtotal: number }
+  | { ok: true; items: PricedItem[]; subtotal: number; stockById: Map<string, { title: string; stock: number }> }
   | { ok: false; error: string; status: number };
 
 /**
@@ -55,7 +55,8 @@ export async function priceItems(rawItems: unknown): Promise<PriceResult> {
   }
 
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
-  return { ok: true, items, subtotal };
+  const stockById = new Map(books.map((b) => [b.id, { title: b.title, stock: b.stock }]));
+  return { ok: true, items, subtotal, stockById };
 }
 
 type PromoResult = { valid: true; discountAmount: number } | { valid: false; error: string };

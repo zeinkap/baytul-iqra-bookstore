@@ -152,7 +152,10 @@ export interface StockProblem {
  * Checks cart/order items against current stock. Returns the items that can't be fulfilled
  * (empty array means everything is available). Call before creating an order or Stripe session.
  */
-export async function findStockProblems(items: unknown): Promise<StockProblem[]> {
+export async function findStockProblems(
+  items: unknown,
+  knownStock?: Map<string, { title: string; stock: number }>
+): Promise<StockProblem[]> {
   const requestedById = new Map<string, number>();
   for (const item of extractBookItems(items)) {
     if (!item.id) continue;
@@ -160,11 +163,17 @@ export async function findStockProblems(items: unknown): Promise<StockProblem[]>
   }
   if (requestedById.size === 0) return [];
 
-  const books = await prisma.book.findMany({
-    where: { id: { in: [...requestedById.keys()] } },
-    select: { id: true, title: true, stock: true },
-  });
-  const stockById = new Map(books.map((b) => [b.id, b]));
+  // Callers that just loaded the books (priceItems) pass their stock so we don't query the same rows again
+  const stockById =
+    knownStock ??
+    new Map(
+      (
+        await prisma.book.findMany({
+          where: { id: { in: [...requestedById.keys()] } },
+          select: { id: true, title: true, stock: true },
+        })
+      ).map((b) => [b.id, b])
+    );
 
   const problems: StockProblem[] = [];
   for (const [id, requested] of requestedById) {

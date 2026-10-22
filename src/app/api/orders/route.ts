@@ -8,7 +8,7 @@ import { priceItems, discountForPromoId } from '@/lib/pricing';
 import { normalizeLocation } from '@/lib/location';
 import { toPublicOrder } from '@/lib/publicOrder';
 import { deviceFromUserAgent } from '@/lib/device';
-import { extractBookItems } from '@/lib/stockManager';
+import { findReusableInShopOrder } from '@/lib/inShopOrders';
 
 // Extended Stripe session type to include shipping_details which may not be in all TypeScript definitions
 interface StripeSessionWithShipping extends Stripe.Response<Stripe.Checkout.Session> {
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
       discountAmount = promo.discountAmount;
     }
 
-    const stockProblems = await findStockProblems(items);
+    const stockProblems = await findStockProblems(items, priced.stockById);
     if (stockProblems.length > 0) {
       return NextResponse.json({ error: stockProblemMessage(stockProblems), stockProblems }, { status: 409 });
     }
@@ -145,20 +145,10 @@ export async function POST(req: NextRequest) {
     const shippingCost = fulfillmentType === 'shipping' ? 5.00 : 0;
     const finalTotal = total + shippingCost - discountAmount;
     
-    // Backing out of Stripe and tapping Buy now again would create a second unpaid order for the same book and
-    // inflate the abandoned count, so reuse a recent unpaid in-shop order for the same book, price, venue and device.
     const venue = normalizeLocation(location);
     const device = deviceFromUserAgent(req.headers.get('user-agent'));
-    if (source === 'in-shop' && items.length === 1) {
-      const recent = await prisma.order.findMany({
-        where: { source: 'in-shop', paidAt: null, email: null, location: venue, device, createdAt: { gte: new Date(Date.now() - 10 * 60_000) } },
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-      });
-      const match = recent.find((o) => {
-        const prev = extractBookItems(o.items);
-        return prev.length === 1 && prev[0].id === items[0].id && prev[0].quantity === items[0].quantity && Math.abs(o.finalTotal - finalTotal) < 0.005;
-      });
+    if (source === 'in-shop') {
+      const match = await findReusableInShopOrder({ items, finalTotal, venue, device });
       if (match) return NextResponse.json({ id: match.id, reused: true });
     }
 

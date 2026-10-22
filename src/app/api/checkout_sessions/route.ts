@@ -5,6 +5,7 @@ import { findStockProblems, stockProblemMessage } from '@/lib/stockManager';
 import { priceItems, discountForPromoId } from '@/lib/pricing';
 import { isAdminRequest } from '@/lib/adminAuth';
 import { normalizeLocation } from '@/lib/location';
+import { safeInShopCancelPath } from '@/lib/inShopOrders';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -28,6 +29,7 @@ export async function POST(req: NextRequest) {
       createPaymentLink === true && (await isAdminRequest(req)) && Array.isArray(rawItems) && rawItems.length > 0;
     let items: CartItem[];
     let discountAmount = 0; // dollars, server-computed
+    let knownStock: Map<string, { title: string; stock: number }> | undefined;
     if (isAdminCustomLink) {
       items = rawItems;
     } else {
@@ -36,6 +38,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: priced.error }, { status: priced.status });
       }
       items = priced.items;
+      knownStock = priced.stockById;
       if (promoCodeId) {
         const promo = await discountForPromoId(promoCodeId, priced.subtotal);
         if (!promo.valid) {
@@ -46,7 +49,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Re-check stock right before payment: someone else may have bought the last copy since the cart was built
-    const stockProblems = await findStockProblems(items);
+    const stockProblems = await findStockProblems(items, knownStock);
     if (stockProblems.length > 0) {
       return NextResponse.json({ error: stockProblemMessage(stockProblems), stockProblems }, { status: 409 });
     }
@@ -359,7 +362,7 @@ export async function POST(req: NextRequest) {
       // In-shop buyers get the focused receipt page; everyone else the normal order confirmation
       success_url: `${req.nextUrl.origin}${inShop ? '/receipt' : '/checkout/success'}?orderId=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
       // In-shop buy-now purchases return to the book they scanned; only same-site /b/ paths are accepted
-      cancel_url: `${req.nextUrl.origin}${inShop && typeof cancelPath === 'string' && /^\/b\/[\w-]+(\?loc=[a-z0-9-]{1,40})?$/.test(cancelPath) ? cancelPath : '/cart'}`,
+      cancel_url: `${req.nextUrl.origin}${inShop ? safeInShopCancelPath(cancelPath) : '/cart'}`,
       // Only collect shipping address if fulfillment type is shipping
       ...(fulfillmentType === 'shipping' && {
         shipping_address_collection: { allowed_countries: ['US', 'CA'] }

@@ -45,49 +45,22 @@ export default function ScanBook({
     setBuying(true);
     let navigating = false;
     // What to record if something throws: a failed fetch (no connection) counts as "network"
-    let failure: "network" | "order-failed" | "checkout-failed" = "network";
+    let failure: "network" | "checkout-failed" = "network";
     try {
       const items = [{ ...book, quantity: 1 }];
-      const orderRes = await fetch("/api/orders", {
+      // One request creates the order and the Stripe session, so the phone makes a single round trip
+      const sessionRes = await fetch("/api/in-shop/buy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           items,
-          total: book.price,
-          fulfillmentType: "pickup",
-          pickupLocation: "In shop",
-          source: "in-shop",
-          location,
-        }),
-      });
-      const order = await orderRes.json();
-      if (orderRes.status === 409) {
-        // Someone bought the last copy since this page loaded: re-render the server page (out-of-stock message)
-        toast.error(order.error || "Sorry, this book just sold out.");
-        reportScanFailure(code, "buy-failed", "sold-out-race", location);
-        router.refresh();
-        return;
-      }
-      if (!orderRes.ok) {
-        failure = "order-failed";
-        throw new Error(order.error || "Failed to create order");
-      }
-
-      const sessionRes = await fetch("/api/checkout_sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items,
-          fulfillmentType: "pickup",
-          pickupLocation: "In shop",
-          orderId: order.id,
-          source: "in-shop",
           location,
           cancelPath: `/b/${code}${location ? `?loc=${location}` : ""}`,
         }),
       });
       const data = await sessionRes.json();
       if (sessionRes.status === 409) {
+        // Someone bought the last copy since this page loaded: re-render the server page (out-of-stock message)
         toast.error(data.error || "Sorry, this book just sold out.");
         reportScanFailure(code, "buy-failed", "sold-out-race", location);
         router.refresh();
