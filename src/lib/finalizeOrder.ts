@@ -7,9 +7,14 @@ import { extractBookItems } from './stockManager';
 /** How the customer paid, from Stripe: "apple_pay", "google_pay", "link", "card"... (null if it can't be read). */
 export async function paymentMethodLabel(stripe: Stripe, session: Stripe.Checkout.Session): Promise<string | null> {
   try {
-    const intentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id;
-    if (!intentId) return null;
-    const intent = await stripe.paymentIntents.retrieve(intentId, { expand: ['payment_method'] });
+    const sessionIntent = session.payment_intent;
+    // A session retrieved with expand: ['payment_intent.payment_method'] already carries the method: no extra Stripe call
+    let intent = sessionIntent && typeof sessionIntent !== 'string' ? sessionIntent : null;
+    if (!intent || !intent.payment_method) {
+      const intentId = typeof sessionIntent === 'string' ? sessionIntent : sessionIntent?.id;
+      if (!intentId) return null;
+      intent = await stripe.paymentIntents.retrieve(intentId, { expand: ['payment_method'] });
+    }
     const method = intent.payment_method;
     if (!method || typeof method === 'string') return null;
     return method.type === 'card' ? (method.card?.wallet?.type ?? 'card') : method.type;
@@ -27,7 +32,9 @@ export async function paymentMethodLabel(stripe: Stripe, session: Stripe.Checkou
  */
 export async function finalizePaidOrder(
   orderId: string,
-  details: { email?: string | null; customerName?: string | null; paymentMethod?: string | null }
+  details: { email?: string | null; customerName?: string | null; paymentMethod?: string | null },
+  // Pass `after` (next/server) to send the sale alert and receipt email once the response has gone out
+  runLater?: (task: () => Promise<void>) => void
 ): Promise<Order | null> {
   const existing = await prisma.order.findUnique({ where: { id: orderId } });
   if (!existing) return null;
@@ -46,25 +53,29 @@ export async function finalizePaidOrder(
   }
 
   const order = await prisma.order.findUnique({ where: { id: orderId } });
-  if (order && justPaid) await notifySalesOfPaidOrder(order);
-  if (order && savedEmail && order.email) {
-    try {
-      await sendOrderConfirmationEmail({
-        to: order.email,
-        orderId: order.id,
-        items: order.items as { title: string; quantity: number; price: number }[],
-        total: order.finalTotal,
-        fulfillmentType: order.fulfillmentType,
-        source: order.source,
-        discount: order.discountAmount,
-        paidAt: order.paidAt,
-        paymentMethod: order.paymentMethod,
-        shippingAddress: (order.shippingAddress as Record<string, string> | null) ?? undefined,
-      });
-    } catch (error) {
-      console.error('Error sending order confirmation email:', error);
+  const sendEmails = async () => {
+    if (order && justPaid) await notifySalesOfPaidOrder(order);
+    if (order && savedEmail && order.email) {
+      try {
+        await sendOrderConfirmationEmail({
+          to: order.email,
+          orderId: order.id,
+          items: order.items as { title: string; quantity: number; price: number }[],
+          total: order.finalTotal,
+          fulfillmentType: order.fulfillmentType,
+          source: order.source,
+          discount: order.discountAmount,
+          paidAt: order.paidAt,
+          paymentMethod: order.paymentMethod,
+          shippingAddress: (order.shippingAddress as Record<string, string> | null) ?? undefined,
+        });
+      } catch (error) {
+        console.error('Error sending order confirmation email:', error);
+      }
     }
-  }
+  };
+  if (runLater) runLater(() => sendEmails().catch((error) => console.error('Error sending order emails:', error)));
+  else await sendEmails();
   return order;
 }
 

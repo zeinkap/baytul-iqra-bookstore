@@ -1,4 +1,4 @@
-import { headers } from 'next/headers';
+import { getCatalogBooks, getCatalogCategories } from '@/lib/catalog';
 import { HERO_CAROUSEL_BOOK_IDS } from '@/config/heroCarouselBooks';
 import HeroCarousel from '@/components/HeroCarousel';
 import HomePageClient from '@/components/HomePageClient';
@@ -19,33 +19,8 @@ export type Book = {
   updatedAt: string;
 };
 
-async function getBooks() {
-  const h = await headers();
-  const host = h.get('host') || 'localhost:3000';
-  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-  const baseUrl = `${protocol}://${host}`;
-  const res = await fetch(`${baseUrl}/api/books`, { 
-    next: { revalidate: 300, tags: ['books'] } // Cache for 5 minutes, tag for revalidation
-  });
-  if (!res.ok) return [];
-  return res.json();
-}
-
-async function getCategories() {
-  const h = await headers();
-  const host = h.get('host') || 'localhost:3000';
-  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-  const baseUrl = `${protocol}://${host}`;
-  const res = await fetch(`${baseUrl}/api/books/categories`, { 
-    next: { revalidate: 3600, tags: ['categories'] } // Cache for 1 hour, tag for revalidation
-  });
-  if (!res.ok) return [];
-  return res.json();
-}
-
 export default async function HomePage() {
-  const books: Book[] = await getBooks();
-  const categories: string[] = await getCategories();
+  const [books, categories]: [Book[], string[]] = await Promise.all([getCatalogBooks(), getCatalogCategories()]);
 
   // Select books for the hero carousel
   let heroBooks: Book[] = [];

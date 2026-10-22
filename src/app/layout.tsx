@@ -5,7 +5,7 @@ import { CartProvider } from '@/components/CartProvider';
 import { WishlistProvider } from '@/components/WishlistProvider';
 import ConditionalLayout from '@/components/ConditionalLayout';
 import { Toaster } from 'react-hot-toast';
-import { headers } from 'next/headers';
+import { getCatalogCategories } from '@/lib/catalog';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -16,32 +16,12 @@ export const metadata: Metadata = {
   description: 'Online Islamic Bookstore',
 };
 
-async function getCategories() {
-  const h = await headers();
-  const host = h.get('host') || 'localhost:3000';
-  const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-  const baseUrl = `${protocol}://${host}`;
-  
-  // In development, don't cache. In production, cache with revalidation
-  const fetchOptions = process.env.NODE_ENV === 'production' 
-    ? { 
-        next: { revalidate: 300, tags: ['categories'] } // Cache for 5 minutes in production
-      }
-    : { 
-        cache: 'no-store' as RequestCache // No cache in development
-      };
-  
-  const res = await fetch(`${baseUrl}/api/books/categories`, fetchOptions);
-  if (!res.ok) return [];
-  return res.json();
-}
-
 export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const categories: string[] = await getCategories();
+  const categories: string[] = await getCatalogCategories();
   
   return (
     <html lang="en" className={`${inter.variable} ${merriweather.variable} bg-white`}>
