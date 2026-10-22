@@ -369,3 +369,10 @@ orders directly in the database (see `helpers/money-path.helper.ts`) and delete 
 - never mark an order paid for the first time, so the shop's sale-alert and receipt emails cannot fire.
 
 Not covered on purpose: the "stock went negative" oversell alert, because it emails the shop.
+
+## Catalog cache test
+
+`npm run test:cache` builds the app and runs `next start` on port 3100 (`playwright.config.cache.ts`), because the
+catalog cache (`src/lib/catalog.ts`) only exists in a production build. It checks that a book page serves cached data
+until an admin edit clears it. `next start` normally reads `.env.production` (the production database), so the config
+passes the local `DATABASE_URL` explicitly and refuses to run unless it is local. It is not part of `npm test`.
