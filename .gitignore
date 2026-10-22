@@ -56,3 +56,4 @@ description-suggestions*.csv
 isbn-template.csv
 isbn-prod.csv
 book-images.csv
+/blob-report/
