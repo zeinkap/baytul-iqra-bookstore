@@ -1,5 +1,6 @@
 import BookDetailClient from './BookDetailClient';
 import { notFound } from 'next/navigation';
+import { getCatalogBook, getRelatedCatalogBooks } from '@/lib/catalog';
 
 export type Book = {
   id: string;
@@ -15,52 +16,12 @@ export type Book = {
   updatedAt: string;
 };
 
-async function getBook(id: string): Promise<Book | null> {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
-  const res = await fetch(`${baseUrl}/api/books/${id}`, { 
-    next: { revalidate: 60, tags: ['books'] } // Cache for 1 minute, tag for revalidation
-  });
-  if (!res.ok) return null;
-  return res.json();
-}
-
-async function getRelatedBooks(categories: string[], currentBookId: string): Promise<Book[]> {
-  const baseUrl =
-    process.env.NEXT_PUBLIC_BASE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
-  
-  try {
-    // Get all books
-    const res = await fetch(`${baseUrl}/api/books`, { 
-      next: { revalidate: 300, tags: ['books'] } // Cache for 5 minutes, tag for revalidation
-    });
-    if (!res.ok) return [];
-    
-    const allBooks: Book[] = await res.json();
-    
-    // Filter books that share categories with the current book, excluding the current book
-    const relatedBooks = allBooks
-      .filter(book => 
-        book.id !== currentBookId && 
-        book.categories.some(category => categories.includes(category))
-      )
-      .slice(0, 5); // Limit to 5 books
-    
-    return relatedBooks;
-  } catch (error) {
-    console.error('Error fetching related books:', error);
-    return [];
-  }
-}
-
 export default async function BookDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const book = await getBook(id);
+  const book: Book | null = await getCatalogBook(id);
   if (!book) return notFound();
   
-  const relatedBooks = await getRelatedBooks(book.categories, book.id);
+  const relatedBooks: Book[] = await getRelatedCatalogBooks(book.categories, book.id);
   
   return (
     <>

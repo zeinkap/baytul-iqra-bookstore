@@ -24,13 +24,16 @@ export default async function ScanBookPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const { code } = await params;
-  const location = await resolveVenue((await searchParams).loc);
   const isbn = normalizeIsbn(decodeURIComponent(code));
 
-  const book = await prisma.book.findFirst({
-    where: isbn ? { OR: [{ isbn }, { id: code }] } : { id: code },
-    include: { categories: { select: { id: true } } },
-  });
+  // The venue lookup (cookie + settings row) and the book query don't depend on each other
+  const [location, book] = await Promise.all([
+    searchParams.then((sp) => resolveVenue(sp.loc)),
+    prisma.book.findFirst({
+      where: isbn ? { OR: [{ isbn }, { id: code }] } : { id: code },
+      include: { categories: { select: { id: true } } },
+    }),
+  ]);
 
   if (!book) {
     return (

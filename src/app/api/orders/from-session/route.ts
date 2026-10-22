@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import Stripe from 'stripe';
 import { sendOrderNotificationToSales } from '@/lib/sendEmail';
@@ -12,7 +12,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
     }
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    // The session and its line items don't depend on each other, and expanding the payment intent gives us the
+    // payment method (and shipping fallback) without a third Stripe call
+    const [session, lineItems] = await Promise.all([
+      stripe.checkout.sessions.retrieve(sessionId, { expand: ['payment_intent.payment_method'] }),
+      stripe.checkout.sessions.listLineItems(sessionId),
+    ]);
     if (!session || session.payment_status !== 'paid') {
       return NextResponse.json({ error: 'Session not paid' }, { status: 400 });
     }
@@ -26,7 +31,6 @@ export async function POST(req: NextRequest) {
     const pickupLocation = session.metadata?.pickupLocation || undefined;
 
     // Extract line items
-    const lineItems = await stripe.checkout.sessions.listLineItems(sessionId);
     const productItems: { title: string; quantity: number; price: number }[] = [];
     let totalCents = 0;
     let shippingCostCents = 0;
@@ -123,11 +127,10 @@ export async function POST(req: NextRequest) {
       // Fallback to payment intent shipping details
       if (!shippingAddress) {
         try {
-          const paymentIntentId = typeof session.payment_intent === 'string'
-            ? session.payment_intent
-            : (session.payment_intent && 'id' in session.payment_intent ? (session.payment_intent as { id: string }).id : undefined);
+          const sessionIntent = session.payment_intent;
+          const paymentIntentId = typeof sessionIntent === 'string' ? sessionIntent : sessionIntent?.id;
           if (paymentIntentId) {
-            const pi = await stripe.paymentIntents.retrieve(paymentIntentId as string);
+            const pi = typeof sessionIntent === 'string' ? await stripe.paymentIntents.retrieve(sessionIntent) : sessionIntent!;
             const ship = (pi as Stripe.PaymentIntent).shipping as { name?: string; address?: { line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string } } | undefined;
             if (ship?.address) {
               shippingAddress = {
@@ -196,7 +199,7 @@ export async function POST(req: NextRequest) {
     if (existing) {
       // Same finalizing the webhook does (paid time, payment method, name, email + receipt), in case the
       // webhook is slow or never reached us. Only fills fields that are still empty.
-      existing = (await finalizePaidOrder(orderId, { email, customerName, paymentMethod: await paymentMethodLabel(stripe, session) })) ?? existing;
+      existing = (await finalizePaidOrder(orderId, { email, customerName, paymentMethod: await paymentMethodLabel(stripe, session) }, after)) ?? existing;
 
       // Check if existing order is missing customer information
       const needsUpdate = !existing.customerName || !existing.shippingAddress || !existing.email;
@@ -266,22 +269,23 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Send sales notification email (only when order is newly created)
-      try {
-        await sendOrderNotificationToSales({
-          orderId: created.id,
-          items: productItems,
-          total: created.total,
-          fulfillmentType: created.fulfillmentType,
-          customerEmail: created.email || 'No email provided',
-          source: created.source,
-          shippingAddress: shippingAddress,
-        });
-        console.log('Sales notification email sent for order (from-session):', created.id);
-      } catch (emailError) {
-        console.error('Error sending sales notification email:', emailError);
-        // Don't fail the request if email fails
-      }
+      // Send sales notification email (only when order is newly created), after the response has gone out
+      after(async () => {
+        try {
+          await sendOrderNotificationToSales({
+            orderId: created.id,
+            items: productItems,
+            total: created.total,
+            fulfillmentType: created.fulfillmentType,
+            customerEmail: created.email || 'No email provided',
+            source: created.source,
+            shippingAddress: shippingAddress,
+          });
+          console.log('Sales notification email sent for order (from-session):', created.id);
+        } catch (emailError) {
+          console.error('Error sending sales notification email:', emailError);
+        }
+      });
 
       // Note: Stock updates are handled after successful payment in webhooks
       // This endpoint creates orders from completed Stripe sessions
