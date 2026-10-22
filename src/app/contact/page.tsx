@@ -78,7 +78,7 @@ export default function ContactPage() {
               Get in Touch
             </h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Have questions about our books? Need help with your order? We&apos;re here to help you find your next meaningful read.
+              Questions about a book or your order? We&apos;re happy to help, in shā&apos; Allāh.
             </p>
           </div>
         </div>
@@ -108,7 +108,7 @@ export default function ContactPage() {
                       <a href="mailto:sales@baytuliqra.com" className="text-emerald-600 hover:text-emerald-700 transition-colors">
                         sales@baytuliqra.com
                       </a>
-                      <p className="text-sm text-gray-500 mt-1">We typically respond within 48 hours</p>
+                      <p className="text-sm text-gray-500 mt-1">We usually reply within 1–2 business days</p>
                     </div>
                   </div>
 
@@ -123,8 +123,7 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900 mb-1">Bulk Orders</h3>
-                      <p className="text-gray-700">Special pricing for schools, masjids, and organizations</p>
-                      <p className="text-sm text-gray-500 mt-1">Contact us for custom quotes</p>
+                      <p className="text-gray-700">Special pricing for schools, masjids and organizations. Email us for a quote.</p>
                     </div>
                   </div>
                 </div>
@@ -137,7 +136,7 @@ export default function ContactPage() {
             <Card>
               <Card.Header>
                                  <h2 className="text-2xl font-bold text-gray-900 mb-2">Send us a Message</h2>
-                 <p className="text-gray-600">Fill out the form below and we&apos;ll get back to you as soon as possible</p>
+                 <p className="text-gray-600">Send us a message and we&apos;ll reply within 1–2 business days.</p>
               </Card.Header>
               <Card.Body>
                                 {submitStatus === 'success' ? (
@@ -147,8 +146,8 @@ export default function ContactPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Message Sent!</h3>
-                    <p className="text-gray-600">Thank you for contacting us. We&apos;ll respond to your message within 48 hours.</p>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Message sent</h3>
+                    <p className="text-gray-600">JazākAllāhu khayran, your message is sent. We&apos;ll reply within 1–2 business days.</p>
                   </div>
                 ) : submitStatus === 'error' ? (
                   <div className="text-center py-8">
@@ -157,8 +156,8 @@ export default function ContactPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Message Failed to Send</h3>
-                    <p className="text-gray-600">Sorry, there was an error sending your message. Please try again or contact us directly at sales@baytuliqra.com</p>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Message didn&apos;t send</h3>
+                    <p className="text-gray-600">Sorry, your message didn&apos;t send. Please try again or email us at <a href="mailto:sales@baytuliqra.com" className="text-emerald-600 underline">sales@baytuliqra.com</a>.</p>
                   </div>
                 ) : (
                   <form onSubmit={handleSubmit} className="space-y-6">
@@ -175,7 +174,7 @@ export default function ContactPage() {
                            onChange={handleInputChange}
                            required
                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors bg-white text-gray-900 placeholder-gray-500"
-                           placeholder="Your full name"
+                           placeholder="Your name"
                          />
                       </div>
                       <div>
@@ -211,7 +210,7 @@ export default function ContactPage() {
                         <option value="order">Order Question</option>
                         <option value="bulk">Bulk Order Request</option>
                         <option value="suggestion">Book Suggestion</option>
-                        <option value="support">Technical Support</option>
+                        <option value="support">Website Problem</option>
                         <option value="other">Other</option>
                       </select>
                     </div>
@@ -227,7 +226,7 @@ export default function ContactPage() {
                          required
                          rows={6}
                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors resize-none bg-white text-gray-900 placeholder-gray-500"
-                         placeholder="Tell us how we can help you..."
+                         placeholder="How can we help?"
                        />
                     </div>
                     <div className="flex items-center justify-between">
@@ -271,25 +270,21 @@ export default function ContactPage() {
                 <div className="space-y-6">
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-2">How long does shipping take?</h3>
-                    <p className="text-gray-600">Standard shipping typically takes 3-5 business days within the continental US. International shipping times vary by location.</p>
+                    <p className="text-gray-600">Standard shipping within the United States typically takes 4-5 business days. The shipping fee is a flat $5 per order and is shown at checkout. Local pickup in Alpharetta, GA is free.</p>
                   </div>
-                                     <div>
-                     <h3 className="font-semibold text-gray-900 mb-2">Do you ship internationally?</h3>
-                     <p className="text-gray-600">Unfortunately, we do not ship internationally at this time.</p>
-                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-2">What payment methods do you accept?</h3>
-                    <p className="text-gray-600">We accept all major credit cards for secure online transactions.</p>
+                    <p className="text-gray-600">We accept all major credit cards, Apple Pay and Google Pay, processed securely through Stripe.</p>
                   </div>
                 </div>
                 <div className="space-y-6">
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-2">Can I return or exchange books?</h3>
-                    <p className="text-gray-600">Yes, we offer a 7-day return policy for books in new condition. You will be responsible for the return shipping postage fee. Contact us for return instructions.</p>
+                    <p className="text-gray-600">Yes, we offer a 7-day return policy for books in excellent condition. You cover return postage. Email us first and we&apos;ll send return instructions.</p>
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-2">Do you offer bulk discounts?</h3>
-                    <p className="text-gray-600">Absolutely! We offer special pricing for schools, mosques, and organizations. Contact us for custom quotes.</p>
+                    <p className="text-gray-600">We offer special pricing for schools, masjids and organizations. Email us for a quote.</p>
                   </div>
                 </div>
               </div>
