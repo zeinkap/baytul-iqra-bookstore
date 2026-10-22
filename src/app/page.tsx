@@ -39,7 +39,7 @@ export default async function HomePage() {
   // Get bestsellers from database
   const bestsellers = books
     .filter(book => book.isBestseller)
-    .slice(0, 10);
+    .slice(0, 5);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-amber-50">
