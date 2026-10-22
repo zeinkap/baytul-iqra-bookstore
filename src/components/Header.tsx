@@ -49,10 +49,10 @@ export default function Header({ categories }: { categories: string[] }) {
       <div className="max-w-7xl mx-auto">
         {/* Main header bar */}
         <div className={`flex items-center justify-between px-4 lg:px-6 transition-all duration-300 ${
-          isScrolled ? 'py-3' : 'py-4'
+          isScrolled ? 'py-2 sm:py-3' : 'py-2.5 sm:py-4'
         }`}>
           {/* Left side - mobile menu button and logo */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1 sm:gap-4">
             {/* Mobile menu button - rendered first (left corner) */}
             {mounted && (
               <div className="lg:hidden">
@@ -75,10 +75,10 @@ export default function Header({ categories }: { categories: string[] }) {
             )}
             
             {/* Logo and brand section - rendered after mobile menu button */}
-            <Link href="/" className="group flex items-center gap-3 hover:scale-105 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 rounded-lg">
+            <Link href="/" className="group flex items-center gap-2 sm:gap-3 hover:scale-105 transition-transform duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 rounded-lg">
               {/* Logo image */}
               <div className={`rounded-xl overflow-hidden flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all duration-200 bg-gradient-to-br from-emerald-50 to-white border border-emerald-100/50 ${
-                isScrolled ? 'w-10 h-10' : 'w-12 h-12'
+                isScrolled ? 'w-9 h-9 sm:w-10 sm:h-10' : 'w-9 h-9 sm:w-12 sm:h-12'
               }`}>
                 <Image
                   src="/logo-baytul-iqra.png"
@@ -86,7 +86,7 @@ export default function Header({ categories }: { categories: string[] }) {
                   width={48}
                   height={48}
                   className={`object-contain transition-all duration-200 ${
-                    isScrolled ? 'w-10 h-10' : 'w-12 h-12'
+                    isScrolled ? 'w-9 h-9 sm:w-10 sm:h-10' : 'w-9 h-9 sm:w-12 sm:h-12'
                   }`}
                   priority
                 />
@@ -94,12 +94,12 @@ export default function Header({ categories }: { categories: string[] }) {
               {/* Brand name with enhanced typography */}
               <div className="flex flex-col">
                 <span className={`font-bold bg-gradient-to-r from-emerald-700 to-teal-700 bg-clip-text text-transparent tracking-tight transition-all duration-200 ${
-                  isScrolled ? 'text-xl' : 'text-2xl'
+                  isScrolled ? 'text-lg sm:text-xl' : 'text-lg sm:text-2xl'
                 }`}>
                   Baytul Iqra
                 </span>
                 <span className={`text-gray-500 font-medium tracking-wide transition-all duration-200 ${
-                  isScrolled ? 'text-[10px] -mt-0.5' : 'text-xs -mt-1'
+                  isScrolled ? 'text-[9px] sm:text-[10px] -mt-0.5' : 'text-[9px] sm:text-xs -mt-0.5 sm:-mt-1'
                 }`}>
                   ISLAMIC BOOKSTORE
                 </span>
@@ -164,7 +164,7 @@ export default function Header({ categories }: { categories: string[] }) {
           </div>
 
           {/* Right side - wishlist and cart */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-0.5 sm:gap-3">
             {/* Wishlist icon with label */}
             <Link
               href="/wishlist"
