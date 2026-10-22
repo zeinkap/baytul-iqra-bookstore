@@ -125,7 +125,7 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
               >
                 <Link href={`/books/${book.id}`} className="block">
                   {/* Book Image */}
-                  <div className="relative aspect-[3/4] bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+                  <div className="relative aspect-[4/5] sm:aspect-[3/4] bg-gradient-to-br from-gray-50 to-gray-100 p-2 sm:p-4">
                     {/* First image (default) */}
                     <Image
                       src={firstImage}
