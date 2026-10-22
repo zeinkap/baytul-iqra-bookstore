@@ -19,7 +19,19 @@ export default function SearchSection({
   const [selectedCategories, setSelectedCategories] = useState<string[]>(initialSelectedCategories);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedPriceRange, setSelectedPriceRange] = useState<string | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close the mobile category dropdown on outside tap
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const close = (e: PointerEvent) => {
+      if (!dropdownRef.current?.contains(e.target as Node)) setDropdownOpen(false);
+    };
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
+  }, [dropdownOpen]);
 
   // Sync with parent when initialSelectedCategories changes
   useEffect(() => {
@@ -196,37 +208,62 @@ export default function SearchSection({
             </button>
           </div>
 
-          {/* Mobile: Scrollable chip layout */}
+          {/* Mobile: single multiselect dropdown */}
           <div className="md:hidden">
-            <div className="text-center mb-3 sm:mb-4">
-              <h3 className="text-xs sm:text-sm font-semibold text-gray-700 mb-3 sm:mb-4">Select Categories</h3>
-              
-              {/* Scrollable category container */}
-              <div className="bg-gray-50 border-2 border-gray-200 rounded-xl sm:rounded-2xl p-3 sm:p-4 max-h-64 sm:max-h-72 overflow-y-auto">
-                <div className="flex flex-wrap gap-2 sm:gap-3 justify-center">
-                  {categories.map((category) => {
-                    const isSelected = selectedCategories.includes(category);
-                    return (
-                      <button
-                        key={category}
-                        onClick={() => toggleCategory(category)}
-                        className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-medium border transition-all duration-200 active:scale-95 touch-manipulation min-h-[44px] flex items-center justify-center ${
-                          isSelected
-                            ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-600 shadow-md'
-                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100 hover:border-gray-400'
-                        }`}
-                        data-testid={`category-chip-${category.toLowerCase().replace(/\s+/g, '-')}`}
-                      >
-                        {category}
-                      </button>
-                    );
-                  })}
-                </div>
+            <div className="text-center mb-3">
+              <h3 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2">Categories</h3>
+              <div ref={dropdownRef} className="relative text-left">
+                <button
+                  type="button"
+                  onClick={() => setDropdownOpen((o) => !o)}
+                  aria-haspopup="listbox"
+                  aria-expanded={dropdownOpen}
+                  data-testid="category-dropdown"
+                  className="flex w-full min-h-[44px] items-center justify-between gap-2 rounded-xl border-2 border-gray-200 bg-white px-4 py-2 text-sm text-gray-900 touch-manipulation"
+                >
+                  <span className={selectedCategories.length ? 'truncate font-medium' : 'text-gray-500'}>
+                    {selectedCategories.length === 0
+                      ? 'All categories'
+                      : selectedCategories.length === 1
+                        ? selectedCategories[0]
+                        : `${selectedCategories.length} categories selected`}
+                  </span>
+                  <svg className={`h-4 w-4 shrink-0 text-gray-500 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {dropdownOpen && (
+                  <div role="listbox" aria-multiselectable="true" className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white py-1 shadow-xl">
+                    {categories.map((category) => {
+                      const isSelected = selectedCategories.includes(category);
+                      return (
+                        <button
+                          key={category}
+                          type="button"
+                          role="option"
+                          aria-selected={isSelected}
+                          onClick={() => toggleCategory(category)}
+                          data-testid={`category-chip-${category.toLowerCase().replace(/\s+/g, '-')}`}
+                          className="flex min-h-[44px] w-full items-center gap-3 px-4 py-2 text-left text-sm text-gray-800 hover:bg-gray-50 touch-manipulation"
+                        >
+                          <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${isSelected ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-gray-300 bg-white'}`}>
+                            {isSelected && (
+                              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </span>
+                          {category}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-              
-              {/* Clear All button */}
+
               {selectedCategories.length > 0 && (
-                <button 
+                <button
                   onClick={() => {
                     setSelectedCategories([]);
                     setSearchQuery('');
