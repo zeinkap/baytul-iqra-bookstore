@@ -92,7 +92,7 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div
           id="book-grid"
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 md:gap-8 pb-8 sm:pb-12 md:pb-16"
+          className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 md:gap-8 pb-8 sm:pb-12 md:pb-16"
         >
           {displayedBooks.length === 0 && (
             <div className="col-span-full text-center py-16">
