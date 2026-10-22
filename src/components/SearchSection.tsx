@@ -118,9 +118,25 @@ export default function SearchSection({
                   handleSearch();
                 }
               }}
-              className="w-full px-4 sm:px-6 py-3 sm:py-4 text-base sm:text-lg border-2 border-gray-200 rounded-xl sm:rounded-2xl focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+              className="w-full pl-4 sm:pl-6 pr-24 sm:pr-28 py-3 sm:py-4 text-base sm:text-lg border-2 border-gray-200 rounded-xl sm:rounded-2xl focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
               data-testid="search-input"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  onSearch?.('');
+                }}
+                className="absolute right-14 sm:right-16 top-1/2 -translate-y-1/2 p-2 text-gray-400 hover:text-gray-600 touch-manipulation"
+                aria-label="Clear search"
+                data-testid="clear-search"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
             <button 
               onClick={handleSearch}
               className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-2.5 sm:p-3 rounded-lg sm:rounded-xl hover:shadow-lg active:scale-95 transition-all duration-200 touch-manipulation"
