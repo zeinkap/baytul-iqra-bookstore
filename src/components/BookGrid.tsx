@@ -46,14 +46,12 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
   const matchesPriceRange = (price: number, range: string | null): boolean => {
     if (!range) return true;
     switch (range) {
-      case 'under-10':
-        return price < 10;
-      case '10-25':
-        return price >= 10 && price <= 25;
-      case '25-50':
-        return price > 25 && price <= 50;
-      case '50-plus':
-        return price > 50;
+      case 'under-15':
+        return price < 15;
+      case '15-25':
+        return price >= 15 && price <= 25;
+      case '25-plus':
+        return price > 25;
       default:
         return true;
     }

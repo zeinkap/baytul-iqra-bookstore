@@ -139,10 +139,9 @@ export default function SearchSection({
             <h3 className="text-xs sm:text-sm font-semibold text-gray-700 mb-2 sm:mb-3">Filter by Price</h3>
             <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
               {[
-                { label: 'Under $10', value: 'under-10' },
-                { label: '$10 - $25', value: '10-25' },
-                { label: '$25 - $50', value: '25-50' },
-                { label: '$50+', value: '50-plus' },
+                { label: 'Under $15', value: 'under-15' },
+                { label: '$15 - $25', value: '15-25' },
+                { label: '$25+', value: '25-plus' },
               ].map((range) => (
                 <button
                   key={range.value}
