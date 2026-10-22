@@ -6,6 +6,7 @@ import {
   waitForCheckoutNavigation 
 } from '../helpers/test-workflows.helper';
 import type { APIHelper } from '../helpers/api.helper';
+import { stripeTestMode } from '../helpers/money-path.helper';
 
 /**
  * End-to-End Test: Book Purchase Flow
@@ -38,6 +39,7 @@ test.describe('Book Purchase Flow', () => {
   });
 
   test('should proceed to checkout with valid email and shipping', async ({ cartPage, page }) => {
+    test.skip(!stripeTestMode, 'creating a Stripe Checkout session needs a Stripe test key');
     // Fast setup: Add to cart via localStorage instead of UI
     await setupCartViaLocalStorage(page, cartPage, [testBook]);
 
@@ -56,6 +58,7 @@ test.describe('Book Purchase Flow', () => {
     cartPage, 
     page 
   }) => {
+    test.skip(!stripeTestMode, 'creating a Stripe Checkout session needs a Stripe test key');
     // Search for book and verify it's visible
     await homePage.navigate();
     await homePage.searchForBook(testBook.title);

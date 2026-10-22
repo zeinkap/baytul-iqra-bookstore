@@ -1,0 +1,158 @@
+name: Playwright tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push to the same branch cancels the run that is still going
+concurrency:
+  group: playwright-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+  NODE_VERSION: 22
+  # Each job has its own throwaway Postgres (a service container), so tests that change stock, orders or promo
+  # codes can't interfere with each other across machines. These are not secrets.
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bookstore_test
+  ADMIN_PASSWORD: ci-admin-password
+  # The webhook tests sign their own events, so any value works as long as the server and the tests agree
+  STRIPE_WEBHOOK_SECRET: whsec_ci_test_secret
+  # Emails are never sent from CI
+  RESEND_API_KEY: re_dummy_for_tests
+  # Without the repo secret STRIPE_TEST_SECRET_KEY (a Stripe TEST-mode key, sk_test_...) the tests that need Stripe skip
+  STRIPE_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY || 'dummy_key_no_stripe' }}
+
+jobs:
+  # The main suite (tests/e2e), split across 4 machines. Add or remove shard numbers (and change the 4 in
+  # --shard) to change how many machines are used.
+  e2e:
+    name: e2e (shard ${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bookstore_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Set up the database
+        run: |
+          npx prisma migrate deploy
+          npm run db:seed-test
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+      - name: Run this shard
+        run: npx playwright test --shard=${{ matrix.shard }}/4
+      - name: Upload this shard's report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: blob-report-${{ matrix.shard }}
+          path: blob-report
+          retention-days: 7
+      - name: Upload failure traces and videos
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.shard }}
+          path: test-results
+          retention-days: 7
+
+  # One HTML report from all shards
+  report:
+    name: Merge reports
+    if: ${{ !cancelled() }}
+    needs: e2e
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          path: all-blob-reports
+          pattern: blob-report-*
+          merge-multiple: true
+      - run: npx playwright merge-reports --reporter html ./all-blob-reports
+      - uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 14
+
+  # Production-build tests (catalog cache, paid checkout with the Stripe CLI). They need the Stripe test key, so they
+  # run only where repository secrets are available (not on pull requests from forks) and when the secret is set.
+  server:
+    name: Production-build tests
+    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bookstore_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Check for the Stripe test key
+        id: stripe
+        run: |
+          if [[ "$STRIPE_SECRET_KEY" == sk_test_* ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Skipping production-build tests: add the STRIPE_TEST_SECRET_KEY repository secret (a Stripe test-mode key) to run them."
+          fi
+      - uses: actions/checkout@v4
+        if: steps.stripe.outputs.enabled == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.stripe.outputs.enabled == 'true'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install dependencies and the Stripe CLI
+        if: steps.stripe.outputs.enabled == 'true'
+        run: |
+          npm ci
+          curl -fsSL https://github.com/stripe/stripe-cli/releases/download/v1.35.1/stripe_1.35.1_linux_x86_64.tar.gz | sudo tar -xz -C /usr/local/bin stripe
+          stripe --version
+      - name: Set up the database
+        if: steps.stripe.outputs.enabled == 'true'
+        run: |
+          npx prisma migrate deploy
+          npm run db:seed-test
+      - name: Run the production-build tests
+        if: steps.stripe.outputs.enabled == 'true'
+        run: npm run test:server
