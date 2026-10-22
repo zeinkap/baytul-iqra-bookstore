@@ -72,7 +72,9 @@ export class CheckoutSuccessPage extends BasePage {
    */
   async isOrderSummaryVisible(): Promise<boolean> {
     const orderSummary = this.page.locator('text="Order Summary"');
-    return orderSummary.isVisible();
+    // The summary appears after the page has fetched the order, which is slower than the success message
+    // (isVisible() alone doesn't wait, and failed on slower CI machines)
+    return orderSummary.waitFor({ state: 'visible', timeout: 10_000 }).then(() => true, () => false);
   }
 
   /**
