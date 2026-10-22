@@ -87,6 +87,7 @@ model Order {
   refundedAmount   Float?   // total refunded so far, from Stripe (equals finalTotal when fully refunded)
   refundedAt       DateTime?
   restockedAt      DateTime? // set when an admin put a refunded order's books back in stock
+  stockUpdatedAt   DateTime? // set (in the same transaction) when this order's books were taken out of stock, so a repeated Stripe event or a second server instance can't take them twice
   location         String?  // venue slug from the QR link (?loc=cafe-a)
   paymentMethod    String?  // "apple_pay" | "google_pay" | "card" | "link" | ... (from Stripe, set by the webhook)
   device           String?  // "ios" | "android" | "desktop" | "other" (from the browser, never the raw user agent)

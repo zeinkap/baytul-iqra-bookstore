@@ -67,14 +67,15 @@ test.describe('Stock: paid Stripe event', () => {
     await disconnect();
   });
 
-  test('a paid event takes stock by the ordered quantity once, and a repeat delivery does not take it again', async ({ request }) => {
+  /** A real (never paid) Stripe test session for a fresh book + order, already marked paid so no sale alert is sent. */
+  async function paidEventFor(request: import('@playwright/test').APIRequestContext, opts: { stockTaken?: boolean } = {}) {
     const book = await fx.book({ stock: 5, price: 15 });
-    // A real (never paid) Stripe test session: the webhook reads its line items from Stripe
-    const buy = await request.post('/api/in-shop/buy', { data: { items: [{ id: book.id, quantity: 1 }], location: 'e2e-stock' } });
+    // The webhook reads the session's line items from Stripe, so the session has to be real
+    const buy = await request.post('/api/in-shop/buy', { data: { items: [{ id: book.id, quantity: 1 }], location: `e2e-stock-${book.id}` } });
     const { url, orderId } = await buy.json();
     fx.trackOrder(orderId);
     // Mark it paid first (as the receipt page's fallback does), so the webhook doesn't send the shop's sale alert
-    await db.order.update({ where: { id: orderId }, data: { paidAt: new Date() } });
+    await db.order.update({ where: { id: orderId }, data: { paidAt: new Date(), stockUpdatedAt: opts.stockTaken ? new Date() : null } });
 
     const { payload, header } = signedEvent('checkout.session.completed', {
       id: sessionIdFromUrl(url),
@@ -84,12 +85,33 @@ test.describe('Stock: paid Stripe event', () => {
     });
     const send = () =>
       request.post('/api/stripe/webhook', { data: payload, headers: { 'content-type': 'application/json', 'stripe-signature': header } });
+    const stock = async () => (await db.book.findUniqueOrThrow({ where: { id: book.id } })).stock;
+    return { orderId, send, stock };
+  }
+
+  test('a paid event takes stock by the ordered quantity once, and a repeat delivery does not take it again', async ({ request }) => {
+    const { orderId, send, stock } = await paidEventFor(request);
 
     expect((await send()).status()).toBe(200);
-    expect((await db.book.findUniqueOrThrow({ where: { id: book.id } })).stock).toBe(4);
+    expect(await stock()).toBe(4);
+    expect((await db.order.findUniqueOrThrow({ where: { id: orderId } })).stockUpdatedAt).not.toBeNull();
 
     // Stripe retries deliveries: the same event again must not take stock a second time
     expect((await send()).status()).toBe(200);
-    expect((await db.book.findUniqueOrThrow({ where: { id: book.id } })).stock).toBe(4);
+    expect(await stock()).toBe(4);
+  });
+
+  test('two deliveries of the same event at the same moment take stock once', async ({ request }) => {
+    const { send, stock } = await paidEventFor(request);
+    const [a, b] = await Promise.all([send(), send()]);
+    expect([a.status(), b.status()]).toEqual([200, 200]);
+    expect(await stock()).toBe(4);
+  });
+
+  test('stock already taken by another server instance (recorded in the database) is not taken again', async ({ request }) => {
+    // The in-memory shortcut can't know about other instances, so this must be decided by Order.stockUpdatedAt
+    const { send, stock } = await paidEventFor(request, { stockTaken: true });
+    expect((await send()).status()).toBe(200);
+    expect(await stock()).toBe(5);
   });
 });
