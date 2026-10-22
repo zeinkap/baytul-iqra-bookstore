@@ -357,3 +357,15 @@ STRIPE_SECRET_KEY=your-test-stripe-key
 
 Contact the development team or open an issue in the repository.
 
+
+## Money-path API tests
+
+`in-shop-buy-api`, `stripe-webhook-api`, `stock-api` and `promo-codes-api` create their own books, promo codes and
+orders directly in the database (see `helpers/money-path.helper.ts`) and delete them afterwards. They:
+
+- only run against a **local** `DATABASE_URL` (otherwise they skip),
+- use Stripe **test mode** only (sessions are created but never paid; tests that need Stripe skip without an `sk_test_` key),
+- sign webhook events with `STRIPE_WEBHOOK_SECRET` from `.env`,
+- never mark an order paid for the first time, so the shop's sale-alert and receipt emails cannot fire.
+
+Not covered on purpose: the "stock went negative" oversell alert, because it emails the shop.
