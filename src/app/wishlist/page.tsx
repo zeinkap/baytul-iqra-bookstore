@@ -220,7 +220,6 @@ export default function WishlistPage({
                         <span className="text-2xl font-bold text-emerald-600">
                           ${item.price.toFixed(2)}
                         </span>
-                        <span className="text-xs text-gray-500 mt-1">Tax included</span>
                       </div>
                     </div>
                   </div>
@@ -241,7 +240,7 @@ export default function WishlistPage({
                       }`} />
                       <span>
                         {getBookStock(item.id) === 0 ? 'Out of Stock' : 
-                         getBookStock(item.id) === 1 ? 'Only 1 left!' : 
+                         getBookStock(item.id) === 1 ? 'Last copy' : 
                          `${getBookStock(item.id)} in stock`}
                       </span>
                     </div>

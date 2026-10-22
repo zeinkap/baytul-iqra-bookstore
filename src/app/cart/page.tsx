@@ -432,7 +432,7 @@ export default function CartPage({
                                     'bg-emerald-100 text-emerald-800'
                                   }`}>
                                     {getBookStock(item.id) === 0 ? 'Out of Stock' : 
-                                     getBookStock(item.id) === 1 ? 'Only 1 left!' : 
+                                     getBookStock(item.id) === 1 ? 'Last copy' : 
                                      'In Stock'}
                                   </div>
                                 </div>
@@ -474,7 +474,7 @@ export default function CartPage({
                                     }`} />
                                     <span>
                                       {getBookStock(item.id) === 0 ? 'Out of stock' : 
-                                       getBookStock(item.id) === 1 ? 'Only 1 left!' : 
+                                       getBookStock(item.id) === 1 ? 'Last copy' : 
                                        `${getBookStock(item.id)} in stock`}
                                     </span>
                                   </div>

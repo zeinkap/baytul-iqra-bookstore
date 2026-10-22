@@ -187,6 +187,7 @@ export default function SearchSection({
                 </button>
               )}
             </div>
+            <p className="mt-3 text-xs text-gray-500">All prices include tax</p>
           </div>
         </div>
 

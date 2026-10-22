@@ -357,7 +357,7 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
                       </svg>
                       <div>
                         <div className="text-xs text-amber-600">Limited Stock</div>
-                        <div className="text-sm font-semibold text-amber-800">Only 1 left!</div>
+                        <div className="text-sm font-semibold text-amber-800">Last copy</div>
                       </div>
                     </div>
                   )}

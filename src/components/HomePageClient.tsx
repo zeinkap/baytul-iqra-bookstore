@@ -135,7 +135,7 @@ export default function HomePageClient({ books, categories, bestsellers }: HomeP
                           'bg-emerald-100 text-emerald-800'
                         }`}>
                           {book.stock === 0 ? 'Out of Stock' : 
-                           book.stock === 1 ? 'Only 1 left!' : 
+                           book.stock === 1 ? 'Last copy' : 
                            'In Stock'}
                         </div>
                       </div>
@@ -219,7 +219,6 @@ export default function HomePageClient({ books, categories, bestsellers }: HomeP
                       <p className="text-xs text-gray-600 mb-2 line-clamp-1">by {book.author}</p>
                       <div className="flex items-center justify-between flex-wrap gap-1">
                         <span className="text-base sm:text-lg font-bold text-emerald-600">${book.price.toFixed(2)}</span>
-                        <span className="text-xs text-gray-500">Tax included</span>
                       </div>
                     </div>
                   </a>

@@ -156,7 +156,7 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
                         'bg-emerald-100 text-emerald-800'
                       }`}>
                         {book.stock === 0 ? 'Out of Stock' : 
-                         book.stock === 1 ? 'Only 1 left!' : 
+                         book.stock === 1 ? 'Last copy' : 
                          'In Stock'}
                       </div>
                     </div>
@@ -275,7 +275,6 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
                         <div className="flex items-center gap-2">
                           <span className="text-xl sm:text-2xl font-bold text-emerald-600">${book.price.toFixed(2)}</span>
                         </div>
-                        <span className="text-xs text-gray-500 mt-0.5 sm:mt-1">Tax included</span>
                       </div>
                     </div>
                   </div>
