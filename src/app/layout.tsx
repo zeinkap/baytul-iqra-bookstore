@@ -13,7 +13,7 @@ const merriweather = Merriweather({ subsets: ['latin'], weight: ['400', '700'], 
 
 export const metadata: Metadata = {
   title: 'Baytul Iqra Bookstore',
-  description: 'Online Islamic Bookstore',
+  description: "Baytul Iqra is an online Islamic bookstore: Qur'an, Seerah, Hadith, Fiqh and children's books for all ages.",
 };
 
 export default async function RootLayout({

@@ -53,9 +53,10 @@ export default async function HomePage() {
                 <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                Authentic Islamic Literature
+                Trusted Islamic Literature
               </div>
               <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-6xl font-bold text-gray-900 mb-2 sm:mb-6 leading-tight">
+                <span className="block text-base sm:text-xl font-medium text-emerald-700 mb-1">Assalamu alaikum</span>
                 Welcome to{' '}
                 <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                   Baytul Iqra
@@ -64,7 +65,7 @@ export default async function HomePage() {
                 <span className="text-xl sm:text-2xl md:text-3xl lg:text-5xl text-gray-700">Islamic Bookstore</span>
               </h1>
               <p className="text-sm sm:text-lg md:text-xl text-gray-600 mb-4 sm:mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed">
-                Authentic Islamic books for all ages, from spiritual guidance to scholarly works.
+                Trusted Islamic books for all ages, from spiritual guidance to scholarly works.
               </p>
               <div className="flex flex-row gap-2 sm:gap-4 justify-center lg:justify-start">
                 <a 
