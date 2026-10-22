@@ -17,6 +17,9 @@ try {
   // No .env file: rely on the environment
 }
 
+// Tests that call app code directly (not through the dev server) must never be able to send a real email
+process.env.RESEND_API_KEY = 're_dummy_for_tests';
+
 const dbUrl = process.env.DATABASE_URL ?? '';
 export const localDbAvailable = /@(localhost|127\.0\.0\.1|\[::1\])(:|\/)/.test(dbUrl);
 export const stripeTestMode = (process.env.STRIPE_SECRET_KEY ?? '').startsWith('sk_test_');
