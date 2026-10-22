@@ -48,7 +48,7 @@ export default async function HomePage() {
         <section className="relative rounded-2xl sm:rounded-3xl overflow-hidden mb-4 sm:mb-12 md:mb-16 bg-gradient-to-br from-emerald-100 via-white to-amber-100 shadow-xl sm:shadow-2xl border border-white/50">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(16,185,129,0.1),transparent_50%)]"></div>
           <div className="relative py-5 sm:py-12 md:py-16 lg:py-20 px-4 sm:px-6 md:px-8 lg:px-20 flex flex-col lg:flex-row items-center gap-4 sm:gap-8 md:gap-12">
-            <div className="flex-1 max-w-2xl w-full text-center lg:text-left">
+            <div className="order-2 lg:order-1 flex-1 max-w-2xl w-full text-center lg:text-left">
               <div className="hidden sm:inline-flex items-center bg-emerald-100 text-emerald-800 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold mb-4 sm:mb-6">
                 <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -87,7 +87,7 @@ export default async function HomePage() {
                 </a>
               </div>
             </div>
-            <div className="flex-1 flex justify-center lg:justify-end w-full lg:w-auto">
+            <div className="order-1 lg:order-2 flex-1 flex justify-center lg:justify-end w-full lg:w-auto">
               <HeroCarousel heroBooks={heroBooks} />
             </div>
           </div>
