@@ -110,7 +110,7 @@ export default function SearchSection({
           <div className="relative">
             <input
               type="text"
-              placeholder="Search by title, author, or keyword..."
+              placeholder="Search by title or author"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={(e) => {
