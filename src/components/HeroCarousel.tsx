@@ -78,7 +78,7 @@ export default function HeroCarousel({ heroBooks }: { heroBooks: Book[] }) {
 
   return (
     <div className="w-full max-w-lg mx-auto relative">
-      <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-center text-emerald-800 mb-4 sm:mb-6 tracking-tight">New Arrivals</h2>
+      <h2 className="text-lg sm:text-xl md:text-2xl font-bold text-center text-emerald-800 mb-2 sm:mb-6 tracking-tight">New Arrivals</h2>
       <div 
         className="relative"
         onMouseEnter={() => setIsPaused(true)}
@@ -88,7 +88,7 @@ export default function HeroCarousel({ heroBooks }: { heroBooks: Book[] }) {
       >
         <div ref={sliderRef} className="keen-slider rounded-xl sm:rounded-2xl shadow-xl bg-white overflow-hidden">
           {heroBooks.map((book, index) => (
-            <div key={book.id} className="keen-slider__slide flex flex-col items-center p-4 sm:p-6 md:p-8">
+            <div key={book.id} className="keen-slider__slide flex flex-col items-center p-3 sm:p-6 md:p-8">
               <div className="relative w-full flex justify-center mb-3 sm:mb-4">
                 <div className="relative bg-gradient-to-br from-gray-50 to-white rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-inner">
                   <Image

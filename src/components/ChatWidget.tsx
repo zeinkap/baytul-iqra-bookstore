@@ -146,7 +146,7 @@ export default function ChatWidget() {
           role="dialog"
           aria-label="Bookstore assistant"
           data-testid="chat-panel"
-          className="fixed bottom-0 right-0 z-[60] flex h-[85vh] w-full flex-col overflow-hidden border border-gray-200 bg-white shadow-2xl sm:bottom-4 sm:right-4 sm:h-[560px] sm:w-[380px] sm:rounded-2xl"
+          className="fixed inset-x-3 bottom-3 z-[60] flex h-[min(70dvh,560px)] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:inset-x-auto sm:bottom-4 sm:right-4 sm:h-[560px] sm:w-[380px]"
         >
           <div className="flex items-center justify-between bg-emerald-600 px-4 py-3 text-white">
             <div>
@@ -204,7 +204,7 @@ export default function ChatWidget() {
               maxLength={1000}
               placeholder="Ask about books, shipping, returns…"
               data-testid="chat-input"
-              className="flex-1 rounded-full border border-gray-300 px-4 py-2 text-sm text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+              className="flex-1 rounded-full border border-gray-300 px-4 py-2 text-base text-gray-900 placeholder-gray-500 sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
             />
             <button
               type="submit"

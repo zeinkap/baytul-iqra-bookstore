@@ -67,6 +67,16 @@ export default function HomePageClient({ books, categories, bestsellers }: HomeP
 
   return (
     <>
+      <div id="search-section">
+        <SearchSection 
+          categories={categories}
+          onSearch={handleSearch}
+          onCategoryChange={handleCategoryChange}
+          onPriceRangeChange={handlePriceRangeChange}
+          initialSelectedCategories={selectedCategories}
+        />
+      </div>
+      
       {/* Bestsellers Section */}
       {bestsellers.length > 0 && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-12 sm:mb-16">
@@ -90,12 +100,12 @@ export default function HomePageClient({ books, categories, bestsellers }: HomeP
             </a>
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
+          <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 pt-1 sm:mx-0 sm:grid sm:snap-none sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 sm:pt-0 md:grid-cols-3 md:gap-6 lg:grid-cols-4 xl:grid-cols-5">
             {bestsellers.map((book, index) => {
               const validImages = Array.isArray(book.images) ? book.images.filter(isValidImageSrc) : [];
               const firstImage = validImages[0] || '/placeholder.svg';
               return (
-              <div key={book.id} className="group">
+              <div key={book.id} className="group w-40 shrink-0 snap-start sm:w-auto">
                 <div 
                   className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg hover:shadow-2xl border border-white/50 overflow-hidden transition-all duration-300 group-hover:scale-[1.02] group-hover:-translate-y-1"
                   onMouseEnter={() => setHoveredBestsellerIndex(index)}
@@ -125,7 +135,7 @@ export default function HomePageClient({ books, categories, bestsellers }: HomeP
                           'bg-emerald-100 text-emerald-800'
                         }`}>
                           {book.stock === 0 ? 'Out of Stock' : 
-                           book.stock === 1 ? 'Only 1 left!' : 
+                           book.stock === 1 ? 'Last copy' : 
                            'In Stock'}
                         </div>
                       </div>
@@ -209,7 +219,6 @@ export default function HomePageClient({ books, categories, bestsellers }: HomeP
                       <p className="text-xs text-gray-600 mb-2 line-clamp-1">by {book.author}</p>
                       <div className="flex items-center justify-between flex-wrap gap-1">
                         <span className="text-base sm:text-lg font-bold text-emerald-600">${book.price.toFixed(2)}</span>
-                        <span className="text-xs text-gray-500">Tax included</span>
                       </div>
                     </div>
                   </a>
@@ -221,16 +230,6 @@ export default function HomePageClient({ books, categories, bestsellers }: HomeP
         </div>
       )}
 
-      <div id="search-section">
-        <SearchSection 
-          categories={categories}
-          onSearch={handleSearch}
-          onCategoryChange={handleCategoryChange}
-          onPriceRangeChange={handlePriceRangeChange}
-          initialSelectedCategories={selectedCategories}
-        />
-      </div>
-      
       {/* Full Book Grid with Search */}
       <div className="bg-white/50">
         <BookGrid 

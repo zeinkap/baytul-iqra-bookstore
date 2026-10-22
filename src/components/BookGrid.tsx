@@ -46,14 +46,12 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
   const matchesPriceRange = (price: number, range: string | null): boolean => {
     if (!range) return true;
     switch (range) {
-      case 'under-10':
-        return price < 10;
-      case '10-25':
-        return price >= 10 && price <= 25;
-      case '25-50':
-        return price > 25 && price <= 50;
-      case '50-plus':
-        return price > 50;
+      case 'under-15':
+        return price < 15;
+      case '15-25':
+        return price >= 15 && price <= 25;
+      case '25-plus':
+        return price > 25;
       default:
         return true;
     }
@@ -92,7 +90,7 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div
           id="book-grid"
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 md:gap-8 pb-8 sm:pb-12 md:pb-16"
+          className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6 md:gap-8 pb-8 sm:pb-12 md:pb-16"
         >
           {displayedBooks.length === 0 && (
             <div className="col-span-full text-center py-16">
@@ -125,7 +123,7 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
               >
                 <Link href={`/books/${book.id}`} className="block">
                   {/* Book Image */}
-                  <div className="relative aspect-[3/4] bg-gradient-to-br from-gray-50 to-gray-100 p-4">
+                  <div className="relative aspect-[4/5] sm:aspect-[3/4] bg-gradient-to-br from-gray-50 to-gray-100 p-2 sm:p-4">
                     {/* First image (default) */}
                     <Image
                       src={firstImage}
@@ -158,7 +156,7 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
                         'bg-emerald-100 text-emerald-800'
                       }`}>
                         {book.stock === 0 ? 'Out of Stock' : 
-                         book.stock === 1 ? 'Only 1 left!' : 
+                         book.stock === 1 ? 'Last copy' : 
                          'In Stock'}
                       </div>
                     </div>
@@ -277,7 +275,6 @@ export default function BookGrid({ initialBooks, searchQuery = '', selectedCateg
                         <div className="flex items-center gap-2">
                           <span className="text-xl sm:text-2xl font-bold text-emerald-600">${book.price.toFixed(2)}</span>
                         </div>
-                        <span className="text-xs text-gray-500 mt-0.5 sm:mt-1">Tax included</span>
                       </div>
                     </div>
                   </div>
