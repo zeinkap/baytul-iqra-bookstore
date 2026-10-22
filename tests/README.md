@@ -370,9 +370,21 @@ orders directly in the database (see `helpers/money-path.helper.ts`) and delete 
 
 Not covered on purpose: the "stock went negative" oversell alert, because it emails the shop.
 
-## Catalog cache test
+## Production-build tests (`npm run test:server`)
 
-`npm run test:cache` builds the app and runs `next start` on port 3100 (`playwright.config.cache.ts`), because the
-catalog cache (`src/lib/catalog.ts`) only exists in a production build. It checks that a book page serves cached data
-until an admin edit clears it. `next start` normally reads `.env.production` (the production database), so the config
-passes the local `DATABASE_URL` explicitly and refuses to run unless it is local. It is not part of `npm test`.
+`tests/server` needs a production build, so `playwright.config.server.ts` builds the app and runs `next start` on
+port 3100 (not part of `npm test`; the first run takes a minute for the build). It covers:
+
+- **Catalog cache** (`catalog-cache.spec.ts`): a book page serves cached data until an admin edit clears it.
+  The cache (`src/lib/catalog.ts`) only exists in a production build.
+- **Paid checkout** (`paid-checkout.spec.ts`): the receipt page's fallback (`/api/orders/from-session`), the Stripe
+  webhook, refunds and restock, with a real paid session. Stripe has no API to pay a Checkout Session, so the
+  [Stripe CLI](https://docs.stripe.com/stripe-cli) (`stripe trigger checkout.session.completed`) pays one in test mode,
+  with the order id added to its metadata; the tests skip if the CLI isn't installed. Signed webhook events are built
+  from the real paid session / charge. The server's emails go to a local stub (`RESEND_BASE_URL`), so the tests can
+  assert "exactly one sale alert and one receipt" and nothing is ever really sent.
+
+Safety: `next start` normally reads `.env.production` (the **production** database and live keys), so the config
+passes local/test values explicitly and refuses to run unless `DATABASE_URL` is local and `STRIPE_SECRET_KEY` is a
+test key. The Stripe CLI is always run with that test key, never the CLI's own (live-capable) login. Each run leaves a
+few throwaway products/sessions in Stripe test mode.

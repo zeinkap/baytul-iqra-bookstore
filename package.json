@@ -35,7 +35,7 @@
     "test:report": "playwright show-report test-results/html-report",
     "test:codegen": "playwright codegen http://localhost:3000",
     "test:prod": "NODE_ENV=production playwright test",
-    "test:cache": "playwright test --config=playwright.config.cache.ts"
+    "test:server": "playwright test --config=playwright.config.server.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.134.0",
