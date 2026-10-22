@@ -94,7 +94,7 @@ export default function SearchSection({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 mb-12 sm:mb-16">
+    <div className="relative z-30 max-w-7xl mx-auto px-4 sm:px-6 mb-12 sm:mb-16">
       <div className="bg-white/95 backdrop-blur-sm rounded-2xl sm:rounded-3xl shadow-xl p-4 sm:p-6 md:p-8 lg:p-12 border border-white/50">
         <div className="text-center mb-6 sm:mb-8">
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 sm:mb-4">
