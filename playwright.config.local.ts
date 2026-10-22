@@ -16,16 +16,19 @@ export default defineConfig({
   
   // Test execution settings
   fullyParallel: true,
-  forbidOnly: false, // Allow test.only() in local development
-  retries: 0, // No retries - our tests are now stable
-  workers: 4, // Run tests in parallel with 4 workers
+  forbidOnly: !!process.env.CI, // Allow test.only() locally, but never in CI
+  retries: process.env.CI ? 2 : 0, // No retries locally; CI's cold dev server can make a test flaky once
+  workers: process.env.CI ? 2 : 4, // 4 workers locally; CI runners are smaller and the tests are split across machines (shards)
   
   // Reporter to use
-  reporter: [
-    ['html', { outputFolder: 'playwright-report', open: 'never' }],
-    ['list'],
-    ['json', { outputFile: 'test-results/test-results.json' }]
-  ],
+  // CI writes a blob report per shard; the workflow merges them into one HTML report
+  reporter: process.env.CI
+    ? [['blob'], ['github'], ['list']]
+    : [
+        ['html', { outputFolder: 'playwright-report', open: 'never' }],
+        ['list'],
+        ['json', { outputFile: 'test-results/test-results.json' }]
+      ],
   
   // Shared settings for all tests
   use: {
@@ -89,7 +92,7 @@ export default defineConfig({
   webServer: {
     command: 'npm run dev',
     url: 'http://localhost:3000',
-    reuseExistingServer: true,
+    reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
     stdout: 'ignore',
     stderr: 'pipe',

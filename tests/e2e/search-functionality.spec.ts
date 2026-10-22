@@ -33,7 +33,8 @@ test.describe('Search Functionality', () => {
     await homePage.navigate();
     const partialTitle = testBook.title.substring(0, TEST_DATA.PARTIAL_TITLE_LENGTH);
     await homePage.searchForBook(partialTitle);
-    expect(await homePage.getVisibleBooksCount()).toBeGreaterThan(0);
+    // The list filters after the page loads, so wait for it instead of counting once
+    await expect.poll(() => homePage.getVisibleBooksCount()).toBeGreaterThan(0);
   });
 
   test('should display no results for invalid search', async ({ homePage }) => {
