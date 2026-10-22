@@ -8,7 +8,7 @@ export interface OrderItem {
   price: number;
 }
 
-// Track orders that have already had stock updated to prevent duplicates
+// Orders this server instance has already taken stock for (a shortcut; Order.stockUpdatedAt is the real guard)
 const stockUpdatedOrders = new Set<string>();
 
 /**
@@ -17,7 +17,7 @@ const stockUpdatedOrders = new Set<string>();
  * @param orderId - Order ID for logging purposes
  */
 export async function updateBookStock(items: OrderItem[], orderId: string): Promise<void> {
-  // Check if stock has already been updated for this order
+  // Fast path for the same server instance; the database claim below is what actually prevents duplicates
   if (stockUpdatedOrders.has(orderId)) {
     console.log(`Stock already updated for order ${orderId}, skipping duplicate update`);
     return;
@@ -26,48 +26,55 @@ export async function updateBookStock(items: OrderItem[], orderId: string): Prom
   console.log(`Updating stock for order ${orderId}:`, items);
 
   try {
-    // Process each item in the order
-    for (const item of items) {
-      // Skip items without book ID (shouldn't happen but safety check)
-      if (!item.id) {
-        console.warn(`Skipping item without ID in order ${orderId}:`, item.title);
-        continue;
-      }
+    // One transaction: claim the order (stockUpdatedAt is null -> now) and take the stock. Stripe re-delivers
+    // events, and on serverless a retry can land on a different instance, so the claim lives in the database.
+    // If anything fails the whole transaction rolls back, claim included, so a retry starts clean.
+    const result = await prisma.$transaction(async (tx) => {
+      const claim = await tx.order.updateMany({ where: { id: orderId, stockUpdatedAt: null }, data: { stockUpdatedAt: new Date() } });
+      if (claim.count === 0) return null;
 
-      // Update stock using atomic decrement to prevent race conditions
-      const updatedBook = await prisma.book.update({
-        where: { id: item.id },
-        data: {
-          stock: {
-            decrement: item.quantity
-          }
-        },
-        select: {
-          id: true,
-          title: true,
-          stock: true
+      const updated: { id: string; title: string; stock: number; quantity: number }[] = [];
+      for (const item of items) {
+        // Skip items without book ID (shouldn't happen but safety check)
+        if (!item.id) {
+          console.warn(`Skipping item without ID in order ${orderId}:`, item.title);
+          continue;
         }
-      });
+        // Atomic decrement to prevent race conditions between concurrent orders
+        const book = await tx.book.update({
+          where: { id: item.id },
+          data: { stock: { decrement: item.quantity } },
+          select: { id: true, title: true, stock: true },
+        });
+        updated.push({ ...book, quantity: item.quantity });
+      }
+      return updated;
+    });
 
-      console.log(`Updated stock for book ${updatedBook.title} (${updatedBook.id}): -${item.quantity}, new stock: ${updatedBook.stock}`);
+    stockUpdatedOrders.add(orderId);
+
+    if (result === null) {
+      console.log(`Stock already updated for order ${orderId} (or order not found), skipping duplicate update`);
+      return;
+    }
+
+    for (const book of result) {
+      console.log(`Updated stock for book ${book.title} (${book.id}): -${book.quantity}, new stock: ${book.stock}`);
 
       // Check if stock went negative (shouldn't happen with proper validation)
-      if (updatedBook.stock < 0) {
-        console.error(`CRITICAL: Stock went negative for book ${updatedBook.title} (${updatedBook.id}). Current stock: ${updatedBook.stock}`);
+      if (book.stock < 0) {
+        console.error(`CRITICAL: Stock went negative for book ${book.title} (${book.id}). Current stock: ${book.stock}`);
         // Pre-payment stock checks can't stop two customers paying for the last copy at once, so tell staff
         try {
           // Lazy import: the email client needs RESEND_API_KEY, which order/checkout routes shouldn't require
           const { sendOversellAlert } = await import('./sendEmail');
-          await sendOversellAlert({ bookTitle: updatedBook.title, stock: updatedBook.stock, orderId });
+          await sendOversellAlert({ bookTitle: book.title, stock: book.stock, orderId });
         } catch (alertError) {
           console.error('Failed to send oversell alert:', alertError);
         }
       }
     }
 
-    // Mark this order as having stock updated
-    stockUpdatedOrders.add(orderId);
-    
     // Revalidate book caches to ensure frontend shows updated stock
     try {
       revalidateTag('books', { expire: 0 });
@@ -75,7 +82,7 @@ export async function updateBookStock(items: OrderItem[], orderId: string): Prom
     } catch (cacheError) {
       console.warn('Failed to revalidate book caches:', cacheError);
     }
-    
+
     console.log(`Successfully updated stock for order ${orderId}`);
   } catch (error) {
     console.error(`Failed to update stock for order ${orderId}:`, error);
