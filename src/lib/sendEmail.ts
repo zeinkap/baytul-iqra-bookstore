@@ -108,7 +108,7 @@ export async function sendOrderConfirmationEmail({
       </p>
     </div>
     <p style="font-size:13px; color:#6b7280; text-align:center; margin:16px 0 0;">
-      Questions? Reply to this email, or call or text 718-312-2048.<br>
+      Questions? Just reply to this email.<br>
       Thanks, Zein (Founder of Baytul Iqra)
     </p>
   </div>
@@ -127,7 +127,86 @@ export async function sendOrderConfirmationEmail({
     '',
     `View your receipt: ${receiptUrl}`,
     '',
-    'Questions? Reply to this email, or call or text 718-312-2048.',
+    'Questions? Just reply to this email.',
+    'Thanks, Zein (Founder of Baytul Iqra)',
+  ].join('\n');
+
+  return resend.emails.send({
+    from: 'Baytul Iqra Bookstore <sales@baytuliqra.com>',
+    replyTo: 'sales@baytuliqra.com',
+    to,
+    subject,
+    html,
+    text,
+  });
+}
+
+/** Tells the customer a refund (full or partial) was issued. Replaces Stripe's own refund email. */
+export async function sendRefundEmail({
+  to,
+  orderId,
+  refundAmount,
+  totalRefunded,
+  orderTotal,
+  paymentMethod,
+}: {
+  to: string;
+  orderId: string;
+  /** This refund only, in dollars */
+  refundAmount: number;
+  /** Everything refunded on the order so far, in dollars */
+  totalRefunded: number;
+  orderTotal: number;
+  paymentMethod?: string | null;
+}) {
+  const shortRef = orderId.slice(-8).toUpperCase();
+  const full = totalRefunded >= orderTotal - 0.005;
+  const wallet = paymentMethod === 'apple_pay' || paymentMethod === 'google_pay';
+  const where = wallet ? 'your original payment method' : 'your original card';
+  const intro = `We've refunded ${money(refundAmount)} to ${where}. It usually shows up within 5-10 business days, depending on your bank. If you don't see it after 10 business days, please contact your bank or reply to this email.`;
+  const detail = full
+    ? 'This order has now been refunded in full.'
+    : `So far ${money(totalRefunded)} of your ${money(orderTotal)} order has been refunded.`;
+  const subject = `Your Baytul Iqra refund, ${money(refundAmount)}`;
+  const base = siteUrl();
+
+  const html = `<!doctype html>
+<html>
+<body style="margin:0; padding:0; background:#f3f4f6; font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif; color:#111827;">
+  <div style="max-width:560px; margin:0 auto; padding:24px 16px;">
+    <div style="text-align:center; margin-bottom:16px;">
+      <img src="${base}/logo-baytul-iqra.png" width="64" height="64" alt="Baytul Iqra Bookstore" style="border-radius:8px;">
+      <div style="font-weight:700; color:#065f46; margin-top:6px;">Baytul Iqra Bookstore</div>
+    </div>
+    <div style="background:#ffffff; border-radius:12px; padding:24px;">
+      <h1 style="font-size:22px; margin:0 0 8px;">Your refund is on its way</h1>
+      <p style="margin:0 0 16px; color:#374151;">${intro}</p>
+      <table style="border-collapse:collapse; width:100%; font-size:15px;">
+        <tr>
+          <td style="padding:8px 0; border-bottom:1px solid #eee;">Refund</td>
+          <td style="padding:8px 0; border-bottom:1px solid #eee; text-align:right; font-weight:700;">${money(refundAmount)}</td>
+        </tr>
+      </table>
+      <p style="margin:16px 0 0; font-size:14px; color:#374151;">${detail}</p>
+      <p style="margin:16px 0 0; font-size:13px; color:#6b7280;">Order #${shortRef}</p>
+    </div>
+    <p style="font-size:13px; color:#6b7280; text-align:center; margin:16px 0 0;">
+      Questions? Just reply to this email.<br>
+      Thanks, Zein (Founder of Baytul Iqra)
+    </p>
+  </div>
+</body>
+</html>`;
+
+  const text = [
+    'Your refund is on its way',
+    intro,
+    '',
+    `Refund: ${money(refundAmount)}`,
+    detail,
+    `Order #${shortRef}`,
+    '',
+    'Questions? Just reply to this email.',
     'Thanks, Zein (Founder of Baytul Iqra)',
   ].join('\n');
 
