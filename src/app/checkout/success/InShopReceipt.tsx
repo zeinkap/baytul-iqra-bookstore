@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { clearBasket } from "@/lib/inShopBasket";
 
 export type InShopOrder = {
   id: string;
@@ -69,6 +70,7 @@ export default function InShopReceipt({ order, footer, status }: { order: InShop
   // A short buzz when the payment is confirmed, so the buyer notices the screen turned green
   useEffect(() => {
     if (status !== "paid") return;
+    clearBasket(); // the books in the in-shop basket are paid for
     try {
       navigator.vibrate?.(200);
     } catch {

@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
 import { updateBookStock, extractBookItems, hasStockBeenUpdated } from '@/lib/stockManager';
 import { sendOrderConfirmationEmail } from '@/lib/sendEmail';
-import { finalizePaidOrder, notifySalesOfPaidOrder, paymentMethodLabel, recordRefund } from '@/lib/finalizeOrder';
+import { finalizePaidOrder, finalizeInShopIntent, IN_SHOP_WALLET_FLOW, notifySalesOfPaidOrder, paymentMethodLabel, recordRefund } from '@/lib/finalizeOrder';
 
 // Extended Stripe session type to include shipping_details which may not be in all TypeScript definitions
 interface StripeSessionWithShipping extends Stripe.Checkout.Session {
@@ -97,9 +97,14 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
   const intentId = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id;
   if (!intentId) return;
-  // The order id lives on the Checkout Session that created this payment
+  // The order id lives on the Checkout Session that created this payment, or on the PaymentIntent itself for
+  // Apple Pay / Google Pay payments made on the scan page (no Checkout Session)
   const sessions = await stripe.checkout.sessions.list({ payment_intent: intentId, limit: 1 });
-  const orderId = sessions.data[0]?.metadata?.orderId;
+  let orderId = sessions.data[0]?.metadata?.orderId;
+  if (!orderId) {
+    const intent = await stripe.paymentIntents.retrieve(intentId);
+    orderId = intent.metadata?.orderId || undefined;
+  }
   if (!orderId) {
     console.log('Refund for a payment with no checkout order (ignored):', charge.id);
     return;
@@ -272,6 +277,13 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+
+  // Apple Pay / Google Pay on the scan page: the order already exists, just finish it
+  if (paymentIntent.metadata?.flow === IN_SHOP_WALLET_FLOW) {
+    const result = await finalizeInShopIntent(stripe, paymentIntent.id);
+    if (!result.ok) console.error('Could not finalize in-shop wallet payment:', paymentIntent.id, result.error);
+    return;
+  }
   
   // For payment links, we need to get the metadata from the payment intent
   const orderId = paymentIntent.metadata?.orderId as string | undefined;

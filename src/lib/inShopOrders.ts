@@ -1,5 +1,7 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from './prisma';
 import { extractBookItems } from './stockManager';
+import type { PricedItem } from './pricing';
 
 /**
  * Backing out of Stripe and tapping Buy now again would create a second unpaid order for the same book and
@@ -26,7 +28,35 @@ export async function findReusableInShopOrder(args: {
   );
 }
 
-/** In-shop buyers return to the book they scanned; only same-site /b/ paths are accepted. */
+/** In-shop buyers return to the book they scanned (or their basket); only those same-site paths are accepted. */
 export function safeInShopCancelPath(cancelPath: unknown): string {
-  return typeof cancelPath === 'string' && /^\/b\/[\w-]+(\?loc=[a-z0-9-]{1,40})?$/.test(cancelPath) ? cancelPath : '/cart';
+  return typeof cancelPath === 'string' && (/^\/b\/[\w-]+(\?loc=[a-z0-9-]{1,40})?$/.test(cancelPath) || cancelPath === '/basket')
+    ? cancelPath
+    : '/cart';
+}
+
+/** The unpaid in-shop order for these items: a recent matching one is reused, otherwise a new one is created. */
+export async function getOrCreateInShopOrder(args: {
+  items: PricedItem[];
+  total: number;
+  venue: string | null;
+  device: string | null;
+}): Promise<string> {
+  const { items, total, venue, device } = args;
+  const existing = await findReusableInShopOrder({ items, finalTotal: total, venue, device });
+  if (existing) return existing.id;
+  const created = await prisma.order.create({
+    data: {
+      items: items as unknown as Prisma.InputJsonValue,
+      total,
+      discountAmount: 0,
+      finalTotal: total,
+      fulfillmentType: 'pickup',
+      pickupLocation: 'In shop',
+      source: 'in-shop',
+      location: venue,
+      device,
+    },
+  });
+  return created.id;
 }

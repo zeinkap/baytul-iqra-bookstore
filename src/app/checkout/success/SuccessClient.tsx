@@ -46,6 +46,9 @@ export default function SuccessClient({
 }) {
   const orderId = typeof searchParams.orderId === 'string' ? searchParams.orderId : undefined;
   const sessionId = typeof searchParams.session_id === 'string' ? searchParams.session_id : undefined;
+  // Apple Pay / Google Pay paid on the scan page: there is a PaymentIntent but no Checkout session
+  const paymentIntentId = typeof searchParams.payment_intent === 'string' && searchParams.payment_intent.startsWith('pi_') ? searchParams.payment_intent : undefined;
+  const paymentRef = sessionId ?? paymentIntentId;
   const [order, setOrder] = useState<Order | null>(null);
   // Stripe says the checkout isn't paid yet (a delayed payment method, or the payment didn't go through)
   const [sessionUnpaid, setSessionUnpaid] = useState(false);
@@ -175,12 +178,12 @@ export default function SuccessClient({
         // the webhook and is safe to repeat. If the check fails, retry every ~5s; if Stripe says it isn't paid yet
         // (delayed payment methods can take minutes), keep asking every ~15s.
         const now = Date.now();
-        if (sessionId && !sessionDone && now - lastSessionCheck >= (unpaid ? 15_000 : 5_000)) {
+        if (paymentRef && !sessionDone && now - lastSessionCheck >= (unpaid ? 15_000 : 5_000)) {
           lastSessionCheck = now;
-          const res = await fetch('/api/orders/from-session', {
+          const res = await fetch(sessionId ? '/api/orders/from-session' : '/api/in-shop/confirm-payment', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId }),
+            body: JSON.stringify(sessionId ? { sessionId } : { paymentIntentId }),
           });
           if (cancelled) return;
           if (res.ok) {
@@ -211,7 +214,7 @@ export default function SuccessClient({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [inShopId, needsRefresh, sessionId]);
+  }, [inShopId, needsRefresh, sessionId, paymentIntentId, paymentRef]);
 
   if (!orderId) {
     return <div className="max-w-2xl mx-auto p-8 text-center text-red-600 font-bold">Missing order ID.</div>;
@@ -260,7 +263,7 @@ export default function SuccessClient({
   if (order.source === 'in-shop') {
     // "Paid" only once the server has confirmed the payment. A receipt link for an unpaid or still-processing order
     // must never look like proof of purchase.
-    const status = order.paidAt ? 'paid' : !sessionId || sessionUnpaid || waitedLong ? 'processing' : 'confirming';
+    const status = order.paidAt ? 'paid' : !paymentRef || sessionUnpaid || waitedLong ? 'processing' : 'confirming';
     return <InShopReceipt order={order} footer={footer} status={status} />;
   }
 

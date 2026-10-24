@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import type { Prisma } from '@prisma/client';
-import { prisma } from '@/lib/prisma';
 import { priceItems } from '@/lib/pricing';
 import { findStockProblems, stockProblemMessage } from '@/lib/stockManager';
 import { normalizeLocation } from '@/lib/location';
 import { deviceFromUserAgent } from '@/lib/device';
-import { findReusableInShopOrder, safeInShopCancelPath } from '@/lib/inShopOrders';
+import { getOrCreateInShopOrder, safeInShopCancelPath } from '@/lib/inShopOrders';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -31,24 +29,7 @@ export async function POST(req: NextRequest) {
 
     const venue = normalizeLocation(location);
     const device = deviceFromUserAgent(req.headers.get('user-agent'));
-    const existing = await findReusableInShopOrder({ items, finalTotal: total, venue, device });
-    const orderId =
-      existing?.id ??
-      (
-        await prisma.order.create({
-          data: {
-            items: items as unknown as Prisma.InputJsonValue,
-            total,
-            discountAmount: 0,
-            finalTotal: total,
-            fulfillmentType: 'pickup',
-            pickupLocation: 'In shop',
-            source: 'in-shop',
-            location: venue,
-            device,
-          },
-        })
-      ).id;
+    const orderId = await getOrCreateInShopOrder({ items, total, venue, device });
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || req.nextUrl.origin || 'http://localhost:3000';
     const params = {
