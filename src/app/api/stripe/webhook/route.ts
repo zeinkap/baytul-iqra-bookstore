@@ -292,6 +292,14 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   const discountAmountCents = paymentIntent.metadata?.discountAmount ? Number(paymentIntent.metadata.discountAmount) : 0;
   const pickupLocation = paymentIntent.metadata?.pickupLocation || undefined;
 
+  // Not one of ours: every Checkout payment has a PaymentIntent too (its order id lives on the session, which
+  // checkout.session.completed handles), and so do payments made straight in the Stripe Dashboard. Without an
+  // order id there is nothing to finish, and guessing one would create a stray "Book Purchase" order.
+  if (!orderId) {
+    console.log('payment_intent.succeeded without an order id (Checkout or Dashboard payment): ignored', paymentIntent.id);
+    return;
+  }
+
   console.log('Processing payment intent:', { orderId, promoCodeId, fulfillmentType, customerId: paymentIntent.customer });
 
   // Try to get customer information from multiple sources
