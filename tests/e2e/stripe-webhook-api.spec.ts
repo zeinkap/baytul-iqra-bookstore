@@ -47,6 +47,26 @@ test.describe('Stripe webhook API: signatures', () => {
     expect((await post(request, payload, 't=1,v1=deadbeef')).status()).toBe(400);
   });
 
+  test('a payment that is not one of ours (no order id, like every Checkout payment\'s PaymentIntent) creates no stray order', async ({ request }) => {
+    const strayOrders = () => db.order.count({ where: { items: { path: ['0', 'title'], equals: 'Book Purchase' } } });
+    const before = await strayOrders();
+    const { payload, header } = signedEvent('payment_intent.succeeded', {
+      id: 'pi_e2e_not_ours',
+      object: 'payment_intent',
+      amount: 1500,
+      currency: 'usd',
+      status: 'succeeded',
+      metadata: {},
+      customer: null,
+      receipt_email: null,
+    });
+
+    const res = await post(request, payload, header);
+
+    expect(res.status()).toBe(200);
+    expect(await strayOrders()).toBe(before);
+  });
+
   test('an unsigned "payment completed" request does nothing to the order', async ({ request }) => {
     const book = await fx.book({ stock: 5 });
     const order = await fx.order(book, { paid: false });
