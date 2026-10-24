@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -16,12 +16,6 @@ export type InShopOrder = {
   createdAt?: string | null;
 };
 
-/** a***@gmail.com: enough to recognise the address without showing all of it on a shared screen. */
-const maskEmail = (email: string) => {
-  const [name, domain] = email.split("@");
-  return domain ? `${name.slice(0, 1)}***@${domain}` : email;
-};
-
 const money = (n: number) => `$${Number(n || 0).toFixed(2)}`;
 
 /**
@@ -31,16 +25,30 @@ const money = (n: number) => `$${Number(n || 0).toFixed(2)}`;
 /** paid = the server confirmed the payment; confirming = checking right after checkout; processing = not paid yet. */
 export type ReceiptStatus = "paid" | "confirming" | "processing";
 
+/** Ticking time on the Paid screen: a screenshot can't tick, so staff can tell this is the live screen. */
+function LiveClock() {
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => {
+    const first = setTimeout(() => setNow(new Date()), 0);
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => {
+      clearTimeout(first);
+      clearInterval(timer);
+    };
+  }, []);
+  return (
+    <p className="mt-2 text-sm font-mono text-gray-500 min-h-5" data-testid="receipt-live-clock">
+      {now && now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}
+    </p>
+  );
+}
+
 export default function InShopReceipt({ order, footer, status }: { order: InShopOrder; footer?: ReactNode; status: ReceiptStatus }) {
   const paidWhen = order.paidAt || order.createdAt;
   const paidText = paidWhen
     ? new Date(paidWhen).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
     : null;
   const shortRef = order.id.slice(-8).toUpperCase();
-  const [sendState, setSendState] = useState<"idle" | "sending" | "sent" | "error">("idle");
-  const [sendMessage, setSendMessage] = useState("");
-  const canSend = !!order.email && !!order.paidAt;
-
   const [wish, setWish] = useState("");
   const [wishState, setWishState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const sendWish = async () => {
@@ -58,19 +66,15 @@ export default function InShopReceipt({ order, footer, status }: { order: InShop
     }
   };
 
-  const emailReceipt = async () => {
-    setSendState("sending");
-    setSendMessage("");
+  // A short buzz when the payment is confirmed, so the buyer notices the screen turned green
+  useEffect(() => {
+    if (status !== "paid") return;
     try {
-      const res = await fetch(`/api/orders/${order.id}/send-receipt`, { method: "POST" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Could not send the receipt. Please try again.");
-      setSendState("sent");
-    } catch (e) {
-      setSendState("error");
-      setSendMessage(e instanceof Error ? e.message : "Could not send the receipt. Please try again.");
+      navigator.vibrate?.(200);
+    } catch {
+      // not supported (e.g. iPhone): the green screen is enough
     }
-  };
+  }, [status]);
 
   return (
     <main className="max-w-md mx-auto px-4 pt-6 pb-10" data-testid="in-shop-receipt">
@@ -91,6 +95,7 @@ export default function InShopReceipt({ order, footer, status }: { order: InShop
           {paidText && <span className="text-gray-500 font-medium"> · {paidText}</span>}
         </p>
         <p className="text-sm text-gray-600 mt-1">You can take your book with you. Show this screen if anyone asks.</p>
+        <LiveClock />
       </div>
       ) : status === "confirming" ? (
         <div className="text-center mb-6" data-testid="receipt-status" data-status="confirming">
@@ -168,25 +173,9 @@ export default function InShopReceipt({ order, footer, status }: { order: InShop
 
       {status === "paid" && (
         <>
-      <div className="text-center mb-6">
-        <button
-          onClick={emailReceipt}
-          disabled={!canSend || sendState === "sending" || sendState === "sent"}
-          data-testid="receipt-email-button"
-          className="px-5 py-2.5 rounded-xl font-semibold text-gray-800 border border-gray-300 bg-white disabled:opacity-60"
-        >
-          {sendState === "sending" ? "Sending…" : sendState === "sent" ? "Receipt sent ✓" : "Email me my receipt"}
-        </button>
-        <p className="mt-2 text-xs text-gray-500" data-testid="receipt-email-hint">
-          {sendState === "sent" && order.email
-            ? `Sent to ${maskEmail(order.email)}. Check your spam folder if you don't see it.`
-            : sendState === "error"
-            ? sendMessage
-            : canSend
-            ? `We'll send it to ${maskEmail(order.email as string)}.`
-            : "Your receipt email is being prepared…"}
-        </p>
-      </div>
+      <p className="text-center text-xs text-gray-500 mb-6" data-testid="receipt-email-hint">
+        {order.email ? "Your receipt was emailed. Check your spam folder if you don't see it." : "Your receipt email is being prepared…"}
+      </p>
 
       <div className="bg-white rounded-2xl shadow border border-gray-100 p-5 mb-6" data-testid="receipt-wish">
         {wishState === "sent" ? (

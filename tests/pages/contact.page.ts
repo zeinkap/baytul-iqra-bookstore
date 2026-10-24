@@ -25,8 +25,8 @@ export class ContactPage extends BasePage {
     this.subjectSelect = page.locator('select#subject');
     this.messageTextarea = page.locator('textarea#message');
     this.submitButton = page.locator('button[type="submit"]');
-    this.successMessage = page.locator('text="Message Sent!"');
-    this.errorMessage = page.locator('text="Message Failed to Send"');
+    this.successMessage = page.getByRole('heading', { name: 'Message sent' });
+    this.errorMessage = page.getByRole('heading', { name: "Message didn't send" });
   }
 
   /**

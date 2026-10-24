@@ -160,22 +160,32 @@ export default function SuccessClient({
   }, [unpaidInShop]);
   useEffect(() => {
     if (!inShopId || !needsRefresh) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
     let tries = 0;
-    let unpaid = false;
-    const timer = setInterval(async () => {
+    let unpaid = false; // Stripe says the session isn't paid yet
+    let sessionDone = false; // the server finalized the order from the Stripe session
+    let lastSessionCheck = 0;
+
+    const tick = async () => {
       tries += 1;
       try {
-        // If Stripe's webhook hasn't landed after a few seconds (slow, or not running), ask the server to
-        // finalize the order straight from the Stripe session so the receipt can still complete. If Stripe says
-        // it isn't paid yet (delayed payment methods can take minutes), keep asking every ~15s.
-        if (sessionId && (tries === 2 || (unpaid && tries % 6 === 0))) {
+        // Stripe only sends buyers back here after a successful payment, so ask the server to finalize the order
+        // straight from the Stripe session right away instead of waiting for the webhook. It does the same work as
+        // the webhook and is safe to repeat. If the check fails, retry every ~5s; if Stripe says it isn't paid yet
+        // (delayed payment methods can take minutes), keep asking every ~15s.
+        const now = Date.now();
+        if (sessionId && !sessionDone && now - lastSessionCheck >= (unpaid ? 15_000 : 5_000)) {
+          lastSessionCheck = now;
           const res = await fetch('/api/orders/from-session', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ sessionId }),
           });
+          if (cancelled) return;
           if (res.ok) {
             unpaid = false;
+            sessionDone = true;
             setSessionUnpaid(false);
             const fresh: Order = await res.json();
             setOrder((prev) => (prev ? { ...prev, ...fresh } : fresh));
@@ -185,6 +195,7 @@ export default function SuccessClient({
           }
         }
         const res = await fetch(`/api/orders/${inShopId}`, { cache: 'no-store' });
+        if (cancelled) return;
         if (res.ok) {
           const fresh: Order = await res.json();
           setOrder((prev) => (prev ? { ...prev, ...fresh } : fresh));
@@ -192,9 +203,14 @@ export default function SuccessClient({
       } catch {
         // ignore and try again
       }
-      if (tries >= 120) clearInterval(timer); // about 5 minutes
-    }, 2500);
-    return () => clearInterval(timer);
+      // Poll quickly for the first seconds (the buyer is watching the screen), then back off for ~5 minutes
+      if (!cancelled && tries < 200) timer = setTimeout(tick, tries < 10 ? 1000 : 2500);
+    };
+    tick();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [inShopId, needsRefresh, sessionId]);
 
   if (!orderId) {
