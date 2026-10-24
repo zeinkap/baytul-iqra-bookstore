@@ -58,7 +58,7 @@ test.describe('In-shop receipt', () => {
     await expect(page.getByText('Confirming your payment')).toBeVisible();
     await expect(page.getByText('Paid ✓')).toHaveCount(0);
     // Post-payment actions are not offered before payment is confirmed
-    await expect(page.getByTestId('receipt-email-button')).toHaveCount(0);
+    await expect(page.getByTestId('receipt-email-hint')).toHaveCount(0);
     await expect(page.getByTestId('receipt-wish')).toHaveCount(0);
   });
 
@@ -89,11 +89,12 @@ test.describe('In-shop receipt', () => {
     await expect(page.getByTestId('order-success-message')).toContainText('Paid', { timeout: 15_000 });
   });
 
-  test('email receipt is only offered after payment, and the API refuses for unpaid orders', async ({ page }) => {
+  test('the paid receipt shows a live clock and says the receipt was emailed; the resend API refuses unpaid orders', async ({ page }) => {
     const { order } = await createInShopOrder(initializeAPIHelper(page));
 
     await openPaidReceipt(page, order.id);
-    await expect(page.getByTestId('receipt-email-button')).toBeEnabled();
+    await expect(page.getByTestId('receipt-live-clock')).not.toBeEmpty();
+    await expect(page.getByTestId('receipt-email-hint')).toContainText('emailed');
 
     // The server still checks the real order: unpaid, no email on file
     const response = await page.request.post(`/api/orders/${order.id}/send-receipt`);

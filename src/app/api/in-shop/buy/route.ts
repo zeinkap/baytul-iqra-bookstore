@@ -51,8 +51,7 @@ export async function POST(req: NextRequest) {
       ).id;
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || req.nextUrl.origin || 'http://localhost:3000';
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
+    const params = {
       mode: 'payment',
       line_items: items.map((item) => ({
         price_data: {
@@ -87,7 +86,19 @@ export async function POST(req: NextRequest) {
         itemCount: String(items.length),
         totalItems: String(items.reduce((sum, i) => sum + i.quantity, 0)),
       },
-    });
+    } satisfies Omit<Stripe.Checkout.SessionCreateParams, 'payment_method_types'>;
+
+    // Card covers Apple Pay and Google Pay. Link fills in email and card in one tap for returning customers. No slow
+    // methods (bank debits): the buyer needs an instant "Paid" to walk out. If Link isn't enabled on the Stripe
+    // account, fall back to card only rather than failing the sale.
+    let session: Stripe.Checkout.Session;
+    try {
+      session = await stripe.checkout.sessions.create({ ...params, payment_method_types: ['card', 'link'] });
+    } catch (linkError) {
+      if (!(linkError instanceof Stripe.errors.StripeInvalidRequestError)) throw linkError;
+      console.warn('Checkout with Link failed, retrying with card only:', linkError.message);
+      session = await stripe.checkout.sessions.create({ ...params, payment_method_types: ['card'] });
+    }
 
     return NextResponse.json({ url: session.url, orderId });
   } catch (err) {

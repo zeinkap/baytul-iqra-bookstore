@@ -12,6 +12,9 @@ import { reportScanFailure } from "@/lib/reportScanFailure";
 
 type ScannedBook = Omit<CartItem, "quantity">;
 
+// Plenty for a walk-in sale; the server still checks real stock
+const MAX_SCAN_QUANTITY = 10;
+
 /**
  * Landing page for a scanned QR label. Shows the book so the customer can confirm
  * (guards against accidental scans); "Buy now" creates the order and goes straight to Stripe Checkout (Stripe collects the email).
@@ -38,6 +41,8 @@ export default function ScanBook({
   const [buying, setBuying] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [zoomOpen, setZoomOpen] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const maxQuantity = Math.min(stock, MAX_SCAN_QUANTITY);
   const gallery = images.filter((src) => typeof src === "string" && src.length > 0);
   const chips = [ageRange && (/^\d/.test(ageRange) ? `Ages ${ageRange}` : ageRange), book.format].filter(Boolean) as string[];
 
@@ -47,7 +52,7 @@ export default function ScanBook({
     // What to record if something throws: a failed fetch (no connection) counts as "network"
     let failure: "network" | "checkout-failed" = "network";
     try {
-      const items = [{ ...book, quantity: 1 }];
+      const items = [{ ...book, quantity }];
       // One request creates the order and the Stripe session, so the phone makes a single round trip
       const sessionRes = await fetch("/api/in-shop/buy", {
         method: "POST",
@@ -82,10 +87,14 @@ export default function ScanBook({
   };
 
   const price = `$${book.price.toFixed(2)}`;
+  const total = `$${(book.price * quantity).toFixed(2)}`;
 
   return (
     // Extra bottom padding on phones so the pinned Buy now bar never covers content
     <main className="max-w-md mx-auto px-4 pt-6 pb-32 sm:pb-8" data-testid="scan-book-card">
+      {/* Open the connection to Stripe while the customer reads, so Buy now lands on checkout faster */}
+      <link rel="preconnect" href="https://checkout.stripe.com" />
+      <link rel="preconnect" href="https://js.stripe.com" />
       <div className="flex flex-col items-center mb-4">
         <Image src="/logo-baytul-iqra.png" alt="Baytul Iqra Bookstore" width={64} height={64} className="w-16 h-16 object-contain" priority />
         <p className="mt-1 text-sm font-semibold text-emerald-800">Baytul Iqra Bookstore</p>
@@ -137,6 +146,33 @@ export default function ScanBook({
 
         <p className="text-2xl font-extrabold text-emerald-700">{price}</p>
         <p className="text-xs text-gray-500 mb-2" data-testid="scan-tax-note">Tax included</p>
+        {maxQuantity > 1 && (
+          <div className="flex items-center justify-center gap-4 mb-3" data-testid="scan-quantity">
+            <button
+              type="button"
+              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              disabled={buying || quantity <= 1}
+              aria-label="Fewer copies"
+              data-testid="scan-qty-minus"
+              className="w-11 h-11 rounded-full border border-gray-300 text-xl font-semibold text-gray-800 disabled:opacity-40"
+            >
+              −
+            </button>
+            <span className="min-w-[5rem] text-center text-gray-900 font-semibold" data-testid="scan-qty-value" aria-live="polite">
+              {quantity} {quantity === 1 ? "copy" : "copies"}
+            </span>
+            <button
+              type="button"
+              onClick={() => setQuantity((q) => Math.min(maxQuantity, q + 1))}
+              disabled={buying || quantity >= maxQuantity}
+              aria-label="More copies"
+              data-testid="scan-qty-plus"
+              className="w-11 h-11 rounded-full border border-gray-300 text-xl font-semibold text-gray-800 disabled:opacity-40"
+            >
+              +
+            </button>
+          </div>
+        )}
         {stock <= 3 && (
           <p className="text-sm font-semibold text-amber-700 mb-3" data-testid="scan-low-stock">
             {stock === 1 ? "Last copy!" : `Only ${stock} left`}
@@ -151,7 +187,7 @@ export default function ScanBook({
             data-testid="scan-buy-now"
             className="w-full max-w-md mx-auto block px-6 py-3.5 rounded-xl font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500 disabled:opacity-60"
           >
-            {buying ? "Opening checkout…" : `Buy now · ${price}`}
+            {buying ? "Opening checkout…" : `Buy now · ${total}`}
           </button>
         </div>
 

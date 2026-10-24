@@ -23,6 +23,22 @@ test.describe('QR scan to cart', () => {
     await expect(page.getByTestId('scan-description')).not.toContainText(/<\/?(p|em|br|strong|ul|li)\b/i);
   });
 
+  test('quantity stepper changes the Buy now total and stays within stock', async ({ page }) => {
+    const book = await initializeAPIHelper(page).findInStockBook();
+
+    await page.goto(`/b/${book.id}`);
+
+    if (book.stock < 2) {
+      await expect(page.getByTestId('scan-quantity')).toHaveCount(0);
+      return;
+    }
+    await expect(page.getByTestId('scan-qty-value')).toHaveText('1 copy');
+    await expect(page.getByTestId('scan-qty-minus')).toBeDisabled();
+    await page.getByTestId('scan-qty-plus').click();
+    await expect(page.getByTestId('scan-qty-value')).toHaveText('2 copies');
+    await expect(page.getByTestId('scan-buy-now')).toContainText(`$${(book.price * 2).toFixed(2)}`);
+  });
+
   test('scan page is focused: tax note shown, no navbar or chat button', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
 
