@@ -4,7 +4,6 @@ import Stripe from 'stripe';
 import { sendOrderNotificationToSales } from '@/lib/sendEmail';
 import { finalizePaidOrder, paymentMethodLabel } from '@/lib/finalizeOrder';
 import { toPublicOrder } from '@/lib/publicOrder';
-import { updateBookStock, extractBookItems } from '@/lib/stockManager';
 
 export async function POST(req: NextRequest) {
   try {
@@ -201,13 +200,6 @@ export async function POST(req: NextRequest) {
       // Same finalizing the webhook does (paid time, payment method, name, email + receipt), in case the
       // webhook is slow or never reached us. Only fills fields that are still empty.
       existing = (await finalizePaidOrder(orderId, { email, customerName, paymentMethod: await paymentMethodLabel(stripe, session) }, after)) ?? existing;
-
-      // The session is paid, so take the stock now (the webhook does too; the database claim makes the second a no-op)
-      try {
-        await updateBookStock(extractBookItems(existing.items), orderId);
-      } catch (stockError) {
-        console.error('Failed to update stock for paid order:', orderId, stockError);
-      }
 
       // Check if existing order is missing customer information
       const needsUpdate = !existing.customerName || !existing.shippingAddress || !existing.email;
