@@ -2,7 +2,7 @@ import Stripe from 'stripe';
 import type { Order } from '@prisma/client';
 import { prisma } from './prisma';
 import { sendOrderConfirmationEmail, sendOrderNotificationToSales, sendRefundEmail } from './sendEmail';
-import { extractBookItems } from './stockManager';
+import { extractBookItems, updateBookStock } from './stockManager';
 
 /** How the customer paid, from Stripe: "apple_pay", "google_pay", "link", "card"... (null if it can't be read). */
 export async function paymentMethodLabel(stripe: Stripe, session: Stripe.Checkout.Session): Promise<string | null> {
@@ -77,6 +77,53 @@ export async function finalizePaidOrder(
   if (runLater) runLater(() => sendEmails().catch((error) => console.error('Error sending order emails:', error)));
   else await sendEmails();
   return order;
+}
+
+/** Marks the PaymentIntents the scan page creates for Apple Pay / Google Pay, so the webhook can tell them apart. */
+export const IN_SHOP_WALLET_FLOW = 'in-shop-wallet';
+
+export type FinalizeIntentResult =
+  | { ok: true; order: Order }
+  | { ok: false; status: number; error: string };
+
+/**
+ * Finishes an in-shop wallet payment once Stripe says the PaymentIntent succeeded: paid time, payment method,
+ * name and email (from the wallet), the receipt email and the stock. Called by the webhook and by the receipt page's
+ * fallback, so whichever runs first does the work and the other is a no-op. Never trusts the browser: everything
+ * is read from Stripe.
+ */
+export async function finalizeInShopIntent(stripe: Stripe, intentId: string): Promise<FinalizeIntentResult> {
+  const intent = await stripe.paymentIntents.retrieve(intentId, { expand: ['payment_method'] });
+  const orderId = intent.metadata?.orderId;
+  if (intent.metadata?.flow !== IN_SHOP_WALLET_FLOW || !orderId) {
+    return { ok: false, status: 400, error: 'Not an in-shop payment' };
+  }
+  if (intent.status !== 'succeeded') {
+    return { ok: false, status: 400, error: 'Payment not completed' };
+  }
+  const existing = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!existing) return { ok: false, status: 404, error: 'Order not found' };
+  if (intent.amount !== Math.round(existing.finalTotal * 100)) {
+    // Prices are computed on the server, so this only happens if the order was edited after the payment started
+    console.error(`In-shop payment ${intent.id} amount ${intent.amount} does not match order ${orderId} total ${existing.finalTotal}`);
+  }
+
+  const method = intent.payment_method && typeof intent.payment_method !== 'string' ? intent.payment_method : null;
+  const paymentMethod = method ? (method.type === 'card' ? (method.card?.wallet?.type ?? 'card') : method.type) : null;
+  const order = await finalizePaidOrder(orderId, {
+    email: method?.billing_details?.email || intent.metadata.email || null,
+    customerName: method?.billing_details?.name || intent.metadata.name || null,
+    paymentMethod,
+  });
+  if (!order) return { ok: false, status: 404, error: 'Order not found' };
+
+  try {
+    // Claims the stock in the database, so a second call (webhook retry, receipt-page fallback) does nothing
+    await updateBookStock(extractBookItems(order.items), order.id);
+  } catch (error) {
+    console.error('Failed to update stock for in-shop wallet order:', order.id, error);
+  }
+  return { ok: true, order };
 }
 
 /**

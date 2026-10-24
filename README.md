@@ -138,7 +138,7 @@ To accept in-person payments where the customer taps their card or phone on **yo
    Create a `.env` file with:
    ```bash
    DATABASE_URL="postgresql://username:password@localhost:5432/bookstore"
-   STRIPE_PUBLISHABLE_KEY="your_stripe_publishable_key"
+   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="your_stripe_publishable_key"   # Apple Pay / Google Pay on the in-shop pages
    STRIPE_SECRET_KEY="your_stripe_secret_key"
    ANTHROPIC_API_KEY="your_anthropic_api_key"   # powers the chat assistant
    ADMIN_PASSWORD="your_secure_admin_password"
