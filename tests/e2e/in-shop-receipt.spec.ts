@@ -101,6 +101,18 @@ test.describe('In-shop receipt', () => {
     expect(response.status()).toBe(409);
   });
 
+  test('opening the receipt of an unpaid order never takes stock', async ({ page }) => {
+    const apiHelper = initializeAPIHelper(page);
+    const { book, order } = await createInShopOrder(apiHelper);
+    const stockBefore = (await apiHelper.getBook(book.id)).stock;
+
+    // What the receipt page's backup call does; the server must refuse because nothing was paid
+    const response = await page.request.post(`/api/orders/${order.id}/update-stock`);
+    expect(response.status()).toBe(409);
+
+    expect((await apiHelper.getBook(book.id)).stock).toBe(stockBefore);
+  });
+
   test('customers can leave a book request on the receipt', async ({ page }) => {
     const { order } = await createInShopOrder(initializeAPIHelper(page));
 

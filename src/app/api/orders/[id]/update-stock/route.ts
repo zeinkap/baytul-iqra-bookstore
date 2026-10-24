@@ -25,12 +25,19 @@ export async function POST(
       select: {
         id: true,
         items: true,
-        createdAt: true
+        createdAt: true,
+        paidAt: true
       }
     });
 
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+
+    // Stock only comes off for money that has arrived. In-shop orders exist before payment, so opening an
+    // unpaid order's receipt link must not take stock.
+    if (!order.paidAt) {
+      return NextResponse.json({ error: 'Order is not paid yet', stockUpdated: false }, { status: 409 });
     }
 
     // Check if this order is recent (within last 24 hours) to prevent abuse
