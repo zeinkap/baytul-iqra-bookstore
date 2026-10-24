@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, useRef, type ReactNode } from 'react';
 import { useCart } from '@/components/CartProvider';
 import Button from '@/components/Button';
 import { Card } from '@/components/Card';
@@ -60,8 +60,9 @@ export default function SuccessClient({
   const clearedRef = useRef(false);
   const stockUpdateAttemptedRef = useRef(false);
 
-  // Backup stock update function
-  const updateStockBackup = async (orderId: string) => {
+  // Backup stock update function. The server refuses (409) until the order is paid, so an unpaid order is
+  // tried again once the payment is confirmed.
+  const updateStockBackup = useCallback(async (orderId: string) => {
     if (stockUpdateAttemptedRef.current) return;
     stockUpdateAttemptedRef.current = true;
 
@@ -77,12 +78,13 @@ export default function SuccessClient({
         const result = await response.json();
         console.log('Backup stock update successful:', result);
       } else {
+        if (response.status === 409) stockUpdateAttemptedRef.current = false; // not paid yet
         console.warn('Backup stock update failed:', await response.text());
       }
     } catch (error) {
       console.error('Backup stock update error:', error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (!orderId) return;
@@ -149,7 +151,7 @@ export default function SuccessClient({
     return () => {
       isCancelled = true;
     };
-  }, [orderId, sessionId, clearCart]);
+  }, [orderId, sessionId, clearCart, updateStockBackup]);
 
   // In-shop orders are created before payment, so Stripe's email/name and the paid time land a moment
   // later (via the webhook). Refresh the receipt for ~20s so the real values replace the placeholders.
@@ -192,6 +194,7 @@ export default function SuccessClient({
             setSessionUnpaid(false);
             const fresh: Order = await res.json();
             setOrder((prev) => (prev ? { ...prev, ...fresh } : fresh));
+            if (fresh.paidAt) updateStockBackup(fresh.id);
           } else if (res.status === 400) {
             unpaid = true;
             setSessionUnpaid(true);
@@ -202,6 +205,7 @@ export default function SuccessClient({
         if (res.ok) {
           const fresh: Order = await res.json();
           setOrder((prev) => (prev ? { ...prev, ...fresh } : fresh));
+          if (fresh.paidAt) updateStockBackup(fresh.id);
         }
       } catch {
         // ignore and try again
@@ -214,7 +218,7 @@ export default function SuccessClient({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [inShopId, needsRefresh, sessionId, paymentIntentId, paymentRef]);
+  }, [inShopId, needsRefresh, sessionId, paymentIntentId, paymentRef, updateStockBackup]);
 
   if (!orderId) {
     return <div className="max-w-2xl mx-auto p-8 text-center text-red-600 font-bold">Missing order ID.</div>;
