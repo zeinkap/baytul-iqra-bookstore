@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
   if (denied) return denied;
 
   const data = await req.json();
-  const { title, author, description, price, costPrice, shippingCost, images, stock, isBestseller, format, ageRange, isbn, categories } = data;
+  const { title, author, description, price, inShopPrice, costPrice, shippingCost, images, stock, isBestseller, format, ageRange, isbn, categories } = data;
   if (!title || !author || !description || !Array.isArray(categories)) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
@@ -51,6 +51,12 @@ export async function POST(req: NextRequest) {
   const stockNum = typeof stock === 'number' ? stock : Number(stock);
   if (Number.isNaN(priceNum) || priceNum < 0) {
     return NextResponse.json({ error: 'Invalid price' }, { status: 400 });
+  }
+  // In-person price: optional; empty/null clears it (in-person then uses the online price)
+  const hasInShopPrice = inShopPrice !== undefined && inShopPrice !== null && inShopPrice !== '';
+  const inShopPriceNum = hasInShopPrice ? Number(inShopPrice) : null;
+  if (inShopPriceNum !== null && (Number.isNaN(inShopPriceNum) || inShopPriceNum < 0)) {
+    return NextResponse.json({ error: 'Invalid in-person price' }, { status: 400 });
   }
   if (Number.isNaN(stockNum) || stockNum < 0 || !Number.isInteger(stockNum)) {
     return NextResponse.json({ error: 'Invalid stock (must be a non-negative integer)' }, { status: 400 });
@@ -78,6 +84,7 @@ export async function POST(req: NextRequest) {
         author: String(author).trim(),
         description: String(description).trim(),
         price: priceNum,
+        ...(inShopPriceNum !== null && { inShopPrice: inShopPriceNum }),
         ...(optionalCostPrice !== undefined && { costPrice: optionalCostPrice }),
         ...(optionalShippingCost !== undefined && { shippingCost: optionalShippingCost }),
         images: normalizedImages,

@@ -6,6 +6,7 @@ import { htmlToText } from '@/lib/htmlToText';
 import ScanBook from './ScanBook';
 import ScanLogger from './ScanLogger';
 import { resolveVenue } from '@/lib/venue';
+import { unitPrice } from '@/lib/pricing';
 import BookSuggestions from '@/components/BookSuggestions';
 import { similarBooks, popularBooks, type Suggestion } from '@/lib/suggestions';
 
@@ -65,7 +66,7 @@ export default async function ScanBookPage({
           id: book.id,
           title: book.title,
           author: book.author,
-          price: book.price,
+          price: unitPrice(book, 'in-shop'),
           image: book.images[0] ?? '',
           format: book.format ?? undefined,
         }}

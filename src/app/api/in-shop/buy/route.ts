@@ -16,7 +16,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 export async function POST(req: NextRequest) {
   try {
     const { items: rawItems, location, cancelPath } = await req.json();
-    const priced = await priceItems(rawItems);
+    const priced = await priceItems(rawItems, 'in-shop');
     if (!priced.ok) {
       return NextResponse.json({ error: priced.error }, { status: priced.status });
     }

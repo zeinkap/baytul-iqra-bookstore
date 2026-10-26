@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid source' }, { status: 400 });
     }
     // Prices, total and discount come from the database; the browser only supplies ids and quantities
-    const priced = await priceItems(rawItems);
+    const priced = await priceItems(rawItems, source === 'in-shop' ? 'in-shop' : 'online');
     if (!priced.ok) {
       return NextResponse.json({ error: priced.error }, { status: priced.status });
     }

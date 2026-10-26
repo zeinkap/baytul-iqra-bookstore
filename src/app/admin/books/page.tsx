@@ -9,6 +9,7 @@ interface Book {
   author: string;
   description: string;
   price: number;
+  inShopPrice?: number | null;
   costPrice?: number;
   shippingCost?: number;
   images: string[];
@@ -197,6 +198,10 @@ export default function AdminBooksPage() {
           aValue = a.price;
           bValue = b.price;
           break;
+        case 'inShopPrice':
+          aValue = a.inShopPrice ?? a.price;
+          bValue = b.inShopPrice ?? b.price;
+          break;
         case 'costPrice':
           aValue = a.costPrice ?? -1;
           bValue = b.costPrice ?? -1;
@@ -234,6 +239,7 @@ export default function AdminBooksPage() {
       author: book.author,
       description: book.description,
       price: book.price,
+      inShopPrice: book.inShopPrice ?? undefined,
       costPrice: book.costPrice,
       shippingCost: book.shippingCost,
       images: book.images.length > 0 ? book.images : [""],
@@ -273,7 +279,7 @@ export default function AdminBooksPage() {
         return { ...f, images };
       });
     } else {
-      setForm((f) => ({ ...f, [name]: name === "price" || name === "stock" || name === "costPrice" || name === "shippingCost" ? Number(value) : value }));
+      setForm((f) => ({ ...f, [name]: name === "price" || name === "inShopPrice" || name === "stock" || name === "costPrice" || name === "shippingCost" ? Number(value) : value }));
     }
   }
   
@@ -321,11 +327,13 @@ export default function AdminBooksPage() {
       const method = editingBook ? "PUT" : "POST";
       const url = editingBook ? `/api/books/${editingBook.id}` : "/api/books";
       // Ensure optional numeric fields are valid numbers or null (so they persist correctly)
+      const inShopPriceVal = form.inShopPrice as unknown;
       const costPriceVal = form.costPrice as unknown;
       const shippingCostVal = form.shippingCost as unknown;
       const body = {
         ...form,
         images: finalImages,
+        inShopPrice: inShopPriceVal !== undefined && inShopPriceVal !== null && inShopPriceVal !== "" && Number(inShopPriceVal) > 0 ? Number(inShopPriceVal) : null,
         costPrice: costPriceVal !== undefined && costPriceVal !== "" && !Number.isNaN(Number(costPriceVal)) ? Number(costPriceVal) : null,
         shippingCost: shippingCostVal !== undefined && shippingCostVal !== "" && !Number.isNaN(Number(shippingCostVal)) ? Number(shippingCostVal) : null,
       };
@@ -412,7 +420,7 @@ export default function AdminBooksPage() {
   }
 
   function exportToCSV() {
-    const headers = ['Title', 'Author', 'Format', 'ISBN', 'Categories', 'Stock', 'Price', 'Cost Price', 'Shipping Cost', 'Bestseller', 'Created At'];
+    const headers = ['Title', 'Author', 'Format', 'ISBN', 'Categories', 'Stock', 'Price', 'In-person Price', 'Cost Price', 'Shipping Cost', 'Bestseller', 'Created At'];
     const rows = filteredBooks.map(book => [
       book.title,
       book.author,
@@ -421,6 +429,7 @@ export default function AdminBooksPage() {
       book.categories.join('; '),
       book.stock.toString(),
       `$${book.price.toFixed(2)}`,
+      book.inShopPrice != null ? `$${book.inShopPrice.toFixed(2)}` : '',
       book.costPrice ? `$${book.costPrice.toFixed(2)}` : 'N/A',
       book.shippingCost ? `$${book.shippingCost.toFixed(2)}` : 'N/A',
       book.isBestseller ? 'Yes' : 'No',
@@ -668,6 +677,13 @@ export default function AdminBooksPage() {
             </div>
             <div>
               <label className="block font-medium mb-1">
+                In-person Price <span className="text-gray-500 font-normal">(optional)</span>
+              </label>
+              <input name="inShopPrice" type="number" step="1" value={form.inShopPrice || ""} onChange={handleFormChange} min={0} className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Whole dollars, shown on QR scan pages" />
+              <p className="text-xs text-gray-500 mt-1">Used for QR scans and in-shop checkout. Leave empty to use the online price.</p>
+            </div>
+            <div>
+              <label className="block font-medium mb-1">
                 Cost Price <span className="text-gray-500 font-normal">(optional)</span>
               </label>
               <input name="costPrice" type="number" step="0.01" value={form.costPrice || ""} onChange={handleFormChange} min={0} className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Enter cost price for profit tracking" />
@@ -815,8 +831,21 @@ export default function AdminBooksPage() {
                 onClick={() => handleSort('price')}
               >
                 <div className="flex items-center space-x-1">
-                  <span>Price</span>
+                  <span>Online</span>
                   {sortField === 'price' && (
+                    <span className="text-blue-500">
+                      {sortDirection === 'asc' ? '↑' : '↓'}
+                    </span>
+                  )}
+                </div>
+              </th>
+              <th 
+                className="font-semibold py-3 px-2 text-left cursor-pointer hover:bg-gray-200 transition-colors select-none"
+                onClick={() => handleSort('inShopPrice')}
+              >
+                <div className="flex items-center space-x-1">
+                  <span>In-person</span>
+                  {sortField === 'inShopPrice' && (
                     <span className="text-blue-500">
                       {sortDirection === 'asc' ? '↑' : '↓'}
                     </span>
@@ -896,6 +925,7 @@ export default function AdminBooksPage() {
                   </span>
                 </td>
                 <td className="py-2 px-2">${book.price.toFixed(2)}</td>
+                <td className="py-2 px-2 text-gray-600">{book.inShopPrice != null ? `$${book.inShopPrice.toFixed(2)}` : '—'}</td>
                 <td className="py-2 px-2 hidden md:table-cell text-gray-600">
                   {book.costPrice != null ? `$${book.costPrice.toFixed(2)}` : '—'}
                 </td>

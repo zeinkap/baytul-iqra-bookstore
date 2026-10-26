@@ -1,11 +1,13 @@
 import { prisma } from './prisma';
+import { unitPrice } from './pricing';
 
+/** Suggestions are shown on the QR scan page, so they carry the in-person price. */
 export type Suggestion = { id: string; title: string; author: string; price: number; image: string; code: string };
 
 type BookForSuggestions = { id: string; ageRange: string | null; categories: { id: number }[] };
 
-function toSuggestion(b: { id: string; isbn: string | null; title: string; author: string; price: number; images: string[] }): Suggestion {
-  return { id: b.id, title: b.title, author: b.author, price: b.price, image: b.images[0] ?? '', code: b.isbn ?? b.id };
+function toSuggestion(b: { id: string; isbn: string | null; title: string; author: string; price: number; inShopPrice: number | null; images: string[] }): Suggestion {
+  return { id: b.id, title: b.title, author: b.author, price: unitPrice(b, 'in-shop'), image: b.images[0] ?? '', code: b.isbn ?? b.id };
 }
 
 /** Fallback when there's nothing to compare with: in-stock bestsellers, then newest. */

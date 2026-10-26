@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     if (isAdminCustomLink) {
       items = rawItems;
     } else {
-      const priced = await priceItems(rawItems);
+      const priced = await priceItems(rawItems, inShop ? 'in-shop' : 'online');
       if (!priced.ok) {
         return NextResponse.json({ error: priced.error }, { status: priced.status });
       }
