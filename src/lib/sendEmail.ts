@@ -151,6 +151,8 @@ export async function sendRefundEmail({
   paymentMethod,
   refundedTo,
   items,
+  paidAt,
+  refundReference,
 }: {
   to: string;
   orderId: string;
@@ -164,6 +166,10 @@ export async function sendRefundEmail({
   refundedTo?: string | null;
   /** The books on the order */
   items?: { title: string; quantity: number }[];
+  /** When the order was paid, shown as the purchase date */
+  paidAt?: Date | null;
+  /** Stripe's refund id and, for cards, the bank's reference (ARN) once the bank has issued it */
+  refundReference?: { id?: string | null; bankReference?: string | null } | null;
 }) {
   const shortRef = orderId.slice(-8).toUpperCase();
   const full = totalRefunded >= orderTotal - 0.005;
@@ -178,6 +184,27 @@ export async function sendRefundEmail({
   const detail = full
     ? 'This order has now been refunded in full.'
     : `So far ${money(totalRefunded)} of your ${money(orderTotal)} order has been refunded.`;
+  const purchaseDate = paidAt?.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'America/New_York' });
+  const remaining = Math.max(0, orderTotal - totalRefunded);
+  // Only partial refunds need the running totals; a full refund is just the one amount
+  const summary: [string, string][] = full
+    ? [['Refund', money(refundAmount)]]
+    : [['Order total', money(orderTotal)], ['This refund', money(refundAmount)], ['Refunded so far', money(totalRefunded)], ['Remaining', money(remaining)]];
+  const references: [string, string][] = [];
+  if (refundReference?.id) references.push(['Refund reference', refundReference.id]);
+  if (refundReference?.bankReference) references.push(['Bank reference (ARN)', refundReference.bankReference]);
+  const summaryHtml = summary
+    .map(
+      ([label, value], i) => `
+        <tr>
+          <td style="padding:8px 0; border-bottom:1px solid #eee;">${label}</td>
+          <td style="padding:8px 0; border-bottom:1px solid #eee; text-align:right; ${i === summary.length - 1 || full ? 'font-weight:700;' : ''}">${value}</td>
+        </tr>`
+    )
+    .join('');
+  const referencesHtml = references.length
+    ? `<p style="margin:16px 0 0; font-size:13px; color:#6b7280;">${references.map(([l, v]) => `${l}: <span style="font-family:monospace; color:#374151;">${escapeHtml(v)}</span>`).join('<br>')}<br>Your bank may ask for this if the refund is late.</p>`
+    : '';
   const subject = `Your Baytul Iqra refund, ${money(refundAmount)}`;
   const base = siteUrl();
 
@@ -192,14 +219,10 @@ export async function sendRefundEmail({
     <div style="background:#ffffff; border-radius:12px; padding:24px;">
       <h1 style="font-size:22px; margin:0 0 8px;">Your refund is on its way</h1>
       <p style="margin:0 0 16px; color:#374151;">${intro}</p>
-      <table style="border-collapse:collapse; width:100%; font-size:15px;">
-        <tr>
-          <td style="padding:8px 0; border-bottom:1px solid #eee;">Refund</td>
-          <td style="padding:8px 0; border-bottom:1px solid #eee; text-align:right; font-weight:700;">${money(refundAmount)}</td>
-        </tr>
+      <table style="border-collapse:collapse; width:100%; font-size:15px;">${summaryHtml}
       </table>
       <p style="margin:16px 0 0; font-size:14px; color:#374151;">${detail}</p>${itemsHtml}
-      <p style="margin:16px 0 0; font-size:13px; color:#6b7280;">Order #${shortRef}</p>
+      <p style="margin:16px 0 0; font-size:13px; color:#6b7280;">Order #${shortRef}${purchaseDate ? ` &middot; Purchased ${purchaseDate}` : ''}</p>${referencesHtml}
     </div>
     <p style="font-size:13px; color:#6b7280; text-align:center; margin:16px 0 0;">
       Questions? Just reply to this email.<br>
@@ -213,11 +236,13 @@ export async function sendRefundEmail({
     'Your refund is on its way',
     intro,
     '',
-    `Refund: ${money(refundAmount)}`,
+    ...summary.map(([label, value]) => `${label}: ${value}`),
     detail,
     ...(itemLines.length ? ['', `${itemsHeading}:`, ...itemLines] : []),
     '',
-    `Order #${shortRef}`,
+    `Order #${shortRef}${purchaseDate ? ` - Purchased ${purchaseDate}` : ''}`,
+    ...references.map(([label, value]) => `${label}: ${value}`),
+    ...(references.length ? ['Your bank may ask for this if the refund is late.'] : []),
     '',
     'Questions? Just reply to this email.',
     'Thanks, Zein (Founder of Baytul Iqra)',

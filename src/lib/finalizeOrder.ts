@@ -131,7 +131,7 @@ export async function finalizeInShopIntent(stripe: Stripe, intentId: string): Pr
  * refunded (dollars). Only a call that raises the stored total sends the email, so Stripe's webhook retries
  * and repeats never send it twice.
  */
-export async function recordRefund(orderId: string, refundedAmount: number, refundedTo?: string | null): Promise<Order | null> {
+export async function recordRefund(orderId: string, refundedAmount: number, refundedTo?: string | null, refundReference?: { id?: string | null; bankReference?: string | null } | null): Promise<Order | null> {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) return null;
   const previous = order.refundedAmount ?? 0;
@@ -152,6 +152,8 @@ export async function recordRefund(orderId: string, refundedAmount: number, refu
         orderTotal: updated.finalTotal,
         paymentMethod: updated.paymentMethod,
         refundedTo,
+        paidAt: updated.paidAt,
+        refundReference,
         items: extractBookItems(updated.items).map(({ title, quantity }) => ({ title, quantity })),
       });
     } catch (error) {

@@ -104,6 +104,19 @@ function refundDestination(charge: Stripe.Charge): string | null {
   return wallet ? `${wallet} (${base})` : base;
 }
 
+/** The newest refund on the charge: its id, and the bank's reference (ARN) if the bank has already issued one. Never throws. */
+async function latestRefundReference(stripe: Stripe, chargeId: string): Promise<{ id: string; bankReference: string | null } | null> {
+  try {
+    const refund = (await stripe.refunds.list({ charge: chargeId, limit: 1 })).data[0];
+    if (!refund) return null;
+    const card = refund.destination_details?.card;
+    return { id: refund.id, bankReference: card?.reference && card.reference_type === 'acquirer_reference_number' ? card.reference : null };
+  } catch (error) {
+    console.error('Could not read refund reference:', error);
+    return null;
+  }
+}
+
 /** A refund (full or partial) in Stripe: record it on the order so reports stop counting that money. */
 async function handleChargeRefunded(charge: Stripe.Charge) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -121,7 +134,7 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
     console.log('Refund for a payment with no checkout order (ignored):', charge.id);
     return;
   }
-  await recordRefund(orderId, charge.amount_refunded / 100, refundDestination(charge));
+  await recordRefund(orderId, charge.amount_refunded / 100, refundDestination(charge), await latestRefundReference(stripe, charge.id));
   console.log(`Recorded refund of $${(charge.amount_refunded / 100).toFixed(2)} on order ${orderId}`);
 }
 
