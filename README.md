@@ -40,7 +40,7 @@ Requires Node.js 20+ (CI uses 22) and a PostgreSQL database.
 git clone <repository-url>
 cd baytul-iqra-bookstore
 npm install            # also generates the Prisma client
-# create .env with the variables below
+cp .env.example .env   # then fill in the variables below
 npm run db:migrate     # apply migrations to your local database
 npm run dev            # http://localhost:3000
 ```
@@ -64,7 +64,7 @@ To get real data locally, run `npm run db:sync-from-prod` (see [Database](#datab
 | `CRON_SECRET` | prod | Lets Vercel Cron call the daily summary endpoint |
 | `PROD_DATABASE_URL` | no | Source for `db:sync-from-prod` (or `DATABASE_URL` in `.env.production`) |
 
-Never commit `.env` files.
+See [.env.example](.env.example). Never commit `.env` files.
 
 ## Scripts
 
