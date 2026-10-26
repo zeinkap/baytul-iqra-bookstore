@@ -7,6 +7,8 @@
  *   npx tsx scripts/suggestPrices.ts                       # every book
  *   npx tsx scripts/suggestPrices.ts --limit 5             # try a small sample first
  *   npx tsx scripts/suggestPrices.ts --in-stock            # only books you currently have in stock
+ *   npx tsx scripts/suggestPrices.ts --start 5             # start at the 5th book (books are in title order)
+ *   npx tsx scripts/suggestPrices.ts --resume              # continue today's file: skips books already in it
  *   npx tsx scripts/suggestPrices.ts --out my.csv          # default: price-suggestions-<today>.csv
  *   npx tsx scripts/suggestPrices.ts --min-margin 0.2      # lowest profit share of the price (default 0.15)
  *   npx tsx scripts/suggestPrices.ts --in-person-discount 0.15   # in-person is this much cheaper (default 0.10)
@@ -16,12 +18,16 @@
  * Suppliers you buy from (Kube Publishing, Learning Roots, Imam Ghazali Publishing) are never searched or used as a price source: their
  * prices are your cost, not the market. Edit SUPPLIER_DOMAINS below if that list changes.
  *
+ * The CSV is saved after every book, so an interrupted run loses nothing: run again with --resume (same --out and
+ * filters) and only the missing books are researched. Without --resume the script refuses to overwrite an existing file.
+ *
  * Every row starts with runDate (the day this script was run). In-person prices are whole dollars, rounded down.
  * Searches cost money (one web-search session per book): try --limit first.
  */
 import Anthropic from '@anthropic-ai/sdk';
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
+import { parse } from 'csv-parse/sync';
 import { loadEnv } from './ageRangeUtils';
 import { DEFAULT_RULES, csvEscape, suggestPrices, today, type PriceRules } from './priceUtils';
 
@@ -159,6 +165,12 @@ async function research(client: Anthropic, book: BookRow, blocked: string[]): Pr
   return null;
 }
 
+const HEADER = [
+  'runDate', 'id', 'isbn', 'title', 'author', 'format',
+  'currentOnlinePrice', 'currentInPersonPrice', 'costPrice', 'shippingCost',
+  'marketPrice', 'suggestedOnlinePrice', 'suggestedInPersonPrice', 'confidence', 'competitors', 'sources', 'notes',
+];
+
 async function main() {
   const args = process.argv.slice(2);
   const arg = (name: string) => {
@@ -168,6 +180,9 @@ async function main() {
   const runDate = today();
   const outFile = arg('--out') ?? `price-suggestions-${runDate}.csv`;
   const limit = arg('--limit') ? Number(arg('--limit')) : undefined;
+  const start = arg('--start') ? Number(arg('--start')) : 1;
+  const resume = args.includes('--resume');
+  if (!Number.isInteger(start) || start < 1) throw new Error('--start must be a whole number from 1 (the first book).');
   const concurrency = Math.max(1, Number(arg('--concurrency') ?? 3));
   const blocked = [...SUPPLIER_DOMAINS, ...args.flatMap((a, i) => (a === '--exclude-domain' && args[i + 1] ? [args[i + 1].toLowerCase()] : []))];
   const rules: PriceRules = {
@@ -181,20 +196,41 @@ async function main() {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is not set (add it to .env).');
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set (add it to .env).');
 
+  // Rows from an earlier run of this file (with --resume); their books are not researched again
+  const rows: string[][] = [];
+  if (fs.existsSync(outFile)) {
+    if (!resume) {
+      throw new Error(`${outFile} already exists. Add --resume to continue it (skips books already in it), or choose another file with --out.`);
+    }
+    const previous: string[][] = parse(fs.readFileSync(outFile, 'utf8'), { skip_empty_lines: true, bom: true });
+    if (previous[0]?.join(',') !== HEADER.join(',')) throw new Error(`${outFile} is not a price-suggestions file this script wrote.`);
+    rows.push(...previous.slice(1));
+  }
+  const alreadyDone = new Set(rows.map((r) => r[1]));
+  const saveCsv = () => {
+    const sorted = [...rows].sort((a, b) => a[3].localeCompare(b[3]));
+    fs.writeFileSync(outFile, [HEADER, ...sorted].map((r) => r.map(csvEscape).join(',')).join('\n') + '\n');
+  };
+
   const prisma = new PrismaClient();
   const client = new Anthropic();
 
   try {
-    const books: BookRow[] = await prisma.book.findMany({
+    const allBooks: BookRow[] = await prisma.book.findMany({
       where: args.includes('--in-stock') ? { stock: { gt: 0 } } : undefined,
       select: { id: true, isbn: true, title: true, author: true, format: true, price: true, inShopPrice: true, costPrice: true, shippingCost: true },
-      orderBy: { title: 'asc' },
+      orderBy: [{ title: 'asc' }, { id: 'asc' }],
+      ...(start > 1 ? { skip: start - 1 } : {}),
       ...(limit && limit > 0 ? { take: limit } : {}),
     });
-    console.log(`Researching ${books.length} book(s) with ${MODEL} (${runDate}). Ignoring: ${blocked.join(', ')}. This can take a while.`);
+    const books = allBooks.filter((b) => !alreadyDone.has(b.id));
+    const skipped = allBooks.length - books.length;
+    console.log(
+      `Researching ${books.length} book(s) with ${MODEL} (${runDate})${start > 1 ? `, starting at book ${start}` : ''}` +
+        `${skipped ? `, ${skipped} already in ${outFile}` : ''}. Ignoring: ${blocked.join(', ')}. This can take a while.`
+    );
     if (books.length === 0) return;
 
-    const rows: string[][] = [];
     const failed: string[] = [];
     let totalSearches = 0;
     let done = 0;
@@ -217,23 +253,18 @@ async function main() {
         }
         totalSearches += result.searches;
         rows.push(toRow(book, result.found, result.seenUrls, rules, runDate, blocked));
+        saveCsv();
       }
     }
     await Promise.all(Array.from({ length: Math.min(concurrency, books.length) }, worker));
 
-    rows.sort((a, b) => a[3].localeCompare(b[3]));
-    const header = [
-      'runDate', 'id', 'isbn', 'title', 'author', 'format',
-      'currentOnlinePrice', 'currentInPersonPrice', 'costPrice', 'shippingCost',
-      'marketPrice', 'suggestedOnlinePrice', 'suggestedInPersonPrice', 'confidence', 'competitors', 'sources', 'notes',
-    ];
-    fs.writeFileSync(outFile, [header, ...rows].map((r) => r.map(csvEscape).join(',')).join('\n') + '\n');
+    saveCsv();
 
     const withSuggestion = rows.filter((r) => r[11] !== '').length;
     console.log(`\nWrote ${rows.length} row(s) to ${outFile} (${withSuggestion} with a suggested price, ${totalSearches} web searches).`);
     console.log(`Rules: at least ${Math.round(rules.minMargin * 100)}% margin; in-person ${Math.round(rules.inPersonDiscount * 100)}% cheaper, whole dollars.`);
     if (failed.length) {
-      console.log(`${failed.length} book(s) could not be researched — re-run to retry:`);
+      console.log(`${failed.length} book(s) could not be researched — run again with --resume to retry just these:`);
       failed.slice(0, 20).forEach((t) => console.log(`  - ${t}`));
     }
     console.log(`Edit the "suggested…" columns as needed (clear a cell to skip it), then run: npx tsx scripts/applyPrices.ts ${outFile}`);

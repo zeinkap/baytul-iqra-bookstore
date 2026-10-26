@@ -117,6 +117,7 @@ npm run db:backup
 npx tsx scripts/applyPrices.ts --apply                    # write (add --skip-low to ignore low-confidence rows)
 ```
 
+- **Resuming:** the CSV is saved after every book. If a run stops or some books fail, run the same command again with `--resume` and only the books missing from the file are researched. `--start 5` begins at the 5th book (title order). The script won't overwrite an existing file unless you pass `--resume` (or pick another `--out`).
 - The first column of every row, `runDate`, is the day the script ran. The default file name includes it too.
 - Each row has the market price, the competitor prices and links it found (only pages that really appeared in the search results), a confidence level and notes.
 - Your suppliers (Kube Publishing, Learning Roots, Imam Ghazali Publishing) are blocked from the search and never used as a price source, since their prices are your cost. Add more with `--exclude-domain example.com` (repeatable) or edit `SUPPLIER_DOMAINS` in the script.
