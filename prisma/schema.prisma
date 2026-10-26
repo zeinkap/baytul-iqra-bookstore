@@ -120,6 +120,7 @@ model Feedback {
   orderId   String?
   message   String
   location  String?
+  status    String   @default("new") // "new" | "in-progress" | "fulfilled" (set by the admin)
   createdAt DateTime @default(now())
 
   @@index([createdAt])

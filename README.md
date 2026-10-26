@@ -28,7 +28,7 @@ Password protected. Sign in at `/admin/login`; sessions last 12 hours.
 | `/admin/scans` | QR scan stats by venue and status |
 | `/admin/insights` | Sales, profit, payment methods, restock suggestions, and profit per venue after event fees |
 | `/admin/stock-counts` | Shelf counts vs system stock (shrinkage) |
-| `/admin/feedback` | "What book do you wish we had?" requests |
+| `/admin/feedback` | "What book do you wish we had?" requests: mark each new, in progress or fulfilled, filter by status, delete |
 | `/admin/profit-margins` | Margin analysis |
 
 **How auth works:** `POST /api/admin/auth` checks `ADMIN_PASSWORD` and sets a signed, httpOnly, `SameSite=Strict` cookie (HMAC-SHA256, 12h expiry, key from `ADMIN_SESSION_SECRET`, falling back to `ADMIN_PASSWORD`). `src/proxy.ts` blocks every `/admin/*` page without a valid session, and admin API routes call `requireAdmin`. Login attempts are rate limited (5 per 15 minutes per IP, in memory per instance).
