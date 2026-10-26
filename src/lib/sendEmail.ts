@@ -113,7 +113,7 @@ export async function sendOrderConfirmationEmail({
     </div>
     <p style="font-size:13px; color:#6b7280; text-align:center; margin:16px 0 0;">
       Questions? Just reply to this email.<br>
-      Thanks, Zein (Founder of Baytul Iqra)
+      Jazakum Allahu khayran,<br>Zein, Baytul Iqra
     </p>
   </div>
 </body>
@@ -134,7 +134,8 @@ export async function sendOrderConfirmationEmail({
     `View your receipt: ${receiptUrl}`,
     '',
     'Questions? Just reply to this email.',
-    'Thanks, Zein (Founder of Baytul Iqra)',
+    'Jazakum Allahu khayran,',
+    'Zein, Baytul Iqra',
   ].join('\n');
 
   return resend.emails.send({
@@ -232,7 +233,7 @@ export async function sendRefundEmail({
     </div>
     <p style="font-size:13px; color:#6b7280; text-align:center; margin:16px 0 0;">
       Questions? Just reply to this email.<br>
-      Thanks, Zein (Founder of Baytul Iqra)
+      We're sorry it didn't work out, and thank you for giving us a try.<br>Zein, Baytul Iqra
     </p>
   </div>
 </body>
@@ -251,7 +252,8 @@ export async function sendRefundEmail({
     ...(references.length ? ['Your bank may ask for this if the refund is late.'] : []),
     '',
     'Questions? Just reply to this email.',
-    'Thanks, Zein (Founder of Baytul Iqra)',
+    "We're sorry it didn't work out, and thank you for giving us a try.",
+    'Zein, Baytul Iqra',
   ].join('\n');
 
   return resend.emails.send({
