@@ -21,6 +21,7 @@ Password protected. Sign in at `/admin/login`; sessions last 12 hours.
 | Page | Purpose |
 | --- | --- |
 | `/admin/books` | Add, edit, delete books; stock, online and in-person prices, images, ISBN, age range |
+| `/admin/record-sale` | Record cash, Zelle and other sales that don't go through Stripe (phone friendly) |
 | `/admin/orders` | Orders, refunds, restock of refunded orders, receipts |
 | `/admin/promo-codes` | Create and manage discount codes |
 | `/admin/payment-links` | Payment links for in-person sales |
@@ -135,6 +136,16 @@ npx tsx scripts/applyPrices.ts --apply                    # write (add --skip-lo
 ## Chat assistant
 
 `ChatWidget` talks to `POST /api/chat`, which calls Claude with two tools (`search_books`, `get_book`) over the live catalog. Store policies live in `src/lib/chat/systemPrompt.ts`. Set each book's **Age Range** (e.g. `6-9`, `10-13`, `14+`, `All ages`) in the admin so age-based recommendations work. Order status is intentionally unsupported; the bot points customers to support. Rate limiting is in memory per instance (`src/lib/chat/rateLimit.ts`); use a shared store such as Upstash for a hard limit.
+
+## Cash and other sales
+
+Sales outside Stripe (cash, Zelle, ...) are recorded in **Admin → Record Sale**, which works on a phone:
+
+1. Venue is pre-filled with "Where are the books today?" (change it or clear it if needed).
+2. Search the book by title, author or ISBN, tap it, adjust the quantity.
+3. Pick **Cash**, **Zelle** or **Other**, then tap **Record**.
+
+It creates a normal paid in-shop order at the **in-person price** (the server prices it; no emails are sent) and takes the books out of stock, so Insights, venue profit, event fees and the daily summary all include it. Hand-recorded sales have no estimated card fee. Entered by mistake? Tap **Undo** in the recent list: it marks the sale refunded and puts the books back (once). API: `POST/GET /api/admin/manual-sales`, `POST /api/admin/manual-sales/<id>/void`.
 
 ## Event fees
 

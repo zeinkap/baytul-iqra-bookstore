@@ -1,4 +1,5 @@
 import { extractBookItems } from './stockManager';
+import { isManualMethod } from './manualSales';
 
 /** Stalls are in the Atlanta area; "busiest hour" and "sales by day" use this clock, not the server's (UTC). */
 export const STORE_TIME_ZONE = 'America/New_York';
@@ -37,6 +38,10 @@ export interface DeviceScanCount {
   device: string | null;
   count: number;
 }
+
+/** Estimated card fee for an order. Cash, Zelle and other hand-recorded sales don't go through Stripe, so they have none. */
+const stripeFee = (o: { finalTotal: number; paymentMethod: string | null }) =>
+  isManualMethod(o.paymentMethod) ? 0 : o.finalTotal * STRIPE_PERCENT + STRIPE_FIXED;
 
 const round = (n: number, places = 2) => Math.round(n * 10 ** places) / 10 ** places;
 
@@ -107,7 +112,7 @@ export function computeInsights(
     if (venueRow && o.location) {
       venueRow.orders += 1;
       venueRow.revenue += o.finalTotal;
-      venueRow.stripeFees += o.finalTotal * STRIPE_PERCENT + STRIPE_FIXED;
+      venueRow.stripeFees += stripeFee(o);
       perVenue.set(o.location, venueRow);
     }
     for (const item of extractBookItems(o.items)) {
@@ -127,7 +132,7 @@ export function computeInsights(
       perBook.set(key, row);
     }
   }
-  const fees = orders.reduce((sum, o) => sum + o.finalTotal * STRIPE_PERCENT + STRIPE_FIXED, 0);
+  const fees = orders.reduce((sum, o) => sum + stripeFee(o), 0);
   const grossProfit = revenue - cost;
   const profit = {
     revenue: round(revenue),

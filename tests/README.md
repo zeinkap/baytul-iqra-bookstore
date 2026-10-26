@@ -57,6 +57,10 @@ npx playwright test --shard=1/4                          # one quarter of the su
 
 Safety: `next start` normally reads `.env.production` (the production database and live keys), so the config passes local/test values explicitly and refuses to run unless `DATABASE_URL` is local and `STRIPE_SECRET_KEY` is a test key. The Stripe CLI is always run with that test key. Each run leaves a few throwaway products and sessions in Stripe test mode.
 
+## Hand-recorded sales
+
+`e2e/manual-sales.spec.ts` covers the cash/Zelle recording: no estimated card fee in reports (pure), the admin API (price, venue, stock, undo; needs a local database and `ADMIN_PASSWORD`) and the Record Sale page.
+
 ## Event fees
 
 `e2e/venue-fees.spec.ts` covers the per-venue flat fee: the calculation (pure, no server), the admin API (needs a local database and `ADMIN_PASSWORD`; it signs its own admin session), the Insights page form, and the daily summary email text.

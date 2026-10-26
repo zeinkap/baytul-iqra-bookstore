@@ -6,7 +6,7 @@ import { getVenueFees } from './venueFees';
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 const esc = (t: string) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
-const METHODS: Record<string, string> = { apple_pay: 'Apple Pay', google_pay: 'Google Pay', card: 'Card', link: 'Link', unknown: 'Not recorded' };
+const METHODS: Record<string, string> = { apple_pay: 'Apple Pay', google_pay: 'Google Pay', card: 'Card', link: 'Link', cash: 'Cash', zelle: 'Zelle', other: 'Other', unknown: 'Not recorded' };
 const NO_VENUE = '(no venue tag)';
 
 /** Gathers the last 24 hours of activity and renders the end-of-day email. */

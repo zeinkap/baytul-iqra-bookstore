@@ -8,6 +8,7 @@ export default function AdminNav() {
 
   const navItems = [
     { href: '/admin/books', label: 'Books' },
+    { href: '/admin/record-sale', label: 'Record Sale' },
     { href: '/admin/orders', label: 'Orders' },
     { href: '/admin/promo-codes', label: 'Promo Codes' },
     { href: '/admin/payment-links', label: 'Payment Links' },
