@@ -29,6 +29,8 @@ export interface InsightOptions {
   source: 'in-shop' | 'all';
   /** undefined = every venue, 'none' = untagged only, otherwise a venue slug */
   venue?: string;
+  /** Flat fees per venue (see venueFees.ts), subtracted in the "events" section */
+  venueFees?: Record<string, number>;
   now?: Date;
 }
 export interface DeviceScanCount {
@@ -98,13 +100,25 @@ export function computeInsights(
   let cost = 0;
   const missingCostBooks = new Set<string>();
   const perBook = new Map<string, { bookId: string; title: string; units: number; revenue: number; profit: number; costKnown: boolean }>();
+  const perVenue = new Map<string, { orders: number; units: number; revenue: number; cost: number; stripeFees: number }>();
   for (const o of orders) {
     revenue += o.finalTotal;
+    const venueRow = o.location ? (perVenue.get(o.location) ?? { orders: 0, units: 0, revenue: 0, cost: 0, stripeFees: 0 }) : null;
+    if (venueRow && o.location) {
+      venueRow.orders += 1;
+      venueRow.revenue += o.finalTotal;
+      venueRow.stripeFees += o.finalTotal * STRIPE_PERCENT + STRIPE_FIXED;
+      perVenue.set(o.location, venueRow);
+    }
     for (const item of extractBookItems(o.items)) {
       const book = item.id ? bookById.get(item.id) : undefined;
       const known = book?.costPrice != null;
       if (item.id && !known) missingCostBooks.add(item.id);
       if (known) cost += (book!.costPrice as number) * item.quantity;
+      if (venueRow) {
+        venueRow.units += item.quantity;
+        if (known) venueRow.cost += (book!.costPrice as number) * item.quantity;
+      }
       const key = item.id ?? item.title;
       const row = perBook.get(key) ?? { bookId: key, title: book?.title ?? item.title, units: 0, revenue: 0, profit: 0, costKnown: known };
       row.units += item.quantity;
@@ -128,6 +142,40 @@ export function computeInsights(
       .map((r) => ({ ...r, revenue: round(r.revenue), profit: round(r.profit), profitPerCopy: r.costKnown && r.units ? round(r.profit / r.units) : null }))
       .sort((a, b) => b.profit - a.profit)
       .slice(0, 15),
+  };
+
+  // ---- Events and venues: profit per venue after the flat fee the shop pays to sell there (e.g. a $50 bazaar stall)
+  const venueFees = options.venueFees ?? {};
+  const venueNames = new Set(perVenue.keys());
+  // A venue with a fee but no sales only shows up when it is picked in the filter, so old empty events don't pile up
+  if (options.venue && options.venue !== 'none' && venueFees[options.venue] !== undefined) venueNames.add(options.venue);
+  const eventRows = [...venueNames]
+    .map((venue) => {
+      const v = perVenue.get(venue) ?? { orders: 0, units: 0, revenue: 0, cost: 0, stripeFees: 0 };
+      const profitBeforeFee = v.revenue - v.cost - v.stripeFees;
+      const fee = venueFees[venue] ?? null;
+      const profitPerBook = v.units > 0 ? profitBeforeFee / v.units : null;
+      const net = profitBeforeFee - (fee ?? 0);
+      return {
+        venue,
+        orders: v.orders,
+        books: v.units,
+        revenue: round(v.revenue),
+        profitBeforeFee: round(profitBeforeFee),
+        fee,
+        net: round(net),
+        covered: fee === null ? null : net >= 0,
+        stillToCover: fee !== null && net < 0 ? round(-net) : null,
+        // Books needed to cover the fee at this venue's average profit per book
+        breakEvenBooks: fee !== null && profitPerBook !== null && profitPerBook > 0 ? Math.ceil(fee / profitPerBook) : null,
+      };
+    })
+    .sort((a, b) => b.revenue - a.revenue || a.venue.localeCompare(b.venue));
+  const totalFees = eventRows.reduce((sum, r) => sum + (r.fee ?? 0), 0);
+  const events = {
+    rows: eventRows,
+    totalFees: round(totalFees),
+    profitAfterEventFees: round(grossProfit - fees - totalFees),
   };
 
   // ---- Basket size and repeat buyers
@@ -234,6 +282,7 @@ export function computeInsights(
       busiestWeekday: busiest(byWeekday),
     },
     profit,
+    events,
     baskets,
     restock: restockSection,
     payments,

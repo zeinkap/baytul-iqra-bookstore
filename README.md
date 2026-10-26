@@ -25,7 +25,7 @@ Password protected. Sign in at `/admin/login`; sessions last 12 hours.
 | `/admin/promo-codes` | Create and manage discount codes |
 | `/admin/payment-links` | Payment links for in-person sales |
 | `/admin/scans` | QR scan stats by venue and status |
-| `/admin/insights` | Sales, profit, payment methods, restock suggestions |
+| `/admin/insights` | Sales, profit, payment methods, restock suggestions, and profit per venue after event fees |
 | `/admin/stock-counts` | Shelf counts vs system stock (shrinkage) |
 | `/admin/feedback` | "What book do you wish we had?" requests |
 | `/admin/profit-margins` | Margin analysis |
@@ -135,6 +135,17 @@ npx tsx scripts/applyPrices.ts --apply                    # write (add --skip-lo
 ## Chat assistant
 
 `ChatWidget` talks to `POST /api/chat`, which calls Claude with two tools (`search_books`, `get_book`) over the live catalog. Store policies live in `src/lib/chat/systemPrompt.ts`. Set each book's **Age Range** (e.g. `6-9`, `10-13`, `14+`, `All ages`) in the admin so age-based recommendations work. Order status is intentionally unsupported; the bot points customers to support. Rate limiting is in memory per instance (`src/lib/chat/rateLimit.ts`); use a shared store such as Upstash for a hard limit.
+
+## Event fees
+
+Some venues charge a flat fee to sell there (for example a $50 bazaar stall). It is a cost of the event, not part of any book's price, so the app tracks it per venue and shows whether the event paid off.
+
+- Set it in **Admin → Insights → Events and venues** (pick the venue, enter the fee, save; save with an empty amount to remove it). Stored per venue name, no migration needed. API: `GET/PUT /api/admin/venue-fees`.
+- **Use one venue name per event** (for example `bazaar-oct`, not `bazaar`), so each event has its own fee. Venue names come from the venue signs and the "Where are the books today?" setting.
+- The table shows, for each venue: orders, books, revenue, profit (after cost and estimated Stripe fees), the fee, profit after the fee, and how many books you need to sell to break even at that venue's average profit per book.
+- The profit section also shows total event fees and profit after event fees for the filter you picked.
+- The daily summary email adds an "Event fees" section for venues with a fee that had activity in the last 24 hours: profit so far against the fee, and how much is still to cover.
+- Profit here is revenue minus cost, and revenue includes sales tax (prices are tax included), so the figures are a little higher than what you keep.
 
 ## Daily summary
 

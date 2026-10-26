@@ -16,6 +16,11 @@ interface Insights {
     avgProfitPerOrder: number; marginPercent: number; booksMissingCost: number;
     perBook: { bookId: string; title: string; units: number; revenue: number; profit: number; profitPerCopy: number | null }[];
   };
+  events: {
+    rows: EventRow[];
+    totalFees: number;
+    profitAfterEventFees: number;
+  };
   baskets: {
     orders: number; avgItemsPerOrder: number; avgOrderValue: number;
     distribution: { one: number; two: number; threePlus: number };
@@ -31,6 +36,10 @@ interface Insights {
     methods: { method: string; orders: number; revenue: number; sharePercent: number }[];
     devices: { device: string; scans: number; orders: number; conversionPercent: number | null }[];
   };
+}
+interface EventRow {
+  venue: string; orders: number; books: number; revenue: number; profitBeforeFee: number; fee: number | null;
+  net: number; covered: boolean | null; stillToCover: number | null; breakEvenBooks: number | null;
 }
 interface StockRow {
   bookId: string; title: string; stock: number; sold: number; perWeek: number; weeksLeft: number | null;
@@ -49,6 +58,25 @@ export default function AdminInsightsPage() {
   const [venues, setVenues] = useState<string[]>([]);
   const [data, setData] = useState<Insights | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
+  const [feeVenue, setFeeVenue] = useState("");
+  const [feeAmount, setFeeAmount] = useState("");
+  const [feeError, setFeeError] = useState<string | null>(null);
+
+  async function saveFee(venueName: string, amount: string) {
+    setFeeError(null);
+    const res = await fetch("/api/admin/venue-fees", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ venue: venueName, fee: amount.trim() === "" ? null : Number(amount) }),
+    });
+    if (!res.ok) {
+      setFeeError((await res.json().catch(() => null))?.error ?? "Could not save the fee");
+      return;
+    }
+    setFeeAmount("");
+    setReload((n) => n + 1);
+  }
 
   useEffect(() => {
     fetch("/api/admin/venue").then((r) => (r.ok ? r.json() : null)).then((d) => d && setVenues(d.known)).catch(() => {});
@@ -70,7 +98,7 @@ export default function AdminInsightsPage() {
     return () => {
       cancelled = true;
     };
-  }, [days, source, venue]);
+  }, [days, source, venue, reload]);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 text-gray-900">
@@ -130,6 +158,12 @@ export default function AdminInsightsPage() {
               <Stat label="Avg profit per order" value={money(data.profit.avgProfitPerOrder)} />
               <Stat label="Est. Stripe fees" value={money(data.profit.estimatedStripeFees)} />
             </div>
+            {data.events.totalFees > 0 && (
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <Stat label="Event fees" value={money(data.events.totalFees)} hint="flat fees for the venues below" />
+                <Stat label="Profit after event fees" value={money(data.events.profitAfterEventFees)} />
+              </div>
+            )}
             {data.profit.booksMissingCost > 0 && (
               <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-3" data-testid="missing-cost-note">
                 {data.profit.booksMissingCost} sold book(s) have no cost price set, so profit is overstated. Add cost prices in Admin → Books.
@@ -140,6 +174,50 @@ export default function AdminInsightsPage() {
               rows={data.profit.perBook.map((b) => [b.title, b.units, money(b.revenue), money(b.profit), b.profitPerCopy === null ? "no cost" : money(b.profitPerCopy)])}
               empty="No sales in this period."
             />
+          </Section>
+
+          <Section title="Events and venues" note="Profit per venue after the flat fee you pay to sell there (for example a $50 bazaar stall). Use one venue name per event, like bazaar-oct, so each event has its own fee. Profit is after estimated Stripe fees.">
+            <Table
+              testId="events-table"
+              head={["Venue", "Orders", "Books", "Revenue", "Profit", "Fee", "After fee", "Books to break even"]}
+              rows={data.events.rows.map((r) => [
+                r.venue,
+                r.orders,
+                r.books,
+                money(r.revenue),
+                money(r.profitBeforeFee),
+                r.fee === null ? "no fee" : money(r.fee),
+                r.fee === null ? "-" : r.covered ? `+${money(r.net)} covered` : `${money(r.net)} (${money(r.stillToCover ?? 0)} to go)`,
+                r.breakEvenBooks === null ? "-" : `${r.breakEvenBooks} (sold ${r.books})`,
+              ])}
+              empty="No sales at a tagged venue in this period."
+            />
+            <form
+              className="flex flex-wrap items-end gap-2 mt-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (feeVenue) saveFee(feeVenue, feeAmount);
+              }}
+            >
+              <label className="text-sm">
+                <span className="block text-xs text-gray-500 mb-1">Set the fee for a venue</span>
+                <select value={feeVenue} onChange={(e) => setFeeVenue(e.target.value)} className="border border-gray-300 rounded px-3 py-2 bg-white text-gray-900" data-testid="fee-venue">
+                  <option value="">Choose a venue</option>
+                  {venues.map((v) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </label>
+              <label className="text-sm">
+                <span className="block text-xs text-gray-500 mb-1">Flat fee ($)</span>
+                <input
+                  type="number" min={0} step="0.01" value={feeAmount} onChange={(e) => setFeeAmount(e.target.value)}
+                  placeholder="50"
+                  className="border border-gray-300 rounded px-3 py-2 w-28 bg-white text-gray-900" data-testid="fee-amount"
+                />
+              </label>
+              <button type="submit" disabled={!feeVenue} className="px-4 py-2 rounded bg-emerald-600 text-white disabled:opacity-50" data-testid="fee-save">Save fee</button>
+              <span className="text-xs text-gray-500">Leave the amount empty and save to remove a fee.</span>
+            </form>
+            {feeError && <p className="text-sm text-red-600 mt-2">{feeError}</p>}
           </Section>
 
           <Section title="Basket size and repeat buyers" note="Buy now is one book per purchase, so repeat buyers (same email, more than one purchase) tell you more than basket size.">

@@ -72,7 +72,7 @@ export class Fixtures {
     this.orderIds.push(id);
   }
 
-  async order(book: { id: string; title: string; price: number }, opts: { quantity?: number; paid?: boolean; stockTaken?: boolean } = {}) {
+  async order(book: { id: string; title: string; price: number }, opts: { quantity?: number; paid?: boolean; stockTaken?: boolean; location?: string } = {}) {
     const quantity = opts.quantity ?? 1;
     const order = await db.order.create({
       data: {
@@ -85,6 +85,7 @@ export class Fixtures {
         // Already-paid orders make the webhook skip the shop's sale-alert email, which must never fire from tests
         paidAt: opts.paid ? new Date() : null,
         stockUpdatedAt: opts.stockTaken ? new Date() : null,
+        location: opts.location ?? null,
       },
     });
     this.orderIds.push(order.id);

@@ -2,6 +2,7 @@ import { prisma } from './prisma';
 import { computeInsights, STORE_TIME_ZONE } from './insights';
 import { loadInsightInputs } from './insightsData';
 import { SCAN_STATUSES } from './scanStatus';
+import { getVenueFees } from './venueFees';
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 const esc = (t: string) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -14,8 +15,9 @@ export async function buildDailySummary(now: Date = new Date()) {
   const abandonedBefore = new Date(now.getTime() - 30 * 60 * 1000);
   const dateLabel = new Intl.DateTimeFormat('en-US', { timeZone: STORE_TIME_ZONE, weekday: 'short', month: 'short', day: 'numeric' }).format(now);
 
-  const [{ orders, books }, scansByVenue, scansByStatus, abandonedOrders, refunded, feedback] = await Promise.all([
+  const [{ orders, books }, venueFees, scansByVenue, scansByStatus, abandonedOrders, refunded, feedback] = await Promise.all([
     loadInsightInputs(),
+    getVenueFees(),
     prisma.scan.groupBy({ by: ['location'], where: { createdAt: { gte: since }, status: { in: SCAN_STATUSES } }, _count: { _all: true } }),
     prisma.scan.groupBy({ by: ['status'], where: { createdAt: { gte: since } }, _count: { _all: true } }),
     prisma.order.findMany({ where: { source: 'in-shop', paidAt: null, createdAt: { gte: since, lte: abandonedBefore } }, select: { location: true } }),
@@ -47,6 +49,18 @@ export async function buildDailySummary(now: Date = new Date()) {
   }
   for (const o of abandonedOrders) venue(o.location).abandoned += 1;
   const venueRows = [...venues.entries()].sort((a, b) => b[1].revenue - a[1].revenue || b[1].scans - a[1].scans);
+
+  // Venues with a flat fee (e.g. a $50 bazaar stall): profit so far at that venue against the fee
+  const eventLines = venueRows
+    .filter(([name]) => venueFees[name] !== undefined)
+    .flatMap(([name]) => {
+      const row = computeInsights(orders, books, [], { days: 90, source: 'in-shop', venue: name, venueFees, now }).events.rows.find((r) => r.venue === name);
+      if (!row || row.fee === null) return [];
+      return [{
+        name,
+        text: `${money(row.fee)} fee, ${money(row.profitBeforeFee)} profit so far: ${row.covered ? `covered, ${money(row.net)} ahead` : `${money(row.stillToCover ?? 0)} still to cover`}`,
+      }];
+    });
 
   const failed = { unknown: status('not-found'), soldOut: status('sold-out'), buy: status('buy-failed'), page: status('page-error') };
   const hasActivity = scans > 0 || salesToday.length > 0 || refundCount > 0 || feedback.length > 0 || abandonedOrders.length > 0;
@@ -81,6 +95,8 @@ export async function buildDailySummary(now: Date = new Date()) {
         ${venueRows.map(([name, v]) => `<tr style="text-align:right; border-top:1px solid #eee;"><td style="text-align:left; padding:4px 0;">${esc(name)}</td><td>${v.scans}</td><td>${v.sales}</td><td>${money(v.revenue)}</td><td>${v.abandoned}</td></tr>`).join('')}
       </table>`) : ''}
 
+      ${eventLines.length ? section('Event fees', `<ul style="padding-left:18px; margin:0; font-size:14px;">${li(eventLines.map((e) => `<b>${esc(e.name)}</b>: ${esc(e.text)}`))}</ul>`) : ''}
+
       ${methods.length ? section('Paid with', `<div style="font-size:14px;">${methods.map((m) => `${esc(METHODS[m.method] ?? m.method)}: ${m.orders}`).join(' &middot; ')}</div>`) : ''}
 
       ${refundCount ? section('Refunds', `<div style="font-size:14px;">${refundCount} refund${refundCount === 1 ? '' : 's'}, ${money(refundTotal)} total. Open Admin &rarr; Orders to put returned books back in stock.</div>`) : ''}
@@ -99,6 +115,7 @@ export async function buildDailySummary(now: Date = new Date()) {
     '',
     `Scans: ${scans}; abandoned checkouts: ${abandonedOrders.length}; sold-out scans: ${failed.soldOut}; unknown codes: ${failed.unknown}; errors: ${failed.buy + failed.page}`,
     ...venueRows.map(([name, v]) => `${name}: ${v.scans} scans, ${v.sales} sales, ${money(v.revenue)}, ${v.abandoned} abandoned`),
+    ...eventLines.map((e) => `Event fee, ${e.name}: ${e.text}`),
     ...(refundCount ? [`Refunds: ${refundCount} (${money(refundTotal)})`] : []),
     ...(restock.length ? ['', 'Restock soon:', ...restock.map((r) => `- ${r.title}: ${r.stock} left`)] : []),
     ...(feedback.length ? ['', 'Book requests:', ...feedback.map((f) => `- ${f.message}`)] : []),
