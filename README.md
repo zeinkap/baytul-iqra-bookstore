@@ -1,451 +1,157 @@
 # Baytul Iqra Bookstore
 
-An online bookstore for Islamic literature built with Next.js, Prisma, and Stripe.
+An online and in-person bookstore for Islamic literature, live at [www.baytuliqra.com](https://www.baytuliqra.com).
+Customers can shop online, or scan a QR sticker on a physical book at a venue (café, bazaar, ...) and pay on their phone.
 
-## Features
+**Stack:** Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · PostgreSQL (Neon) + Prisma · Stripe · Resend · Claude (chat assistant) · Playwright · Vercel
 
-Baytul Iqra Bookstore is an online Islamic bookstore offering:
-- **84+ Books** across multiple Islamic categories
-- **Smart categorization** - Hadith & Sunnah, Quran & Tafsir, Children's Books, Biography & Seerah, and more
-- **Author management** - Proper attribution for Islamic scholars and contemporary authors
-- **Shopping cart & checkout** - Full e-commerce functionality with Stripe payment integration
-- **Order Management** - Orders are created via the `/api/orders` endpoint and stored in the `Order` table (PostgreSQL, Prisma). Supports both shipping and pickup fulfillment types
-- **Promo code support** - Flexible discount system with validation rules
-- **Admin panel** - Complete inventory, order, and promo code management
-- **Responsive design** - Works on desktop and mobile devices
+## What it does
 
-## 🛒 Order Management
+- **Storefront:** browse, search and filter the catalog by category; book pages with photo viewer; cart, wishlist, promo codes; Stripe Checkout for shipping or pickup orders.
+- **In-shop selling:** every book has a QR sticker (`/b/<isbn>`). Scanning opens the book with Apple Pay / Google Pay / Link / card buttons, or lets the customer add several books to a basket (`/basket`) and pay once. Receipts at `/receipt`. See [docs/WALLET_PAY.md](docs/WALLET_PAY.md).
+- **Venues:** the same books travel between venues. Sales are credited to a venue from the admin "Where are the books today?" setting, or from a venue sign QR (`/v/<venue>` → `/venue/welcome`).
+- **Chat assistant:** floating widget that recommends books, answers price/stock questions and store policy questions.
+- **Emails (Resend):** order confirmation, receipt, refund notice, contact form, and a daily summary of the last 24 hours.
+- **Admin panel (`/admin`):** see below.
 
-- Orders are created through the `/api/orders` API endpoint.
-- The `Order` table (managed by Prisma/PostgreSQL) stores all order details, including:
-  - Cart items (JSON)
-  - Total price
-  - Discount amount and final total
-  - Applied promo codes
-  - Fulfillment type (shipping or pickup)
-  - Pickup location or shipping address
-  - Customer email
-- Supports both shipping and pickup workflows.
+## Admin panel
 
-## 🎫 Promo Code System
+Password protected. Sign in at `/admin/login`; sessions last 12 hours.
 
-A comprehensive discount system that allows customers to apply promo codes during checkout.
+| Page | Purpose |
+| --- | --- |
+| `/admin/books` | Add, edit, delete books; stock, prices, images, ISBN, age range |
+| `/admin/orders` | Orders, refunds, restock of refunded orders, receipts |
+| `/admin/promo-codes` | Create and manage discount codes |
+| `/admin/payment-links` | Payment links for in-person sales |
+| `/admin/scans` | QR scan stats by venue and status |
+| `/admin/insights` | Sales, profit, payment methods, restock suggestions |
+| `/admin/stock-counts` | Shelf counts vs system stock (shrinkage) |
+| `/admin/feedback` | "What book do you wish we had?" requests |
+| `/admin/profit-margins` | Margin analysis |
 
-### Features
-- **Multiple discount types**: Percentage-based or fixed dollar amounts
-- **Validation rules**: Minimum order amounts, usage limits, validity periods
-- **Real-time validation**: Instant feedback when applying codes
-- **Admin management**: Full CRUD operations for promo codes
-- **Usage tracking**: Monitor how many times each code has been used
+**How auth works:** `POST /api/admin/auth` checks `ADMIN_PASSWORD` and sets a signed, httpOnly, `SameSite=Strict` cookie (HMAC-SHA256, 12h expiry, key from `ADMIN_SESSION_SECRET`, falling back to `ADMIN_PASSWORD`). `src/proxy.ts` blocks every `/admin/*` page without a valid session, and admin API routes call `requireAdmin`. Login attempts are rate limited (5 per 15 minutes per IP, in memory per instance).
 
-### Admin Interface
-- **Access**: Navigate to `/admin/promo-codes` to manage all promo codes
-- **Create codes**: Set discount type, value, minimum order amount, and usage limits
-- **Edit codes**: Modify existing codes or deactivate them
-- **Monitor usage**: Track how many times each code has been used
-- **Bulk management**: View all codes in a sortable table format
+## Getting started
 
-### Sample Promo Codes
-The system comes with three sample promo codes for testing:
-- **WELCOME10**: 10% off orders over $25
-- **SAVE5**: $5 off orders over $50
-- **RAMADAN20**: 20% off orders over $30
-
-### How It Works
-1. Customers enter promo codes in the cart page
-2. System validates the code against rules (validity, minimum order, usage limits)
-3. Discount is applied to product subtotal only (shipping costs are not discounted)
-4. Final discounted total is processed through Stripe checkout
-5. Promo code usage is tracked in the database
-
-### Discount Rules
-- **Product-only discounts**: Promo codes apply to product subtotal only
-- **Shipping excluded**: Shipping and handling fees are not eligible for discounts
-- **Minimum order validation**: Based on product total before shipping
-- **Proportional distribution**: Discounts are distributed proportionally across all products
-
-## 🔐 Admin Authentication
-
-The admin panel is password-protected to secure access to book management, orders, promo codes, and other administrative features.
-
-### Setup
-
-1. **Set Admin Password** in your environment variables:
-   ```bash
-   # .env (local development)
-   ADMIN_PASSWORD=your_secure_password_here
-   ADMIN_SESSION_SECRET=a_long_random_string   # signs admin session cookies (recommended; falls back to ADMIN_PASSWORD)
-   ```
-
-2. **For Production** (e.g., Vercel), set the environment variable:
-   - Go to your project settings
-   - Add `ADMIN_PASSWORD` with a strong password
-   - Add `ADMIN_SESSION_SECRET` with a long random string (e.g. `openssl rand -hex 32`)
-   - Redeploy your application
-
-### Access Admin Panel
-
-1. Navigate to `/admin` or any admin route (e.g., `/admin/books`, `/admin/orders`)
-2. You'll be redirected to `/admin/login` if not authenticated
-3. Enter the password set in `ADMIN_PASSWORD`
-4. Session lasts 12 hours (a signed, httpOnly cookie; admin pages and admin API routes are checked on the server)
-5. Use the "Logout" button to end your session
-
-### Security Features
-
-- ✅ **Password-protected**: All admin routes require authentication
-- ✅ **Secure cookies**: HttpOnly cookies prevent XSS attacks
-- ✅ **Session management**: Auto-logout after 24 hours
-- ✅ **Server-side validation**: Password verification on the server
-- ✅ **Client-side guard**: Quick redirect for unauthenticated access
-
-### Admin Routes
-
-All routes under `/admin` are protected:
-- `/admin/books` - Book management (add, edit, delete)
-- `/admin/orders` - Order management and tracking
-- `/admin/promo-codes` - Promo code management
-- `/admin/payment-links` - Payment link generation
-- `/admin/profit-margins` - Profit margin analysis
-
-**Important**: Choose a strong password and never commit `.env` files to version control!
-
-## Tap to Pay (In-Person: Customer Taps Card on Your Phone)
-
-To accept in-person payments where the customer taps their card or phone on **your** phone, see **[docs/TAP_TO_PAY.md](docs/TAP_TO_PAY.md)**. You can start immediately with the **Stripe Dashboard mobile app** (no code), or later integrate **Stripe Terminal** with a custom mobile app using the `POST /api/terminal/create-payment-intent` endpoint.
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js 18+ 
-- npm or yarn
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd baytul-iqra-bookstore
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Set up environment variables**
-   Create a `.env` file with:
-   ```bash
-   DATABASE_URL="postgresql://username:password@localhost:5432/bookstore"
-   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="your_stripe_publishable_key"   # Apple Pay / Google Pay on the in-shop pages
-   STRIPE_SECRET_KEY="your_stripe_secret_key"
-   ANTHROPIC_API_KEY="your_anthropic_api_key"   # powers the chat assistant
-   ADMIN_PASSWORD="your_secure_admin_password"
-   NEXT_PUBLIC_BASE_URL="http://localhost:3000"
-   ```
-
-4. **Initialize the database**
-   ```bash
-   npm run db:migrate
-   
-   # (Optional) Seed database with sample data
-   npm run db:seed
-   ```
-
-5. **Start the development server**
-   ```bash
-   npm run dev
-   ```
-
-6. **Open your browser**
-   Navigate to [http://localhost:3000](http://localhost:3000)
-
-## 💬 Chat Assistant
-
-A floating chat widget (`src/components/ChatWidget.tsx`) answers book recommendations (by topic or age), price/stock questions, and shipping/returns/payment questions. It talks to `POST /api/chat`, which calls Claude with two tools (`search_books`, `get_book`) that query the live catalog.
-
-- Requires `ANTHROPIC_API_KEY`. Optional `CHAT_MODEL` overrides the default model.
-- Store policies live in `src/lib/chat/systemPrompt.ts` — edit them there.
-- Set each book's **Age Range** (e.g. `6-9`, `10-13`, `14+`, `All ages`) in the admin Books form so age-based recommendations work.
-- To bulk-fill age ranges: `npm run ages:suggest` writes `age-range-suggestions.csv` (no DB changes), edit the `suggestedAgeRange` column as needed, preview with `npm run ages:apply`, then write with `npm run ages:apply -- --apply` (run `npm run db:backup` first; add `--skip-low` to ignore low-confidence rows).
-- To improve descriptions (clearer, with a search-friendly opening sentence): `npm run desc:suggest` (try `-- --limit 10` first) writes `description-suggestions.csv` (no DB changes). Rows with `outsideKnowledge = YES` contain facts the model added from its own knowledge — verify those. Edit or blank out cells, preview with `npm run desc:apply`, then `npm run desc:apply -- --apply` (run `npm run db:backup` first; `--skip-outside` ignores the YES rows).
-- Order status is intentionally not supported; the bot directs customers to support.
-- Rate limiting is in-memory per instance (`src/lib/chat/rateLimit.ts`); use a shared store (Upstash/Vercel KV) for a hard limit.
-
-## 🛠️ Available Scripts
-
-### Development
-- `npm run dev` - Start development server with Turbopack
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
-
-### Database Management
-- `npm run db:backup` - **Create database backup** (JSON + CSV)
-- `npm run db:restore` - **Restore from backup** (interactive)
-- `npm run db:migrate` - Run database migrations
-- `npm run db:reset` - Reset database (⚠️ destructive)
-- `npm run db:seed` - Seed database with books from CSV
-- `npm run db:sync-from-prod` - **Sync the production catalog to your local database** (see below)
-
-### Promo Code Management
-- `npx tsx scripts/addPromoCodes.ts` - Add sample promo codes to database
-
-### Production Migrations
-To apply schema changes to your production database (e.g., Neon), set the `DATABASE_URL` to your production connection string and run:
-```sh
-DATABASE_URL="your_production_url" npx prisma migrate deploy
-```
-This ensures your production database schema is up to date.
-
-Vercel applies pending migrations automatically, but **only for production builds** (`scripts/migrateOnProduction.mjs`, run by `npm run build`). Preview builds for pull requests do not touch the database, so a PR's migration reaches production only after it is merged. Locally, `npm install` no longer migrates: run `npm run db:migrate` after pulling a branch with new migrations.
-
-## 💾 Database Backup & Restore
-
-A robust backup and restore system is in place to protect your data.
-
-### Create a Backup
-To create a full backup of your books and categories, run:
-```bash
-DATABASE_URL="YOUR_PROD_OR_LOCAL_DB_URL" 
-npm run db:backup
-```
-This command:
-- Connects to your database.
-- Fetches all book data, including category relations.
-- Creates a timestamped JSON backup file (e.g., `books-backup-2025-06-01T12-30-00-000Z.json`).
-- Creates a `books-backup-latest.json` file, which is always a copy of the most recent backup.
-- Stores all backups in the `backups/` directory.
-
-### Restore from a Backup
-To restore your database from a backup, run the interactive restore script:
-```bash
-npm run db:restore
-```
-The restoration script will:
-1.  List all available backup files from the `backups/` directory.
-2.  Prompt you to select which backup to restore from (defaults to the latest).
-3.  Warn you if you are about to overwrite existing data.
-4.  Delete existing book records if you confirm.
-5.  Restore all books and their category relationships from the selected backup file.
-
-### Backup Best Practices
-- ✅ **Backup before major changes:** Always create a backup before running a database migration or making significant changes to your data.
-- ✅ **Keep multiple versions:** The system automatically stores timestamped backups.
-- ✅ **Store backups securely:** Consider committing your `backups/` directory to your Git repository or storing them in a secure cloud location.
-
-### Sync Production to Local Development
-
-To make your local database match production (books, ISBNs, images, categories, promo codes) without touching the live database:
+Requires Node.js 20+ (CI uses 22) and a PostgreSQL database.
 
 ```bash
-npm run db:sync-from-prod                      # catalog only (recommended)
-npm run db:sync-from-prod -- --include-orders  # also copies customer orders (emails, addresses)
+git clone <repository-url>
+cd baytul-iqra-bookstore
+npm install            # also generates the Prisma client
+# create .env with the variables below
+npm run db:migrate     # apply migrations to your local database
+npm run dev            # http://localhost:3000
 ```
 
-The script only **reads** from production. It:
-1. 🛡️ Refuses to run unless your local `DATABASE_URL` is on `localhost`, and asks you to type `yes` first (`--yes` skips the prompt).
-2. 🧱 Applies pending migrations to your local database so the schema matches production.
-3. 📦 Dumps the production tables to a temporary file.
-4. 🔁 In **one transaction**, clears the local Book/Category/PromoCode data (this also clears local orders, scans and stock counts, which point at books) and imports the dump. If anything fails, nothing local is changed.
-5. ✅ Prints counts (books, books with an ISBN, books with 2+ images, ...).
+To get real data locally, run `npm run db:sync-from-prod` (see [Database](#database)). For an empty database with a small fixed catalog (what the tests use), run `npm run db:seed-test`.
 
-Connection strings: production comes from `PROD_DATABASE_URL`, or `DATABASE_URL` inside `.env.production`; local comes from `DATABASE_URL` in the environment or `.env`.
+### Environment variables
 
-Requires the `psql` and `pg_dump` command-line tools. `pg_dump` must be the same version as (or newer than) the production server; if you see a "server version mismatch", install a newer one (`brew install postgresql@17`) and put it first on your `PATH`.
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | yes | PostgreSQL connection string |
+| `STRIPE_SECRET_KEY` | yes | Stripe API key (use `sk_test_...` locally) |
+| `STRIPE_WEBHOOK_SECRET` | yes | Verifies `/api/stripe/webhook` events |
+| `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | for wallets | Apple Pay / Google Pay buttons on scan and basket pages |
+| `NEXT_PUBLIC_BASE_URL` | yes | Public site URL, used in emails, redirects and QR links |
+| `ADMIN_PASSWORD` | yes | Admin login password |
+| `ADMIN_SESSION_SECRET` | recommended | Signs admin session cookies (`openssl rand -hex 32`) |
+| `RESEND_API_KEY` | yes | Sending emails |
+| `ANTHROPIC_API_KEY` | for chat | Chat assistant and the description / age-range scripts |
+| `CHAT_MODEL` | no | Overrides the chat assistant's model |
+| `CRON_SECRET` | prod | Lets Vercel Cron call the daily summary endpoint |
+| `PROD_DATABASE_URL` | no | Source for `db:sync-from-prod` (or `DATABASE_URL` in `.env.production`) |
 
-**Benefits:**
-- ✅ Safe development with real data
-- ✅ No risk of affecting production
-- ✅ Work offline once synced
-- ✅ Faster queries (local database)
+Never commit `.env` files.
 
-**Note:** After syncing, restart your dev server to clear Next.js cache and see the new data.
+## Scripts
 
-## 🔧 Tech Stack
+| Command | What it does |
+| --- | --- |
+| `npm run dev` / `build` / `start` | Dev server (Turbopack), production build, production server |
+| `npm run lint` / `typecheck` | ESLint, `tsc --noEmit` |
+| `npm run studio` | Prisma Studio |
+| `npm run db:migrate` | Create/apply migrations in development |
+| `npm run migrate:status` | Show migration status |
+| `npm run db:reset` | Reset the database (destructive) |
+| `npm run db:backup` / `db:restore` | Back up / restore books and categories (JSON in `backups/`) |
+| `npm run db:sync-from-prod` | Copy the production catalog to your local database |
+| `npm run db:seed-test` | Seed an empty local database for tests |
+| `npm run qr:generate` | QR labels for every book (SVG, printable HTML, 2×2 in PDF, CSV) in `qr-labels/` |
+| `npm run qr:venue-signs -- <venue> ...` | Printable venue signs |
+| `npm test`, `test:headed`, `test:ui`, `test:debug`, `test:report`, `test:server` | Playwright (see [Testing](#testing)) |
 
-- **Frontend:** Next.js 15, React 19, TypeScript
-- **Database:** PostgreSQL with Prisma ORM
-- **Payments:** Stripe integration with discount support
-- **Styling:** Tailwind CSS
-- **Deployment:** Vercel-ready
-- **Performance Monitoring:** Integrated with [Vercel Speed Insights](https://vercel.com/docs/analytics/speed-insights) for real user performance metrics
-- **Email Service:** Resend (order confirmation emails)
-- **Discount System:** Custom promo code validation and management
+Other one-off scripts live in `scripts/` and run with `npx tsx scripts/<name>.ts` (header comments explain usage), e.g. `suggestAgeRanges` / `applyAgeRanges` and `suggestDescriptions` / `applyDescriptions` (Claude writes suggestions to a CSV for you to review; `apply` is a dry run unless you pass `--apply`; run `npm run db:backup` first).
 
-## 🔒 Data Safety
+QR labels: `BASE_URL=https://www.baytuliqra.com npm run qr:generate`. Stickers don't carry a venue; the venue comes from the admin setting or a venue sign.
 
-- **Automatic backups** before major operations
-- **Transaction safety** with Prisma
-- **Input validation** for all book data
-- **Rollback capability** via restore system
+## Database
 
-## 🚀 Deployment
+PostgreSQL via Prisma (`prisma/schema.prisma`, migrations in `prisma/migrations/`). Models: `Book`, `Category`, `PromoCode`, `Order`, `Scan`, `StockCount`, `Feedback`, `AppSetting`.
 
-### Vercel (Recommended)
-1. Connect your repository to Vercel
-2. Add environment variables in Vercel dashboard
-3. Deploy automatically on push
+- **Orders** are created before payment (`paidAt` is null) and finished when Stripe confirms: `checkout.session.completed` / `payment_intent.succeeded` webhooks, or the receipt page. Finishing marks the order paid, takes stock exactly once (`stockUpdatedAt`) and sends the receipt. Refunds arrive through `charge.refunded`; an admin can then restock the books.
+- **Migrations in production:** `npm run build` runs `scripts/migrateOnProduction.mjs`, which applies migrations only for Vercel production builds. Preview builds share the production `DATABASE_URL` and do not migrate, so a PR's migration reaches production after merge. Locally run `npm run db:migrate` after pulling new migrations. To apply manually: `DATABASE_URL=<prod url> npx prisma migrate deploy`.
+- **Backups:** `npm run db:backup` writes timestamped JSON files plus `books-backup-latest.json` to `backups/`; `npm run db:restore` is interactive and asks before overwriting. Back up before migrations or bulk edits.
+- **Sync production to local:** `npm run db:sync-from-prod` only reads from production. It refuses to run unless your local `DATABASE_URL` is on localhost, applies pending migrations locally, then replaces local books, categories and promo codes in one transaction (this also clears local orders, scans and stock counts). Add `--include-orders` to copy customer orders, `--yes` to skip the confirmation. Needs `psql` and a `pg_dump` at least as new as the production server (`brew install postgresql@17`).
 
-### Manual Deployment
-```bash
-npm run build
-npm start
-```
+## Payments and promo codes
+
+- Stripe Checkout for online orders and the in-shop card button; Stripe Express Checkout Element for Apple Pay / Google Pay / Link on scan and basket pages. Prices always come from the database, never the client.
+- **One-time Stripe setup:** register `www.baytuliqra.com` under Payment method domains (Apple Pay), and make the webhook endpoint (`/api/stripe/webhook`) receive `checkout.session.completed` (and `async_payment_succeeded`), `payment_intent.succeeded` and `charge.refunded`. Details in [docs/WALLET_PAY.md](docs/WALLET_PAY.md).
+- **Promo codes:** percentage or fixed amount, with minimum order, usage limit and validity dates. They discount the product subtotal only (never shipping) and the discount is spread proportionally across items. Validated at `/api/promo-codes/validate`, managed at `/admin/promo-codes`, usage tracked per code.
+- **Tap to Pay** (customer taps a card on your phone): see [docs/TAP_TO_PAY.md](docs/TAP_TO_PAY.md).
+
+## Chat assistant
+
+`ChatWidget` talks to `POST /api/chat`, which calls Claude with two tools (`search_books`, `get_book`) over the live catalog. Store policies live in `src/lib/chat/systemPrompt.ts`. Set each book's **Age Range** (e.g. `6-9`, `10-13`, `14+`, `All ages`) in the admin so age-based recommendations work. Order status is intentionally unsupported; the bot points customers to support. Rate limiting is in memory per instance (`src/lib/chat/rateLimit.ts`); use a shared store such as Upstash for a hard limit.
+
+## Daily summary
+
+Vercel Cron calls `GET /api/cron/daily-summary` daily at 02:00 UTC (`vercel.json`) with `Authorization: Bearer $CRON_SECRET`. It emails the last 24 hours: sales, refunds, scans and failures by venue, abandoned in-shop orders, payment methods, restock suggestions and new feedback. Nothing is sent on a quiet day. When signed in as admin you can open it in the browser with `?preview=1` (show without sending) or `?force=1` (send anyway).
 
 ## Testing
 
-This project uses Playwright for end-to-end testing with a comprehensive test suite following best practices.
-
-> For quick browser-based testing via the Cursor AI agent, see [docs/EXPECT_BROWSER_TESTING.md](docs/EXPECT_BROWSER_TESTING.md).
-
-### Test Structure
-
-```
-tests/
-├── e2e/                    # End-to-end test files
-│   ├── book-purchase.spec.ts
-│   ├── search-functionality.spec.ts
-│   └── cart-management.spec.ts
-├── pages/                  # Page Object Models
-│   ├── base.page.ts
-│   ├── home.page.ts
-│   ├── cart.page.ts
-│   └── checkout-success.page.ts
-├── fixtures/               # Test fixtures and setup
-│   ├── base-test.ts
-│   └── test-data.ts
-└── helpers/                # Helper utilities
-    ├── api.helper.ts
-    └── wait.helper.ts
-```
-
-### Running Tests
+Playwright end-to-end tests in `tests/` (`e2e/` specs, `pages/` page objects, `fixtures/`, `helpers/`). See [tests/README.md](tests/README.md) for conventions.
 
 ```bash
-# Run all tests (local config)
-npm test
-
-# Run tests in headed mode
-npx playwright test --headed
-
-# Run specific test file
-npx playwright test tests/e2e/book-purchase.spec.ts
-
-# Run tests with UI
-npx playwright test --ui
-
-# Generate test report
-npx playwright show-report test-results/html-report
+npm test                  # e2e suite against the dev server (starts it for you)
+npm run test:ui           # interactive runner
+npm run test:server       # production-build tests: catalog cache and paid checkout
+npx playwright test tests/e2e/cart-management.spec.ts
 ```
 
-### Test Configuration
+- Tests change stock, orders and promo codes, so run them against a throwaway local database (`npm run db:seed-test`), never production.
+- `test:server` builds the app and runs `next start`; it refuses to run unless `DATABASE_URL` is local and `STRIPE_SECRET_KEY` is a test key, and it needs the [Stripe CLI](https://stripe.com/docs/stripe-cli).
+- **CI** ([.github/workflows/playwright.yml](.github/workflows/playwright.yml)) runs on every PR and push to `main`: the e2e suite in 4 shards, each with its own Postgres, plus the production-build tests. Tests needing Stripe skip unless the repo secret `STRIPE_TEST_SECRET_KEY` is set.
+- Quick manual browser checks with an AI agent: [docs/EXPECT_BROWSER_TESTING.md](docs/EXPECT_BROWSER_TESTING.md).
 
-Two configurations are provided:
-
-- **Local** (`playwright.config.local.ts`): For development with local server
-- **Production** (`playwright.config.prod.ts`): For CI/CD and production testing
-
-Use production config:
-```bash
-NODE_ENV=production npm test
-```
-
-### Writing Tests
-
-Tests follow these best practices:
-
-1. **Page Object Model**: All page interactions through page objects
-2. **Test-ID Locators**: Uses `data-testid` attributes for reliable selectors
-3. **Descriptive Names**: Clear test descriptions following user intent
-4. **Single Assertion**: One test per specific behavior/outcome
-5. **Test Isolation**: Each test is independent and can run in parallel
-6. **API Test Data**: Uses API helper to create test data
-
-Example test:
-
-```typescript
-test('should add a book to cart from search results', async ({ homePage }) => {
-  await homePage.navigate();
-  await homePage.searchForBook('The Sealed Nectar');
-  await homePage.addBookToCart(bookId);
-  
-  const toastVisible = await homePage.isToastVisible('Added to cart!');
-  expect(toastVisible).toBe(true);
-});
-```
-
-### Debugging Tests
-
-```bash
-# Debug mode
-npx playwright test --debug
-
-# Generate trace
-npx playwright test --trace on
-
-# View trace
-npx playwright show-trace test-results/trace.zip
-```
-
-## Project Structure
+## Project structure
 
 ```
 src/
-├── app/                    # Next.js app directory
-│   ├── api/               # API routes
-│   ├── admin/             # Admin pages
-│   ├── books/             # Book pages
-│   ├── cart/              # Cart page
-│   └── checkout/          # Checkout pages
-├── components/            # React components
-├── lib/                   # Utility libraries
-└── generated/             # Generated Prisma client
-
-prisma/
-├── schema.prisma          # Database schema
-└── migrations/            # Database migrations
-
-tests/                     # Test files
-scripts/                   # Utility scripts
+├── proxy.ts          # Server-side gate for /admin/* pages
+├── app/
+│   ├── admin/        # Admin pages
+│   ├── api/          # Route handlers: books, orders, checkout_sessions, in-shop, stripe/webhook,
+│   │                 #   promo-codes, chat, scans, feedback, contact, cron, admin/*
+│   ├── b/[code]/     # QR scan page for a book
+│   ├── v/, venue/    # Venue sign redirect and welcome page
+│   ├── basket/, receipt/, cart/, checkout/, books/, wishlist/, contact/
+├── components/       # UI components (ChatWidget, InShopPayButtons, Admin*, ...)
+└── lib/              # adminAuth, finalizeOrder, stockManager, pricing, catalog cache, insights,
+                      #   dailySummary, sendEmail, chat/, ...
+prisma/               # schema.prisma and migrations
+scripts/              # Backup/restore, prod sync, QR labels, seeding, AI suggestion scripts
+tests/                # Playwright tests
+docs/                 # Wallet pay, Tap to Pay, browser testing
 ```
 
-## Database Scripts
+## Deployment
 
-```bash
-# Create backup
-npm run db:backup
-
-# Restore from backup
-npm run db:restore
-
-# Update book images
-npm run db:update-images
-
-# View database in browser
-npm run studio
-```
-
-## Admin Panel
-
-Access the admin panel at `/admin` to:
-- Manage books and inventory
-- View and manage orders
-- Create promo codes
-- Generate payment links for in-person sales
-
-## Technologies
-
-- **Framework**: Next.js 15
-- **Database**: PostgreSQL (Production) / SQLite (Development)
-- **ORM**: Prisma
-- **Payments**: Stripe
-- **Email**: Resend
-- **Styling**: Tailwind CSS
-- **Testing**: Playwright
-- **Language**: TypeScript
+Hosted on Vercel; pushes to `main` deploy to production and apply pending migrations. Set the environment variables above in the Vercel project. Performance is tracked with Vercel Speed Insights.
 
 ## License
 
-Private - All rights reserved
+Private - all rights reserved.
