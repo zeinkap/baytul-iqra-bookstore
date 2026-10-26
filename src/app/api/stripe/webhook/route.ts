@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
 import { updateBookStock, extractBookItems, hasStockBeenUpdated } from '@/lib/stockManager';
 import { sendOrderConfirmationEmail } from '@/lib/sendEmail';
-import { finalizePaidOrder, finalizeInShopIntent, IN_SHOP_WALLET_FLOW, notifySalesOfPaidOrder, paymentMethodLabel, recordRefund } from '@/lib/finalizeOrder';
+import { finalizePaidOrder, finalizeInShopIntent, IN_SHOP_WALLET_FLOW, notifySalesOfPaidOrder, checkoutPaymentMethodInfo, recordRefund } from '@/lib/finalizeOrder';
 
 // Extended Stripe session type to include shipping_details which may not be in all TypeScript definitions
 interface StripeSessionWithShipping extends Stripe.Checkout.Session {
@@ -283,6 +283,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     customerName = session.customer_details.name;
   }
 
+  const paymentInfo = await checkoutPaymentMethodInfo(stripe, session);
   await createOrder({
     orderId,
     promoCodeId,
@@ -296,7 +297,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     customerName: customerName,
     source: session.metadata?.source === 'in-shop' ? 'in-shop' : 'online',
     location: session.metadata?.location || undefined,
-    paymentMethod: await paymentMethodLabel(stripe, session),
+    ...paymentInfo,
   });
 }
 
@@ -497,6 +498,7 @@ async function createOrder({
   source,
   location,
   paymentMethod,
+  paymentMethodDetail,
 }: {
   orderId?: string;
   promoCodeId?: string;
@@ -519,6 +521,7 @@ async function createOrder({
   source?: 'online' | 'in-shop';
   location?: string;
   paymentMethod?: string | null;
+  paymentMethodDetail?: string | null;
 }) {
   console.log('Creating order:', { orderId, email, customerName, totalCents });
 
@@ -531,7 +534,7 @@ async function createOrder({
     if (existingOrder) {
       // Mark paid and save what Stripe collected (email, name, payment method). Shared with the receipt page's
       // fallback so whichever runs first does the work and the receipt email goes out exactly once.
-      const finalized = await finalizePaidOrder(existingOrder.id, { email, customerName, paymentMethod });
+      const finalized = await finalizePaidOrder(existingOrder.id, { email, customerName, paymentMethod, paymentMethodDetail });
       console.log(`Order ${orderId} already exists, ensuring stock updated and skipping duplicate creation`);
       // Still deduct inventory: order was created before payment, so stock wasn't updated yet
       try {
@@ -568,6 +571,7 @@ async function createOrder({
         source: source || 'online',
         location: location || null,
         paymentMethod: paymentMethod || null,
+        paymentMethodDetail: paymentMethodDetail || null,
         paidAt: new Date(),
       },
   });
@@ -611,6 +615,7 @@ async function createOrder({
         discount: created.discountAmount,
         paidAt: created.paidAt,
         paymentMethod: created.paymentMethod,
+        paymentMethodDetail: created.paymentMethodDetail,
         shippingAddress: (created.shippingAddress as Record<string, string> | null) ?? undefined,
       });
       console.log('Order confirmation email sent to:', created.email);

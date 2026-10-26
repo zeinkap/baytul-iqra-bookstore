@@ -90,6 +90,7 @@ model Order {
   stockUpdatedAt   DateTime? // set (in the same transaction) when this order's books were taken out of stock, so a repeated Stripe event or a second server instance can't take them twice
   location         String?  // venue slug from the QR link (?loc=cafe-a)
   paymentMethod    String?  // "apple_pay" | "google_pay" | "card" | "link" | ... (from Stripe, set by the webhook)
+  paymentMethodDetail String? // e.g. "Visa ending 4242" or "Apple Pay (Visa ending 4242)", shown on receipts (from Stripe)
   device           String?  // "ios" | "android" | "desktop" | "other" (from the browser, never the raw user agent)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

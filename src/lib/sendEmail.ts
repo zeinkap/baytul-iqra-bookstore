@@ -18,6 +18,7 @@ export async function sendOrderConfirmationEmail({
   discount,
   paidAt,
   paymentMethod,
+  paymentMethodDetail,
 }: {
   to: string;
   orderId: string;
@@ -31,6 +32,8 @@ export async function sendOrderConfirmationEmail({
   paidAt?: Date | null;
   /** How the customer paid ("apple_pay", "card"...), shown as "Paid with" when known */
   paymentMethod?: string | null;
+  /** Card or wallet detail ("Visa ending 4242"), preferred over the plain method name when known */
+  paymentMethodDetail?: string | null;
   shippingAddress?: {
     name?: string;
     line1?: string;
@@ -59,7 +62,7 @@ export async function sendOrderConfirmationEmail({
       ? [shippingAddress.name, shippingAddress.line1, shippingAddress.line2, [shippingAddress.city, shippingAddress.state, shippingAddress.postal_code].filter(Boolean).join(', '), shippingAddress.country].filter(Boolean) as string[]
       : [];
 
-  const paidWith = paymentMethod ? METHOD_LABELS[paymentMethod] ?? paymentMethod.replace(/_/g, ' ') : null;
+  const paidWith = paymentMethodDetail || (paymentMethod ? METHOD_LABELS[paymentMethod] ?? paymentMethod.replace(/_/g, ' ') : null);
 
   const discountRow =
     discount && discount > 0.005
@@ -103,6 +106,7 @@ export async function sendOrderConfirmationEmail({
           ? `<p style="margin:16px 0 0; font-size:14px;"><b>Shipping to</b><br>${addressLines.map(escapeHtml).join('<br>')}</p>`
           : ''
       }
+      <p style="margin:16px 0 0; font-size:13px; color:#6b7280;">Need a refund, or something isn't right with your order? Just reply to this email.</p>
       <p style="text-align:center; margin:24px 0 8px;">
         <a href="${receiptUrl}" style="display:inline-block; background:#059669; color:#ffffff; text-decoration:none; padding:12px 22px; border-radius:8px; font-weight:600;">View your receipt</a>
       </p>
@@ -124,6 +128,8 @@ export async function sendOrderConfirmationEmail({
     `Total: ${money(total)} (tax included)`,
     `Order #${shortRef} - ${orderDate}${paidWith ? ` - Paid with ${paidWith}` : ''}`,
     ...(addressLines.length ? ['', 'Shipping to:', ...addressLines] : []),
+    '',
+    "Need a refund, or something isn't right with your order? Just reply to this email.",
     '',
     `View your receipt: ${receiptUrl}`,
     '',
