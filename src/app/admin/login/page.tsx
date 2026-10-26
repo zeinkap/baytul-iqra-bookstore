@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -9,7 +8,6 @@ export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,8 +23,10 @@ export default function AdminLoginPage() {
 
       if (response.ok) {
         // The server set a signed httpOnly session cookie
-        router.push('/admin/orders');
-        router.refresh();
+        // Hard navigation: the layout's nav prefetches admin links while logged out, and the proxy's
+        // redirect-to-login for those is cached by the client router, so router.push bounces back here
+        window.location.assign('/admin/books');
+        return;
       } else {
         setError(response.status === 429 ? 'Too many attempts. Try again later.' : 'Invalid password');
         setPassword('');
