@@ -13,7 +13,7 @@
  *   npx tsx scripts/suggestPrices.ts --concurrency 2       # books researched at the same time (default 3)
  *   npx tsx scripts/suggestPrices.ts --exclude-domain foo.com   # also ignore this site (repeatable)
  *
- * Suppliers you buy from (Kube Publishing, Learning Roots) are never searched or used as a price source: their
+ * Suppliers you buy from (Kube Publishing, Learning Roots, Imam Ghazali Publishing) are never searched or used as a price source: their
  * prices are your cost, not the market. Edit SUPPLIER_DOMAINS below if that list changes.
  *
  * Every row starts with runDate (the day this script was run). In-person prices are whole dollars, rounded down.
@@ -32,7 +32,7 @@ const MAX_SEARCHES_PER_BOOK = 5;
 const MAX_TURNS = 6;
 
 /** Where the shop buys its books: wholesale prices there say nothing about what customers pay. */
-const SUPPLIER_DOMAINS = ['kubepublishing.com', 'learningroots.com'];
+const SUPPLIER_DOMAINS = ['kubepublishing.com', 'learningroots.com', 'imamghazali.co'];
 
 const isExcluded = (url: string, domains: string[]) => {
   try {
@@ -91,7 +91,7 @@ For the book you are given, use web search to find what customers currently pay 
 RULES
 - Match the exact edition and format. A different translation, publisher, binding or box set is NOT a match: skip it or lower your confidence.
 - Prices in US dollars for new copies only. Ignore used, rental, Kindle/ebook, "from" prices, auction listings and anonymous third-party marketplace sellers. Do not include shipping, tax or member-only prices.
-- Never use Kube Publishing or Learning Roots (kubepublishing.com, learningroots.com) as a price source: they are the shop's suppliers, so their prices are not the market. Other publishers' own sites are fine.
+- Never use Kube Publishing, Learning Roots or Imam Ghazali Publishing (kubepublishing.com, learningroots.com, imamghazali.co) as a price source: they are the shop's suppliers, so their prices are not the market. Other publishers' own sites are fine.
 - Prefer the publisher, major retailers (Amazon, Barnes & Noble, Books-A-Million) and established Islamic bookstores. If a retailer's price is struck through, use the current price, not the list price.
 - marketPrice is the typical price across the good sources you found (the middle value when they differ), not the lowest outlier.
 - Only record competitor URLs that appeared in your search results. Never guess a price or a URL; if you cannot find a reliable price, set marketPrice to null and explain in notes.
