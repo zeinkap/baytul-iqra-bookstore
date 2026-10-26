@@ -35,6 +35,7 @@ export async function POST(
       discount: order.discountAmount,
       paidAt: order.paidAt,
       paymentMethod: order.paymentMethod,
+      paymentMethodDetail: order.paymentMethodDetail,
       shippingAddress: (order.shippingAddress as Record<string, string> | null) ?? undefined,
     });
     return NextResponse.json({ ok: true });

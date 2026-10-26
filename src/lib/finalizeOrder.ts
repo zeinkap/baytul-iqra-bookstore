@@ -4,23 +4,43 @@ import { prisma } from './prisma';
 import { sendOrderConfirmationEmail, sendOrderNotificationToSales, sendRefundEmail } from './sendEmail';
 import { extractBookItems, updateBookStock } from './stockManager';
 
-/** How the customer paid, from Stripe: "apple_pay", "google_pay", "link", "card"... (null if it can't be read). */
-export async function paymentMethodLabel(stripe: Stripe, session: Stripe.Checkout.Session): Promise<string | null> {
+const CARD_BRANDS: Record<string, string> = { visa: 'Visa', mastercard: 'Mastercard', amex: 'American Express', discover: 'Discover', diners: 'Diners Club', jcb: 'JCB', unionpay: 'UnionPay' };
+
+/** How a Stripe payment method reads to a customer: "Visa ending 4242", or "Apple Pay (Visa ending 4242)". Null for non-card methods. */
+export function describePaymentMethod(method: Stripe.PaymentMethod): string | null {
+  const card = method.card;
+  if (method.type !== 'card' || !card) return null;
+  const brand = (card.brand && CARD_BRANDS[card.brand]) || 'card';
+  const base = card.last4 ? `${brand} ending ${card.last4}` : brand;
+  const wallet = card.wallet?.type === 'apple_pay' ? 'Apple Pay' : card.wallet?.type === 'google_pay' ? 'Google Pay' : null;
+  return wallet ? `${wallet} (${base})` : base;
+}
+
+/** The method type ("apple_pay", "google_pay", "link", "card"...) plus the customer-facing detail, from a Stripe payment method. */
+export function paymentMethodInfo(method: Stripe.PaymentMethod | null): { paymentMethod: string | null; paymentMethodDetail: string | null } {
+  if (!method) return { paymentMethod: null, paymentMethodDetail: null };
+  return {
+    paymentMethod: method.type === 'card' ? (method.card?.wallet?.type ?? 'card') : method.type,
+    paymentMethodDetail: describePaymentMethod(method),
+  };
+}
+
+/** How the customer paid a Checkout Session, from Stripe (both fields null if it can't be read). */
+export async function checkoutPaymentMethodInfo(stripe: Stripe, session: Stripe.Checkout.Session) {
   try {
     const sessionIntent = session.payment_intent;
     // A session retrieved with expand: ['payment_intent.payment_method'] already carries the method: no extra Stripe call
     let intent = sessionIntent && typeof sessionIntent !== 'string' ? sessionIntent : null;
     if (!intent || !intent.payment_method) {
       const intentId = typeof sessionIntent === 'string' ? sessionIntent : sessionIntent?.id;
-      if (!intentId) return null;
+      if (!intentId) return paymentMethodInfo(null);
       intent = await stripe.paymentIntents.retrieve(intentId, { expand: ['payment_method'] });
     }
     const method = intent.payment_method;
-    if (!method || typeof method === 'string') return null;
-    return method.type === 'card' ? (method.card?.wallet?.type ?? 'card') : method.type;
+    return paymentMethodInfo(!method || typeof method === 'string' ? null : method);
   } catch (error) {
     console.error('Could not read payment method:', error);
-    return null;
+    return paymentMethodInfo(null);
   }
 }
 
@@ -32,7 +52,7 @@ export async function paymentMethodLabel(stripe: Stripe, session: Stripe.Checkou
  */
 export async function finalizePaidOrder(
   orderId: string,
-  details: { email?: string | null; customerName?: string | null; paymentMethod?: string | null },
+  details: { email?: string | null; customerName?: string | null; paymentMethod?: string | null; paymentMethodDetail?: string | null },
   // Pass `after` (next/server) to send the sale alert and receipt email once the response has gone out
   runLater?: (task: () => Promise<void>) => void
 ): Promise<Order | null> {
@@ -43,6 +63,9 @@ export async function finalizePaidOrder(
   const justPaid = (await prisma.order.updateMany({ where: { id: orderId, paidAt: null }, data: { paidAt: new Date() } })).count === 1;
   if (details.paymentMethod) {
     await prisma.order.updateMany({ where: { id: orderId, paymentMethod: null }, data: { paymentMethod: details.paymentMethod } });
+  }
+  if (details.paymentMethodDetail) {
+    await prisma.order.updateMany({ where: { id: orderId, paymentMethodDetail: null }, data: { paymentMethodDetail: details.paymentMethodDetail } });
   }
   if (details.customerName) {
     await prisma.order.updateMany({ where: { id: orderId, customerName: null }, data: { customerName: details.customerName } });
@@ -67,6 +90,7 @@ export async function finalizePaidOrder(
           discount: order.discountAmount,
           paidAt: order.paidAt,
           paymentMethod: order.paymentMethod,
+          paymentMethodDetail: order.paymentMethodDetail,
           shippingAddress: (order.shippingAddress as Record<string, string> | null) ?? undefined,
         });
       } catch (error) {
@@ -109,11 +133,12 @@ export async function finalizeInShopIntent(stripe: Stripe, intentId: string): Pr
   }
 
   const method = intent.payment_method && typeof intent.payment_method !== 'string' ? intent.payment_method : null;
-  const paymentMethod = method ? (method.type === 'card' ? (method.card?.wallet?.type ?? 'card') : method.type) : null;
+  const { paymentMethod, paymentMethodDetail } = paymentMethodInfo(method);
   const order = await finalizePaidOrder(orderId, {
     email: method?.billing_details?.email || intent.metadata.email || null,
     customerName: method?.billing_details?.name || intent.metadata.name || null,
     paymentMethod,
+    paymentMethodDetail,
   });
   if (!order) return { ok: false, status: 404, error: 'Order not found' };
 
@@ -131,7 +156,7 @@ export async function finalizeInShopIntent(stripe: Stripe, intentId: string): Pr
  * refunded (dollars). Only a call that raises the stored total sends the email, so Stripe's webhook retries
  * and repeats never send it twice.
  */
-export async function recordRefund(orderId: string, refundedAmount: number): Promise<Order | null> {
+export async function recordRefund(orderId: string, refundedAmount: number, refundedTo?: string | null, refundReference?: { id?: string | null; bankReference?: string | null } | null): Promise<Order | null> {
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order) return null;
   const previous = order.refundedAmount ?? 0;
@@ -151,6 +176,10 @@ export async function recordRefund(orderId: string, refundedAmount: number): Pro
         totalRefunded: refundedAmount,
         orderTotal: updated.finalTotal,
         paymentMethod: updated.paymentMethod,
+        refundedTo,
+        paidAt: updated.paidAt,
+        refundReference,
+        items: extractBookItems(updated.items).map(({ title, quantity }) => ({ title, quantity })),
       });
     } catch (error) {
       console.error('Error sending refund email:', error);

@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
 import { updateBookStock, extractBookItems, hasStockBeenUpdated } from '@/lib/stockManager';
 import { sendOrderConfirmationEmail } from '@/lib/sendEmail';
-import { finalizePaidOrder, finalizeInShopIntent, IN_SHOP_WALLET_FLOW, notifySalesOfPaidOrder, paymentMethodLabel, recordRefund } from '@/lib/finalizeOrder';
+import { finalizePaidOrder, finalizeInShopIntent, IN_SHOP_WALLET_FLOW, notifySalesOfPaidOrder, checkoutPaymentMethodInfo, recordRefund } from '@/lib/finalizeOrder';
 
 // Extended Stripe session type to include shipping_details which may not be in all TypeScript definitions
 interface StripeSessionWithShipping extends Stripe.Checkout.Session {
@@ -92,6 +92,31 @@ export async function POST(req: NextRequest) {
   }
 }
 
+const CARD_BRANDS: Record<string, string> = { visa: 'Visa', mastercard: 'Mastercard', amex: 'American Express', discover: 'Discover', diners: 'Diners Club', jcb: 'JCB', unionpay: 'UnionPay' };
+
+/** Where a refund goes back to, from the charge: "Visa ending 4242", or "Apple Pay (Visa ending 4242)". Null if unknown. */
+function refundDestination(charge: Stripe.Charge): string | null {
+  const card = charge.payment_method_details?.card;
+  if (!card) return null;
+  const brand = (card.brand && CARD_BRANDS[card.brand]) || 'card';
+  const base = card.last4 ? `${brand} ending ${card.last4}` : brand;
+  const wallet = card.wallet?.type === 'apple_pay' ? 'Apple Pay' : card.wallet?.type === 'google_pay' ? 'Google Pay' : null;
+  return wallet ? `${wallet} (${base})` : base;
+}
+
+/** The newest refund on the charge: its id, and the bank's reference (ARN) if the bank has already issued one. Never throws. */
+async function latestRefundReference(stripe: Stripe, chargeId: string): Promise<{ id: string; bankReference: string | null } | null> {
+  try {
+    const refund = (await stripe.refunds.list({ charge: chargeId, limit: 1 })).data[0];
+    if (!refund) return null;
+    const card = refund.destination_details?.card;
+    return { id: refund.id, bankReference: card?.reference && card.reference_type === 'acquirer_reference_number' ? card.reference : null };
+  } catch (error) {
+    console.error('Could not read refund reference:', error);
+    return null;
+  }
+}
+
 /** A refund (full or partial) in Stripe: record it on the order so reports stop counting that money. */
 async function handleChargeRefunded(charge: Stripe.Charge) {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -109,7 +134,7 @@ async function handleChargeRefunded(charge: Stripe.Charge) {
     console.log('Refund for a payment with no checkout order (ignored):', charge.id);
     return;
   }
-  await recordRefund(orderId, charge.amount_refunded / 100);
+  await recordRefund(orderId, charge.amount_refunded / 100, refundDestination(charge), await latestRefundReference(stripe, charge.id));
   console.log(`Recorded refund of $${(charge.amount_refunded / 100).toFixed(2)} on order ${orderId}`);
 }
 
@@ -258,6 +283,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     customerName = session.customer_details.name;
   }
 
+  const paymentInfo = await checkoutPaymentMethodInfo(stripe, session);
   await createOrder({
     orderId,
     promoCodeId,
@@ -271,7 +297,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     customerName: customerName,
     source: session.metadata?.source === 'in-shop' ? 'in-shop' : 'online',
     location: session.metadata?.location || undefined,
-    paymentMethod: await paymentMethodLabel(stripe, session),
+    ...paymentInfo,
   });
 }
 
@@ -472,6 +498,7 @@ async function createOrder({
   source,
   location,
   paymentMethod,
+  paymentMethodDetail,
 }: {
   orderId?: string;
   promoCodeId?: string;
@@ -494,6 +521,7 @@ async function createOrder({
   source?: 'online' | 'in-shop';
   location?: string;
   paymentMethod?: string | null;
+  paymentMethodDetail?: string | null;
 }) {
   console.log('Creating order:', { orderId, email, customerName, totalCents });
 
@@ -506,7 +534,7 @@ async function createOrder({
     if (existingOrder) {
       // Mark paid and save what Stripe collected (email, name, payment method). Shared with the receipt page's
       // fallback so whichever runs first does the work and the receipt email goes out exactly once.
-      const finalized = await finalizePaidOrder(existingOrder.id, { email, customerName, paymentMethod });
+      const finalized = await finalizePaidOrder(existingOrder.id, { email, customerName, paymentMethod, paymentMethodDetail });
       console.log(`Order ${orderId} already exists, ensuring stock updated and skipping duplicate creation`);
       // Still deduct inventory: order was created before payment, so stock wasn't updated yet
       try {
@@ -543,6 +571,7 @@ async function createOrder({
         source: source || 'online',
         location: location || null,
         paymentMethod: paymentMethod || null,
+        paymentMethodDetail: paymentMethodDetail || null,
         paidAt: new Date(),
       },
   });
@@ -586,6 +615,7 @@ async function createOrder({
         discount: created.discountAmount,
         paidAt: created.paidAt,
         paymentMethod: created.paymentMethod,
+        paymentMethodDetail: created.paymentMethodDetail,
         shippingAddress: (created.shippingAddress as Record<string, string> | null) ?? undefined,
       });
       console.log('Order confirmation email sent to:', created.email);

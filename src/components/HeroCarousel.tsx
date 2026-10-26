@@ -98,7 +98,7 @@ export default function HeroCarousel({ heroBooks }: { heroBooks: Book[] }) {
                     height={400}
                     className="rounded-lg sm:rounded-xl object-contain max-h-48 sm:max-h-64 md:max-h-80 shadow-md transition-transform duration-300 hover:scale-105"
                     priority={index === 0}
-                    style={{ height: 'auto' }}
+                    style={{ width: 'auto', height: 'auto' }}
                     sizes="(max-width: 640px) 280px, (max-width: 768px) 320px, 400px"
                   />
                 </div>
