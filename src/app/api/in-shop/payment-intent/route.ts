@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { items: rawItems, location, email, name } = await req.json();
-    const priced = await priceItems(rawItems);
+    const priced = await priceItems(rawItems, 'in-shop');
     if (!priced.ok) {
       return NextResponse.json({ error: priced.error }, { status: priced.status });
     }

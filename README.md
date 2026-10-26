@@ -8,7 +8,7 @@ Customers can shop online, or scan a QR sticker on a physical book at a venue (c
 ## What it does
 
 - **Storefront:** browse, search and filter the catalog by category; book pages with photo viewer; cart, wishlist, promo codes; Stripe Checkout for shipping or pickup orders.
-- **In-shop selling:** every book has a QR sticker (`/b/<isbn>`). Scanning opens the book with Apple Pay / Google Pay / Link / card buttons, or lets the customer add several books to a basket (`/basket`) and pay once. Receipts at `/receipt`. See [docs/WALLET_PAY.md](docs/WALLET_PAY.md).
+- **In-shop selling:** every book has a QR sticker (`/b/<isbn>`) and shows the **in-person price**. Scanning opens the book with Apple Pay / Google Pay / Link / card buttons, or lets the customer add several books to a basket (`/basket`) and pay once. Receipts at `/receipt`. See [docs/WALLET_PAY.md](docs/WALLET_PAY.md).
 - **Venues:** the same books travel between venues. Sales are credited to a venue from the admin "Where are the books today?" setting, or from a venue sign QR (`/v/<venue>` → `/venue/welcome`).
 - **Chat assistant:** floating widget that recommends books, answers price/stock questions and store policy questions.
 - **Emails (Resend):** order confirmation, receipt, refund notice, contact form, and a daily summary of the last 24 hours.
@@ -20,7 +20,7 @@ Password protected. Sign in at `/admin/login`; sessions last 12 hours.
 
 | Page | Purpose |
 | --- | --- |
-| `/admin/books` | Add, edit, delete books; stock, prices, images, ISBN, age range |
+| `/admin/books` | Add, edit, delete books; stock, online and in-person prices, images, ISBN, age range |
 | `/admin/orders` | Orders, refunds, restock of refunded orders, receipts |
 | `/admin/promo-codes` | Create and manage discount codes |
 | `/admin/payment-links` | Payment links for in-person sales |
@@ -59,8 +59,9 @@ To get real data locally, run `npm run db:sync-from-prod` (see [Database](#datab
 | `ADMIN_PASSWORD` | yes | Admin login password |
 | `ADMIN_SESSION_SECRET` | recommended | Signs admin session cookies (`openssl rand -hex 32`) |
 | `RESEND_API_KEY` | yes | Sending emails |
-| `ANTHROPIC_API_KEY` | for chat | Chat assistant and the description / age-range scripts |
+| `ANTHROPIC_API_KEY` | for chat | Chat assistant and the description / age-range / price research scripts |
 | `CHAT_MODEL` | no | Overrides the chat assistant's model |
+| `PRICE_MODEL` | no | Overrides the model used by the price research script |
 | `CRON_SECRET` | prod | Lets Vercel Cron call the daily summary endpoint |
 | `PROD_DATABASE_URL` | no | Source for `db:sync-from-prod` (or `DATABASE_URL` in `.env.production`) |
 
@@ -83,7 +84,7 @@ See [.env.example](.env.example). Never commit `.env` files.
 | `npm run qr:venue-signs -- <venue> ...` | Printable venue signs |
 | `npm test`, `test:headed`, `test:ui`, `test:debug`, `test:report`, `test:server` | Playwright (see [Testing](#testing)) |
 
-Other one-off scripts live in `scripts/` and run with `npx tsx scripts/<name>.ts` (header comments explain usage), e.g. `suggestAgeRanges` / `applyAgeRanges` and `suggestDescriptions` / `applyDescriptions` (Claude writes suggestions to a CSV for you to review; `apply` is a dry run unless you pass `--apply`; run `npm run db:backup` first).
+Other one-off scripts live in `scripts/` and run with `npx tsx scripts/<name>.ts` (header comments explain usage), e.g. `suggestAgeRanges` / `applyAgeRanges` and `suggestDescriptions` / `applyDescriptions` (Claude writes suggestions to a CSV for you to review; `apply` is a dry run unless you pass `--apply`; run `npm run db:backup` first). For prices, see [Pricing](#pricing).
 
 QR labels: `BASE_URL=https://www.baytuliqra.com npm run qr:generate`. Stickers don't carry a venue; the venue comes from the admin setting or a venue sign.
 
@@ -95,6 +96,31 @@ PostgreSQL via Prisma (`prisma/schema.prisma`, migrations in `prisma/migrations/
 - **Migrations in production:** `npm run build` runs `scripts/migrateOnProduction.mjs`, which applies migrations only for Vercel production builds. Preview builds share the production `DATABASE_URL` and do not migrate, so a PR's migration reaches production after merge. Locally run `npm run db:migrate` after pulling new migrations. To apply manually: `DATABASE_URL=<prod url> npx prisma migrate deploy`.
 - **Backups:** `npm run db:backup` writes timestamped JSON files plus `books-backup-latest.json` to `backups/`; `npm run db:restore` is interactive and asks before overwriting. Back up before migrations or bulk edits.
 - **Sync production to local:** `npm run db:sync-from-prod` only reads from production. It refuses to run unless your local `DATABASE_URL` is on localhost, applies pending migrations locally, then replaces local books, categories and promo codes in one transaction (this also clears local orders, scans and stock counts). Add `--include-orders` to copy customer orders, `--yes` to skip the confirmation. Needs `psql` and a `pg_dump` at least as new as the production server (`brew install postgresql@17`).
+
+## Pricing
+
+Each book has two prices:
+
+- **Online price** (`price`): the website and Stripe Checkout orders. Online orders add shipping on top.
+- **In-person price** (`inShopPrice`, optional, whole dollars): QR scan pages, the in-shop basket, receipts and the in-shop checkout. Empty means in-person uses the online price. It is never above the online price and ignores shipping.
+
+The server picks the price for the channel in `src/lib/pricing.ts` (`unitPrice` / `priceItems(items, channel)`); the browser only sends book ids and quantities. Set both prices in `/admin/books`. Promo codes work the same on either channel (there is no promo code entry on the in-shop scan page yet).
+
+**Price research (suggest-only).** `suggestPrices.ts` uses Claude with web search to find what new copies of each book (same edition and format) sell for, then writes a CSV of suggested online and in-person prices. It never changes the database.
+
+```bash
+npx tsx scripts/suggestPrices.ts --limit 5 --in-stock     # try a few books first; every web search costs money
+npx tsx scripts/suggestPrices.ts --in-stock               # all books in stock -> price-suggestions-<today>.csv
+# review/edit the suggestedOnlinePrice and suggestedInPersonPrice columns (clear a cell to skip it)
+npx tsx scripts/applyPrices.ts                            # dry run on the newest price-suggestions-*.csv
+npm run db:backup
+npx tsx scripts/applyPrices.ts --apply                    # write (add --skip-low to ignore low-confidence rows)
+```
+
+- The first column of every row, `runDate`, is the day the script ran. The default file name includes it too.
+- Each row has the market price, the competitor prices and links it found (only pages that really appeared in the search results), a confidence level and notes.
+- Rules (change with flags): online price keeps at least a 15% margin after cost and shipping (`--min-margin 0.2`); in-person is 10% cheaper than online, rounded **down** to a whole dollar, with its own margin check that ignores shipping (`--in-person-discount 0.15`). Books with no cost price skip the margin check.
+- The storefront can show an old online price for up to 5 minutes after `--apply` (catalog cache); checkout always charges the database price.
 
 ## Payments and promo codes
 

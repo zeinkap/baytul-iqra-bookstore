@@ -7,7 +7,7 @@ There are three kinds of tests:
 | Kind | Where | Runs with | What it covers |
 | --- | --- | --- | --- |
 | UI tests | `e2e/` | `npm test` | Pages: search, categories, book detail, cart, checkout success, contact, QR scan, basket, receipt, venue welcome |
-| Money-path API tests | `e2e/` (`*-api.spec.ts`, `pricing-integrity`) | `npm test` | Orders, stock, promo codes, Stripe webhook, refunds, in-shop buy. They create their own rows in the database |
+| Money-path API tests | `e2e/` (`*-api.spec.ts`, `pricing-integrity`) | `npm test` | Orders, stock, promo codes, Stripe webhook, refunds, in-shop buy, online vs in-person pricing. They create their own rows in the database |
 | Production-build tests | `server/` | `npm run test:server` | Catalog cache and a real paid checkout (needs a production build and the Stripe CLI) |
 
 ## Setup
@@ -56,6 +56,10 @@ npx playwright test --shard=1/4                          # one quarter of the su
 - **Paid checkout** (`paid-checkout.spec.ts`): the receipt page's fallback (`/api/orders/from-session`), the Stripe webhook, refunds and restock, with a real paid session. Stripe has no API to pay a Checkout Session, so the [Stripe CLI](https://docs.stripe.com/stripe-cli) (`stripe trigger checkout.session.completed`) pays one in test mode, with the order id added to its metadata. The tests skip if the CLI isn't installed. The server's emails go to a local stub, so the tests can assert "exactly one sale alert and one receipt" and nothing is really sent.
 
 Safety: `next start` normally reads `.env.production` (the production database and live keys), so the config passes local/test values explicitly and refuses to run unless `DATABASE_URL` is local and `STRIPE_SECRET_KEY` is a test key. The Stripe CLI is always run with that test key. Each run leaves a few throwaway products and sessions in Stripe test mode.
+
+## Price research rules
+
+`e2e/price-research-rules.spec.ts` tests the pure rules in `scripts/priceUtils.ts` (margin floors, in-person discount, whole-dollar rounding). It needs no server, database or network. The Claude web search part of `scripts/suggestPrices.ts` is not tested automatically (it would cost money); try it with `--limit 2`.
 
 ## Money-path API tests
 

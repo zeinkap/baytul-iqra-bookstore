@@ -41,8 +41,45 @@ test.describe('In-shop buy API', () => {
     expect((await res.json()).error).toContain('Only 1 left');
   });
 
+  test('the in-shop basket quote uses the in-person price, falling back to the online price', async ({ request }) => {
+    const withPrice = await fx.book({ price: 15, inShopPrice: 12, stock: 3 });
+    const without = await fx.book({ price: 9.5, stock: 3 });
+    const res = await request.post('/api/in-shop/quote', {
+      data: { items: [{ id: withPrice.id, quantity: 1 }, { id: without.id, quantity: 1 }] },
+    });
+    expect(res.status()).toBe(200);
+    const { lines } = await res.json();
+    const priceOf = (id: string) => lines.find((l: { id: string }) => l.id === id).price;
+    expect(priceOf(withPrice.id)).toBe(12);
+    expect(priceOf(without.id)).toBe(9.5);
+  });
+
+  test('online orders ignore the in-person price', async ({ request }) => {
+    const book = await fx.book({ price: 15, inShopPrice: 12, stock: 3 });
+    const res = await request.post('/api/orders', {
+      data: { items: [{ id: book.id, quantity: 1 }], fulfillmentType: 'pickup', email: 'e2e@example.com' },
+    });
+    expect(res.status()).toBe(201);
+    const { id } = await res.json();
+    fx.trackOrder(id);
+    const order = await db.order.findUniqueOrThrow({ where: { id } });
+    expect(order.finalTotal).toBeCloseTo(15, 2);
+  });
+
   test.describe('with Stripe test mode', () => {
     test.skip(!stripeTestMode, 'needs STRIPE_SECRET_KEY to be a test-mode key');
+
+    test('an in-shop order is charged the in-person price', async ({ request }) => {
+      const book = await fx.book({ price: 15, inShopPrice: 12, stock: 3 });
+      const res = await buy(request, { items: [{ id: book.id, quantity: 2 }] });
+      expect(res.status()).toBe(200);
+      const { url, orderId } = await res.json();
+      fx.trackOrder(orderId);
+      const order = await db.order.findUniqueOrThrow({ where: { id: orderId } });
+      expect(order.finalTotal).toBeCloseTo(24, 2);
+      const session = await stripe.checkout.sessions.retrieve(sessionIdFromUrl(url), { expand: ['line_items'] });
+      expect(session.amount_total).toBe(2400);
+    });
 
     test('prices come from the database, the order is unpaid and in-shop, and the session matches it', async ({ request }) => {
       const book = await fx.book({ price: 12.34, stock: 3 });

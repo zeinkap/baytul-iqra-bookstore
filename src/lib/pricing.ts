@@ -13,6 +13,20 @@ export interface PricedItem {
   format?: string;
 }
 
+/** Where a sale happens: the website (`online`) or a QR scan at a venue (`in-shop`). */
+export type SaleChannel = 'online' | 'in-shop';
+
+/**
+ * Unit price for a channel. In-person sales use the book's in-shop price when it has one (and it is never
+ * above the online price); online sales always use `price`.
+ */
+export function unitPrice(book: { price: number; inShopPrice?: number | null }, channel: SaleChannel): number {
+  if (channel === 'in-shop' && book.inShopPrice != null && book.inShopPrice >= 0) {
+    return Math.min(book.inShopPrice, book.price);
+  }
+  return book.price;
+}
+
 type PriceResult =
   | { ok: true; items: PricedItem[]; subtotal: number; stockById: Map<string, { title: string; stock: number }> }
   | { ok: false; error: string; status: number };
@@ -20,8 +34,9 @@ type PriceResult =
 /**
  * Rebuilds cart items from the database so prices, titles and images can't be
  * tampered with in the browser. Only `id` and `quantity` are taken from the client.
+ * `channel` picks which price applies (online vs in-person).
  */
-export async function priceItems(rawItems: unknown): Promise<PriceResult> {
+export async function priceItems(rawItems: unknown, channel: SaleChannel = 'online'): Promise<PriceResult> {
   if (!Array.isArray(rawItems) || rawItems.length === 0) {
     return { ok: false, error: 'No items provided', status: 400 };
   }
@@ -47,7 +62,7 @@ export async function priceItems(rawItems: unknown): Promise<PriceResult> {
       id,
       title: book.title,
       author: book.author,
-      price: book.price,
+      price: unitPrice(book, channel),
       image: book.images[0] ?? '',
       quantity,
       ...(book.format ? { format: book.format } : {}),

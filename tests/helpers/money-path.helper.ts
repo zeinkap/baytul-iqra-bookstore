@@ -34,13 +34,14 @@ export class Fixtures {
   private promoIds: string[] = [];
   private orderIds: string[] = [];
 
-  async book(opts: { stock?: number; price?: number } = {}) {
+  async book(opts: { stock?: number; price?: number; inShopPrice?: number } = {}) {
     const book = await db.book.create({
       data: {
         title: `E2E TEST BOOK ${randomUUID()}`,
         author: 'E2E Test',
         description: 'Created by an automated test',
         price: opts.price ?? 20,
+        inShopPrice: opts.inShopPrice ?? null,
         images: [],
         stock: opts.stock ?? 5,
       },

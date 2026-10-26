@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { unitPrice } from '@/lib/pricing';
 
 const MAX_PER_BOOK = 10;
 const MAX_LINES = 30;
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     const books = await prisma.book.findMany({
       where: { id: { in: [...requested.keys()] } },
-      select: { id: true, isbn: true, title: true, author: true, price: true, images: true, stock: true },
+      select: { id: true, isbn: true, title: true, author: true, price: true, inShopPrice: true, images: true, stock: true },
     });
     const bookById = new Map(books.map((b) => [b.id, b]));
 
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
         code: book.isbn ?? book.id,
         title: book.title,
         author: book.author,
-        price: book.price,
+        price: unitPrice(book, 'in-shop'),
         image: book.images[0] ?? '',
         stock: book.stock,
         quantity: Math.min(quantity, book.stock, MAX_PER_BOOK),

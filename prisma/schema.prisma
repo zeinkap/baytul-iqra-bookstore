@@ -14,7 +14,8 @@ model Book {
   title       String   @unique
   author      String
   description String
-  price       Float
+  price       Float     // Online price (website, shipping and pickup orders)
+  inShopPrice Float?    // In-person price (QR scan pages, basket, payment links at venues); null = same as price
   costPrice   Float?   // Cost price for profit margin calculation
   shippingCost Float?   // Shipping cost per book for bulk orders
   images      String[] @db.Text
