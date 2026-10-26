@@ -11,6 +11,10 @@
  *   npx tsx scripts/suggestPrices.ts --min-margin 0.2      # lowest profit share of the price (default 0.15)
  *   npx tsx scripts/suggestPrices.ts --in-person-discount 0.15   # in-person is this much cheaper (default 0.10)
  *   npx tsx scripts/suggestPrices.ts --concurrency 2       # books researched at the same time (default 3)
+ *   npx tsx scripts/suggestPrices.ts --exclude-domain foo.com   # also ignore this site (repeatable)
+ *
+ * Suppliers you buy from (Kube Publishing, Learning Roots) are never searched or used as a price source: their
+ * prices are your cost, not the market. Edit SUPPLIER_DOMAINS below if that list changes.
  *
  * Every row starts with runDate (the day this script was run). In-person prices are whole dollars, rounded down.
  * Searches cost money (one web-search session per book): try --limit first.
@@ -27,11 +31,24 @@ const MODEL = process.env.PRICE_MODEL || 'claude-sonnet-5-5';
 const MAX_SEARCHES_PER_BOOK = 5;
 const MAX_TURNS = 6;
 
-const WEB_SEARCH: Anthropic.WebSearchTool20250305 = {
+/** Where the shop buys its books: wholesale prices there say nothing about what customers pay. */
+const SUPPLIER_DOMAINS = ['kubepublishing.com', 'learningroots.com'];
+
+const isExcluded = (url: string, domains: string[]) => {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return domains.some((d) => host === d || host.endsWith(`.${d}`));
+  } catch {
+    return true;
+  }
+};
+
+const webSearchTool = (blockedDomains: string[]): Anthropic.WebSearchTool20250305 => ({
   type: 'web_search_20250305',
   name: 'web_search',
   max_uses: MAX_SEARCHES_PER_BOOK,
-};
+  blocked_domains: blockedDomains,
+});
 
 const RECORD_TOOL: Anthropic.Tool = {
   name: 'record_price',
@@ -74,6 +91,7 @@ For the book you are given, use web search to find what customers currently pay 
 RULES
 - Match the exact edition and format. A different translation, publisher, binding or box set is NOT a match: skip it or lower your confidence.
 - Prices in US dollars for new copies only. Ignore used, rental, Kindle/ebook, "from" prices, auction listings and anonymous third-party marketplace sellers. Do not include shipping, tax or member-only prices.
+- Never use Kube Publishing or Learning Roots (kubepublishing.com, learningroots.com) as a price source: they are the shop's suppliers, so their prices are not the market. Other publishers' own sites are fine.
 - Prefer the publisher, major retailers (Amazon, Barnes & Noble, Books-A-Million) and established Islamic bookstores. If a retailer's price is struck through, use the current price, not the list price.
 - marketPrice is the typical price across the good sources you found (the middle value when they differ), not the lowest outlier.
 - Only record competitor URLs that appeared in your search results. Never guess a price or a URL; if you cannot find a reliable price, set marketPrice to null and explain in notes.
@@ -99,7 +117,7 @@ type Found = {
 };
 
 /** Runs one book's research: Claude searches (server-side), then calls record_price. */
-async function research(client: Anthropic, book: BookRow): Promise<{ found: Found; searches: number; seenUrls: Set<string> } | null> {
+async function research(client: Anthropic, book: BookRow, blocked: string[]): Promise<{ found: Found; searches: number; seenUrls: Set<string> } | null> {
   const seenUrls = new Set<string>();
   let searches = 0;
   const messages: Anthropic.MessageParam[] = [
@@ -118,7 +136,7 @@ async function research(client: Anthropic, book: BookRow): Promise<{ found: Foun
       model: MODEL,
       max_tokens: 4000,
       system: SYSTEM,
-      tools: [WEB_SEARCH, RECORD_TOOL],
+      tools: [webSearchTool(blocked), RECORD_TOOL],
       messages,
     });
 
@@ -151,6 +169,7 @@ async function main() {
   const outFile = arg('--out') ?? `price-suggestions-${runDate}.csv`;
   const limit = arg('--limit') ? Number(arg('--limit')) : undefined;
   const concurrency = Math.max(1, Number(arg('--concurrency') ?? 3));
+  const blocked = [...SUPPLIER_DOMAINS, ...args.flatMap((a, i) => (a === '--exclude-domain' && args[i + 1] ? [args[i + 1].toLowerCase()] : []))];
   const rules: PriceRules = {
     minMargin: arg('--min-margin') ? Number(arg('--min-margin')) : DEFAULT_RULES.minMargin,
     inPersonDiscount: arg('--in-person-discount') ? Number(arg('--in-person-discount')) : DEFAULT_RULES.inPersonDiscount,
@@ -172,7 +191,7 @@ async function main() {
       orderBy: { title: 'asc' },
       ...(limit && limit > 0 ? { take: limit } : {}),
     });
-    console.log(`Researching ${books.length} book(s) with ${MODEL} (${runDate}). This can take a while.`);
+    console.log(`Researching ${books.length} book(s) with ${MODEL} (${runDate}). Ignoring: ${blocked.join(', ')}. This can take a while.`);
     if (books.length === 0) return;
 
     const rows: string[][] = [];
@@ -186,7 +205,7 @@ async function main() {
         const book = books[next++];
         let result: Awaited<ReturnType<typeof research>> = null;
         try {
-          result = await research(client, book);
+          result = await research(client, book, blocked);
         } catch (error) {
           console.error(`  ${book.title}: ${error instanceof Error ? error.message : error}`);
         }
@@ -197,7 +216,7 @@ async function main() {
           continue;
         }
         totalSearches += result.searches;
-        rows.push(toRow(book, result.found, result.seenUrls, rules, runDate));
+        rows.push(toRow(book, result.found, result.seenUrls, rules, runDate, blocked));
       }
     }
     await Promise.all(Array.from({ length: Math.min(concurrency, books.length) }, worker));
@@ -223,9 +242,9 @@ async function main() {
   }
 }
 
-function toRow(book: BookRow, found: Found, seenUrls: Set<string>, rules: PriceRules, runDate: string): string[] {
+function toRow(book: BookRow, found: Found, seenUrls: Set<string>, rules: PriceRules, runDate: string, blocked: string[]): string[] {
   // Only keep competitor prices whose page really came up in the search results
-  const verified = (found.competitors ?? []).filter((c) => c && typeof c.price === 'number' && c.price > 0 && seenUrls.has(c.url));
+  const verified = (found.competitors ?? []).filter((c) => c && typeof c.price === 'number' && c.price > 0 && seenUrls.has(c.url) && !isExcluded(c.url, blocked));
   const notes: string[] = [];
   if (found.notes) notes.push(found.notes.trim());
 
