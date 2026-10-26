@@ -10,7 +10,8 @@
  *   npx tsx scripts/suggestPrices.ts --start 5             # start at the 5th book (books are in title order)
  *   npx tsx scripts/suggestPrices.ts --resume              # continue today's file: skips books already in it
  *   npx tsx scripts/suggestPrices.ts --out my.csv          # default: price-suggestions-<today>.csv
- *   npx tsx scripts/suggestPrices.ts --min-margin 0.2      # lowest profit share of the price (default 0.15)
+ *   npx tsx scripts/suggestPrices.ts --min-margin 0.2      # lowest profit share of the price before tax (default 0.15)
+ *   npx tsx scripts/suggestPrices.ts --tax-rate 0.0925     # sales tax your prices include (default 0.08 = 8%)
  *   npx tsx scripts/suggestPrices.ts --in-person-discount 0.15   # in-person is this much cheaper (default 0.10)
  *   npx tsx scripts/suggestPrices.ts --concurrency 2       # books researched at the same time (default 3)
  *   npx tsx scripts/suggestPrices.ts --exclude-domain foo.com   # also ignore this site (repeatable)
@@ -20,6 +21,10 @@
  *
  * The CSV is saved after every book, so an interrupted run loses nothing: run again with --resume (same --out and
  * filters) and only the missing books are researched. Without --resume the script refuses to overwrite an existing file.
+ *
+ * Your prices include sales tax but competitor prices don't, so the suggested online price is the market price
+ * plus tax (what a customer pays at a competitor after tax), and the margin is measured before tax. marketPrice in
+ * the CSV is the pre-tax market price.
  *
  * Every row starts with runDate (the day this script was run). In-person prices are whole dollars, rounded down.
  * Searches cost money (one web-search session per book): try --limit first.
@@ -188,10 +193,12 @@ async function main() {
   const rules: PriceRules = {
     minMargin: arg('--min-margin') ? Number(arg('--min-margin')) : DEFAULT_RULES.minMargin,
     inPersonDiscount: arg('--in-person-discount') ? Number(arg('--in-person-discount')) : DEFAULT_RULES.inPersonDiscount,
+    taxRate: arg('--tax-rate') ? Number(arg('--tax-rate')) : DEFAULT_RULES.taxRate,
   };
   if (!(rules.minMargin >= 0 && rules.minMargin < 1) || !(rules.inPersonDiscount >= 0 && rules.inPersonDiscount < 1)) {
     throw new Error('--min-margin and --in-person-discount must be between 0 and 1 (for example 0.15).');
   }
+  if (!(rules.taxRate >= 0 && rules.taxRate < 1)) throw new Error('--tax-rate must be between 0 and 1 (for example 0.08 for 8%).');
 
   if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY is not set (add it to .env).');
   if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is not set (add it to .env).');
@@ -227,7 +234,7 @@ async function main() {
     const skipped = allBooks.length - books.length;
     console.log(
       `Researching ${books.length} book(s) with ${MODEL} (${runDate})${start > 1 ? `, starting at book ${start}` : ''}` +
-        `${skipped ? `, ${skipped} already in ${outFile}` : ''}. Ignoring: ${blocked.join(', ')}. This can take a while.`
+        `${skipped ? `, ${skipped} already in ${outFile}` : ''}. Tax ${+(rules.taxRate * 100).toFixed(2)}%. Ignoring: ${blocked.join(', ')}. This can take a while.`
     );
     if (books.length === 0) return;
 
@@ -262,7 +269,9 @@ async function main() {
 
     const withSuggestion = rows.filter((r) => r[11] !== '').length;
     console.log(`\nWrote ${rows.length} row(s) to ${outFile} (${withSuggestion} with a suggested price, ${totalSearches} web searches).`);
-    console.log(`Rules: at least ${Math.round(rules.minMargin * 100)}% margin; in-person ${Math.round(rules.inPersonDiscount * 100)}% cheaper, whole dollars.`);
+    console.log(
+      `Rules: market price + ${+(rules.taxRate * 100).toFixed(2)}% tax; at least ${Math.round(rules.minMargin * 100)}% margin before tax; in-person ${Math.round(rules.inPersonDiscount * 100)}% cheaper, whole dollars.`
+    );
     if (failed.length) {
       console.log(`${failed.length} book(s) could not be researched — run again with --resume to retry just these:`);
       failed.slice(0, 20).forEach((t) => console.log(`  - ${t}`));
