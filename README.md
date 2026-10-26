@@ -119,6 +119,7 @@ npx tsx scripts/applyPrices.ts --apply                    # write (add --skip-lo
 
 - The first column of every row, `runDate`, is the day the script ran. The default file name includes it too.
 - Each row has the market price, the competitor prices and links it found (only pages that really appeared in the search results), a confidence level and notes.
+- Your suppliers (Kube Publishing, Learning Roots) are blocked from the search and never used as a price source, since their prices are your cost. Add more with `--exclude-domain example.com` (repeatable) or edit `SUPPLIER_DOMAINS` in the script.
 - Rules (change with flags): online price keeps at least a 15% margin after cost and shipping (`--min-margin 0.2`); in-person is 10% cheaper than online, rounded **down** to a whole dollar, with its own margin check that ignores shipping (`--in-person-discount 0.15`). Books with no cost price skip the margin check.
 - The storefront can show an old online price for up to 5 minutes after `--apply` (catalog cache); checkout always charges the database price.
 
