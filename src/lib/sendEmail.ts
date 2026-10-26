@@ -149,6 +149,8 @@ export async function sendRefundEmail({
   totalRefunded,
   orderTotal,
   paymentMethod,
+  refundedTo,
+  items,
 }: {
   to: string;
   orderId: string;
@@ -158,11 +160,20 @@ export async function sendRefundEmail({
   totalRefunded: number;
   orderTotal: number;
   paymentMethod?: string | null;
+  /** What the money goes back to, e.g. "Visa ending 4242" or "Apple Pay (Visa ending 4242)", when Stripe told us */
+  refundedTo?: string | null;
+  /** The books on the order */
+  items?: { title: string; quantity: number }[];
 }) {
   const shortRef = orderId.slice(-8).toUpperCase();
   const full = totalRefunded >= orderTotal - 0.005;
   const wallet = paymentMethod === 'apple_pay' || paymentMethod === 'google_pay';
-  const where = wallet ? 'your original payment method' : 'your original card';
+  const where = refundedTo ? `your ${refundedTo}` : wallet ? 'your original payment method' : 'your original card';
+  const itemLines = (items ?? []).map((i) => (i.quantity > 1 ? `${i.title} (x${i.quantity})` : i.title));
+  const itemsHeading = full ? 'Refunded items' : 'Items on this order';
+  const itemsHtml = itemLines.length
+    ? `<p style="margin:16px 0 0; font-size:14px; color:#374151;"><b>${itemsHeading}</b><br>${itemLines.map(escapeHtml).join('<br>')}</p>`
+    : '';
   const intro = `We've refunded ${money(refundAmount)} to ${where}. It usually shows up within 5-10 business days, depending on your bank. If you don't see it after 10 business days, please contact your bank or reply to this email.`;
   const detail = full
     ? 'This order has now been refunded in full.'
@@ -187,7 +198,7 @@ export async function sendRefundEmail({
           <td style="padding:8px 0; border-bottom:1px solid #eee; text-align:right; font-weight:700;">${money(refundAmount)}</td>
         </tr>
       </table>
-      <p style="margin:16px 0 0; font-size:14px; color:#374151;">${detail}</p>
+      <p style="margin:16px 0 0; font-size:14px; color:#374151;">${detail}</p>${itemsHtml}
       <p style="margin:16px 0 0; font-size:13px; color:#6b7280;">Order #${shortRef}</p>
     </div>
     <p style="font-size:13px; color:#6b7280; text-align:center; margin:16px 0 0;">
@@ -204,6 +215,8 @@ export async function sendRefundEmail({
     '',
     `Refund: ${money(refundAmount)}`,
     detail,
+    ...(itemLines.length ? ['', `${itemsHeading}:`, ...itemLines] : []),
+    '',
     `Order #${shortRef}`,
     '',
     'Questions? Just reply to this email.',
