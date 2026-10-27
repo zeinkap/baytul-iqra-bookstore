@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import { loadStripe, type Stripe as StripeJs, type StripeExpressCheckoutElementConfirmEvent } from "@stripe/stripe-js";
@@ -10,6 +10,10 @@ const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 let stripePromise: Promise<StripeJs | null> | null = null;
 // Stripe.js is only fetched on pages that show a pay button, and only once
 const getStripe = () => (publishableKey ? (stripePromise ??= loadStripe(publishableKey)) : null);
+
+// Start downloading Stripe.js as soon as the scan page loads, so the wallet check isn't waiting on it
+// (a blocked or offline load is handled by the wallet check timing out, so the early attempt must not throw)
+if (typeof window !== "undefined") getStripe()?.catch(() => {});
 
 type PayItem = { id: string; quantity: number };
 
@@ -33,13 +37,29 @@ type Props = {
  * the device it is just the card button.
  */
 export default function InShopPayButtons(props: Props) {
-  const [walletReady, setWalletReady] = useState(false);
   const stripe = getStripe();
+  const walletPossible = !!stripe && props.amountCents > 0;
+  // "loading" until Stripe tells us whether this phone has a wallet, so the card button doesn't flash orange then turn grey
+  const [wallet, setWallet] = useState<"loading" | "ready" | "none">(walletPossible ? "loading" : "none");
   const total = `$${(props.amountCents / 100).toFixed(2)}`;
+
+  useEffect(() => {
+    if (!walletPossible) setWallet("none");
+  }, [walletPossible]);
+
+  // If Stripe.js never answers (blocked, offline), fall back to the plain card button
+  useEffect(() => {
+    if (wallet !== "loading") return;
+    const timer = setTimeout(() => setWallet((w) => (w === "loading" ? "none" : w)), 5000);
+    return () => clearTimeout(timer);
+  }, [wallet]);
 
   return (
     <div className="space-y-2" data-testid="in-shop-pay">
-      {stripe && props.amountCents > 0 && (
+      {walletPossible && wallet === "loading" && (
+        <div className="h-12 rounded-xl bg-gray-100 animate-pulse" aria-hidden="true" data-testid="wallet-skeleton" />
+      )}
+      {walletPossible && (
         <Elements
           stripe={stripe}
           options={{
@@ -49,10 +69,10 @@ export default function InShopPayButtons(props: Props) {
             appearance: { theme: "stripe", variables: { borderRadius: "12px" } },
           }}
         >
-          <WalletButtons {...props} onAvailable={setWalletReady} />
+          <WalletButtons {...props} onAvailable={(available) => setWallet(available ? "ready" : "none")} />
         </Elements>
       )}
-      <CardButton {...props} label={walletReady ? `Pay with card · ${total}` : `Buy now · ${total}`} secondary={walletReady} />
+      <CardButton {...props} label={wallet === "none" ? `Buy now · ${total}` : `Pay with card · ${total}`} secondary={wallet !== "none"} />
     </div>
   );
 }
@@ -61,6 +81,15 @@ function WalletButtons({ items, location, reportCode, onConflict, disabled, onAv
   const stripe = useStripe();
   const elements = useElements();
   const router = useRouter();
+  // Link is only worth showing when the phone has no Apple Pay / Google Pay: three buttons is too many
+  // iPhones tell us up front whether Apple Pay works, so we can skip Link without building the element twice
+  const [hideLink, setHideLink] = useState(() => {
+    try {
+      return typeof window !== "undefined" && !!(window as { ApplePaySession?: { canMakePayments(): boolean } }).ApplePaySession?.canMakePayments();
+    } catch {
+      return false;
+    }
+  });
 
   const handleConfirm = async (event: StripeExpressCheckoutElementConfirmEvent) => {
     if (!stripe || !elements) return;
@@ -109,14 +138,24 @@ function WalletButtons({ items, location, reportCode, onConflict, disabled, onAv
   return (
     <div className={disabled ? "pointer-events-none opacity-60" : undefined} data-testid="wallet-buttons">
       <ExpressCheckoutElement
+        // Stripe can't change which wallets a mounted element offers, so hiding Link remounts it
+        key={hideLink ? "no-link" : "all"}
         options={{
           buttonHeight: 48,
           buttonType: { applePay: "buy", googlePay: "buy" },
           emailRequired: true,
-          paymentMethods: { applePay: "auto", googlePay: "auto", link: "auto", amazonPay: "never", paypal: "never" },
+          paymentMethods: { applePay: "auto", googlePay: "auto", link: hideLink ? "never" : "auto", amazonPay: "never", paypal: "never" },
           layout: { maxColumns: 1, maxRows: 2 },
         }}
-        onReady={({ availablePaymentMethods }) => onAvailable(!!availablePaymentMethods)}
+        onReady={({ availablePaymentMethods }) => {
+          if (!hideLink && (availablePaymentMethods?.applePay || availablePaymentMethods?.googlePay)) {
+            // Stay in the loading state until the remounted element (without Link) is ready
+            setHideLink(true);
+            return;
+          }
+          onAvailable(!!availablePaymentMethods);
+        }}
+        onLoadError={() => onAvailable(false)}
         onConfirm={handleConfirm}
       />
     </div>

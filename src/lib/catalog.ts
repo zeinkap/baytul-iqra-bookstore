@@ -70,3 +70,20 @@ export const getRelatedCatalogBooks = cached(
   'books',
   300
 );
+
+/**
+ * Book behind a scanned QR label, looked up by ISBN or id. Kept for a few seconds so a busy venue's scans don't each
+ * wait on the database; stock is checked again on the server when someone pays. Dates come back as ISO strings.
+ */
+export const getScanBook = cached(
+  async (isbn: string | null, code: string) => {
+    const book = await prisma.book.findFirst({
+      where: isbn ? { OR: [{ isbn }, { id: code }] } : { id: code },
+      include: { categories: { select: { id: true } } },
+    });
+    return book && { ...book, createdAt: book.createdAt.toISOString(), updatedAt: book.updatedAt.toISOString() };
+  },
+  'scan-book',
+  'books',
+  15
+);
