@@ -2,13 +2,13 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import Lightbox from "yet-another-react-lightbox";
-import Zoom from "yet-another-react-lightbox/plugins/zoom";
-import "yet-another-react-lightbox/styles.css";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { CartItem } from "@/components/CartProvider";
 import InShopPayButtons from "@/components/InShopPayButtons";
 import { addToBasket, basketCount, useInShopBasket } from "@/lib/inShopBasket";
+
+const PhotoViewer = dynamic(() => import("./PhotoViewer"), { ssr: false });
 
 type ScannedBook = Omit<CartItem, "quantity">;
 
@@ -60,13 +60,13 @@ export default function ScanBook({
 
   return (
     // Extra bottom padding on phones so the pinned Buy now bar never covers content
-    <main className="max-w-md mx-auto px-4 pt-6 pb-52 sm:pb-8" data-testid="scan-book-card">
+    <main className="max-w-md mx-auto px-4 pt-3 pb-52 sm:pb-8" data-testid="scan-book-card">
       {/* Open the connection to Stripe while the customer reads, so Buy now lands on checkout faster */}
       <link rel="preconnect" href="https://checkout.stripe.com" />
       <link rel="preconnect" href="https://js.stripe.com" />
-      <div className="flex flex-col items-center mb-4">
-        <Image src="/logo-baytul-iqra.png" alt="Baytul Iqra Bookstore" width={64} height={64} className="w-16 h-16 object-contain" priority />
-        <p className="mt-1 text-sm font-semibold text-emerald-800">Baytul Iqra Bookstore</p>
+      <div className="flex items-center gap-2 mb-3">
+        <Image src="/logo-baytul-iqra.png" alt="Baytul Iqra Bookstore" width={28} height={28} className="w-7 h-7 object-contain" priority />
+        <p className="text-xs font-semibold text-emerald-800">Baytul Iqra Bookstore</p>
       </div>
       <div className="bg-white rounded-2xl shadow border border-gray-100 p-5 text-center">
         {book.image && (
@@ -76,13 +76,13 @@ export default function ScanBook({
               onClick={() => setZoomOpen(true)}
               aria-label={`View larger photos of ${book.title}`}
               data-testid="scan-cover"
-              className="relative block mx-auto w-40 h-56"
+              className="relative block mx-auto w-32 h-44 mb-3"
             >
-              <Image src={book.image} alt={book.title} fill sizes="160px" className="object-contain" priority />
+              <Image src={book.image} alt={book.title} fill sizes="128px" className="object-contain" priority />
+              <span className="absolute bottom-1 right-1 px-2 py-0.5 rounded-full bg-black/60 text-white text-[10px] font-medium">
+                {gallery.length > 1 ? `Tap to enlarge · ${gallery.length} photos` : "Tap to enlarge"}
+              </span>
             </button>
-            <p className="text-xs text-gray-500 mt-1 mb-4">
-              {gallery.length > 1 ? `Tap to enlarge · ${gallery.length} photos` : "Tap to enlarge"}
-            </p>
           </>
         )}
         <h1 className="text-xl font-bold text-gray-900" data-testid="scan-book-title">{book.title}</h1>
@@ -113,8 +113,9 @@ export default function ScanBook({
           </div>
         )}
 
-        <p className="text-2xl font-extrabold text-emerald-700">{price}</p>
-        <p className="text-xs text-gray-500 mb-2" data-testid="scan-tax-note">Tax included</p>
+        <p className="text-2xl font-extrabold text-emerald-700 mb-2">
+          {price} <span className="text-sm font-medium text-gray-600" data-testid="scan-tax-note">· Tax included</span>
+        </p>
         {maxQuantity > 1 && (
           <div className="flex items-center justify-center gap-4 mb-3" data-testid="scan-quantity">
             <button
@@ -199,14 +200,7 @@ export default function ScanBook({
           Browse more books
         </Link>
       </div>
-      <Lightbox
-        open={zoomOpen}
-        close={() => setZoomOpen(false)}
-        slides={gallery.map((src) => ({ src, alt: book.title }))}
-        plugins={[Zoom]}
-        carousel={{ finite: gallery.length <= 1 }}
-        render={gallery.length <= 1 ? { buttonPrev: () => null, buttonNext: () => null } : undefined}
-      />
+      {zoomOpen && <PhotoViewer open={zoomOpen} close={() => setZoomOpen(false)} images={gallery} alt={book.title} />}
     </main>
   );
 }

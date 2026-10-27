@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { prisma } from '@/lib/prisma';
+import { getScanBook } from '@/lib/catalog';
 import { normalizeIsbn } from '@/lib/isbn';
 import { htmlToText } from '@/lib/htmlToText';
 import ScanBook from './ScanBook';
@@ -30,10 +30,7 @@ export default async function ScanBookPage({
   // The venue lookup (cookie + settings row) and the book query don't depend on each other
   const [location, book] = await Promise.all([
     searchParams.then((sp) => resolveVenue(sp.loc)),
-    prisma.book.findFirst({
-      where: isbn ? { OR: [{ isbn }, { id: code }] } : { id: code },
-      include: { categories: { select: { id: true } } },
-    }),
+    getScanBook(isbn, code),
   ]);
 
   if (!book) {
@@ -91,11 +88,11 @@ function Message({
   suggestionsTitle: string;
 }) {
   return (
-    <main className="max-w-md mx-auto px-4 pt-6 pb-10 text-center">
+    <main className="max-w-md mx-auto px-4 pt-3 pb-10 text-center">
       <ScanLogger code={code} location={location} />
-      <div className="flex flex-col items-center mb-4">
-        <Image src="/logo-baytul-iqra.png" alt="Baytul Iqra Bookstore" width={64} height={64} className="w-16 h-16 object-contain" priority />
-        <p className="mt-1 text-sm font-semibold text-emerald-800">Baytul Iqra Bookstore</p>
+      <div className="flex items-center gap-2 mb-4">
+        <Image src="/logo-baytul-iqra.png" alt="Baytul Iqra Bookstore" width={28} height={28} className="w-7 h-7 object-contain" priority />
+        <p className="text-xs font-semibold text-emerald-800">Baytul Iqra Bookstore</p>
       </div>
       <h1 className="text-2xl font-bold text-gray-900 mb-2" data-testid="scan-message-title">{title}</h1>
       <p className="text-gray-600 mb-6">{children}</p>
