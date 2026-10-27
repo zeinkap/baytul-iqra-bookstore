@@ -11,7 +11,7 @@ Customers can shop online, or scan a QR sticker on a physical book at a venue (c
 - **In-shop selling:** every book has a QR sticker (`/b/<isbn>`) and shows the **in-person price**. Scanning opens the book with Apple Pay / Google Pay / Link / card buttons, or lets the customer add several books to a basket (`/basket`) and pay once. Receipts at `/receipt`. See [docs/WALLET_PAY.md](docs/WALLET_PAY.md).
 - **Venues:** the same books travel between venues. Sales are credited to a venue from the admin "Where are the books today?" setting, or from a venue sign QR (`/v/<venue>` → `/venue/welcome`).
 - **Chat assistant:** floating widget that recommends books, answers price/stock questions and store policy questions.
-- **Emails (Resend):** order confirmation, receipt, refund notice, contact form, and a daily summary of the last 24 hours.
+- **Emails (Resend):** order confirmation, receipt, refund notice, contact form, and a monthly summary of the last month.
 - **Admin panel (`/admin`):** see below.
 
 ## Admin panel
@@ -63,7 +63,7 @@ To get real data locally, run `npm run db:sync-from-prod` (see [Database](#datab
 | `ANTHROPIC_API_KEY` | for chat | Chat assistant and the description / age-range / price research scripts |
 | `CHAT_MODEL` | no | Overrides the chat assistant's model |
 | `PRICE_MODEL` | no | Overrides the model used by the price research script |
-| `CRON_SECRET` | prod | Lets Vercel Cron call the daily summary endpoint |
+| `CRON_SECRET` | prod | Lets Vercel Cron call the monthly summary endpoint |
 | `PROD_DATABASE_URL` | no | Source for `db:sync-from-prod` (or `DATABASE_URL` in `.env.production`) |
 
 See [.env.example](.env.example). Never commit `.env` files.
@@ -145,7 +145,7 @@ Sales outside Stripe (cash, Zelle, ...) are recorded in **Admin → Record Sale*
 2. Search the book by title, author or ISBN, tap it, adjust the quantity.
 3. Pick **Cash**, **Zelle** or **Other**, then tap **Record**.
 
-It creates a normal paid in-shop order at the **in-person price** (the server prices it; no emails are sent) and takes the books out of stock, so Insights, venue profit, event fees and the daily summary all include it. Hand-recorded sales have no estimated card fee. Entered by mistake? Tap **Undo** in the recent list: it marks the sale refunded and puts the books back (once). API: `POST/GET /api/admin/manual-sales`, `POST /api/admin/manual-sales/<id>/void`.
+It creates a normal paid in-shop order at the **in-person price** (the server prices it; no emails are sent) and takes the books out of stock, so Insights, venue profit, event fees and the monthly summary all include it. Hand-recorded sales have no estimated card fee. Entered by mistake? Tap **Undo** in the recent list: it marks the sale refunded and puts the books back (once). API: `POST/GET /api/admin/manual-sales`, `POST /api/admin/manual-sales/<id>/void`.
 
 ## Event fees
 
@@ -155,12 +155,12 @@ Some venues charge a flat fee to sell there (for example a $50 bazaar stall). It
 - **Use one venue name per event** (for example `bazaar-oct`, not `bazaar`), so each event has its own fee. Venue names come from the venue signs and the "Where are the books today?" setting.
 - The table shows, for each venue: orders, books, revenue, profit (after cost and estimated Stripe fees), the fee, profit after the fee, and how many books you need to sell to break even at that venue's average profit per book.
 - The profit section also shows total event fees and profit after event fees for the filter you picked.
-- The daily summary email adds an "Event fees" section for venues with a fee that had activity in the last 24 hours: profit so far against the fee, and how much is still to cover.
+- The monthly summary email adds an "Event fees" section for venues with a fee that had activity in the last month: profit so far against the fee, and how much is still to cover.
 - Profit here is revenue minus cost, and revenue includes sales tax (prices are tax included), so the figures are a little higher than what you keep.
 
-## Daily summary
+## Monthly summary
 
-Vercel Cron calls `GET /api/cron/daily-summary` daily at 02:00 UTC (`vercel.json`) with `Authorization: Bearer $CRON_SECRET`. It emails the last 24 hours: sales, refunds, scans and failures by venue, abandoned in-shop orders, payment methods, restock suggestions and new feedback. Nothing is sent on a quiet day. When signed in as admin you can open it in the browser with `?preview=1` (show without sending) or `?force=1` (send anyway).
+Vercel Cron calls `GET /api/cron/daily-summary` on the 1st of each month at 02:00 UTC (`vercel.json`) with `Authorization: Bearer $CRON_SECRET`. It emails the last month: sales, refunds, scans and failures by venue, abandoned in-shop orders, payment methods, restock suggestions and new feedback. Nothing is sent after a quiet month. When signed in as admin you can open it in the browser with `?preview=1` (show without sending) or `?force=1` (send anyway).
 
 ## Testing
 

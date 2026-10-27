@@ -397,7 +397,7 @@ export async function sendOversellAlert({
 }
 
 
-/** The end-of-day summary email to the shop. */
+/** The monthly summary email to the shop. */
 export async function sendDailySummaryEmail({ subject, html, text }: { subject: string; html: string; text: string }) {
   return resend.emails.send({
     from: 'Baytul Iqra Sales <sales@baytuliqra.com>',

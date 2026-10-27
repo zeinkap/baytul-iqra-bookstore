@@ -9,11 +9,13 @@ const esc = (t: string) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 const METHODS: Record<string, string> = { apple_pay: 'Apple Pay', google_pay: 'Google Pay', card: 'Card', link: 'Link', cash: 'Cash', zelle: 'Zelle', other: 'Other', unknown: 'Not recorded' };
 const NO_VENUE = '(no venue tag)';
 
-/** Gathers the last 24 hours of activity and renders the end-of-day email. */
+/** Gathers the last month of activity and renders the summary email (sent on the 1st of each month). */
 export async function buildDailySummary(now: Date = new Date()) {
-  const since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const since = new Date(now);
+  since.setMonth(since.getMonth() - 1);
+  const periodDays = Math.round((now.getTime() - since.getTime()) / (24 * 60 * 60 * 1000));
   const abandonedBefore = new Date(now.getTime() - 30 * 60 * 1000);
-  const dateLabel = new Intl.DateTimeFormat('en-US', { timeZone: STORE_TIME_ZONE, weekday: 'short', month: 'short', day: 'numeric' }).format(now);
+  const dateLabel = new Intl.DateTimeFormat('en-US', { timeZone: STORE_TIME_ZONE, month: 'long', year: 'numeric' }).format(now);
 
   const [{ orders, books }, venueFees, scansByVenue, scansByStatus, abandonedOrders, refunded, feedback] = await Promise.all([
     loadInsightInputs(),
@@ -22,16 +24,15 @@ export async function buildDailySummary(now: Date = new Date()) {
     prisma.scan.groupBy({ by: ['status'], where: { createdAt: { gte: since } }, _count: { _all: true } }),
     prisma.order.findMany({ where: { source: 'in-shop', paidAt: null, createdAt: { gte: since, lte: abandonedBefore } }, select: { location: true } }),
     prisma.order.findMany({ where: { refundedAt: { gte: since } }, select: { refundedAmount: true } }),
-    prisma.feedback.findMany({ where: { createdAt: { gte: since } }, orderBy: { createdAt: 'desc' }, take: 10 }),
+    prisma.feedback.findMany({ where: { createdAt: { gte: since } }, orderBy: { createdAt: 'desc' }, take: 25 }),
   ]);
 
-  const today = computeInsights(orders, books, [], { days: 1, source: 'all', now });
-  const month = computeInsights(orders, books, [], { days: 30, source: 'all', now });
-  const restock = month.restock.restock.slice(0, 8);
+  const period = computeInsights(orders, books, [], { days: periodDays, source: 'all', now });
+  const restock = period.restock.restock.slice(0, 8);
 
   const status = (s: string) => scansByStatus.find((x) => x.status === s)?._count._all ?? 0;
   const scans = scansByStatus.filter((s) => SCAN_STATUSES.includes(s.status)).reduce((n, s) => n + s._count._all, 0);
-  const salesToday = orders.filter((o) => o.paidAt >= since);
+  const salesInPeriod = orders.filter((o) => o.paidAt >= since);
   const refundCount = refunded.length;
   const refundTotal = refunded.reduce((n, r) => n + (r.refundedAmount ?? 0), 0);
 
@@ -42,7 +43,7 @@ export async function buildDailySummary(now: Date = new Date()) {
     return venues.get(k)!;
   };
   for (const s of scansByVenue) venue(s.location).scans += s._count._all;
-  for (const o of salesToday) {
+  for (const o of salesInPeriod) {
     const v = venue(o.location);
     v.sales += 1;
     v.revenue += o.finalTotal;
@@ -63,13 +64,13 @@ export async function buildDailySummary(now: Date = new Date()) {
     });
 
   const failed = { unknown: status('not-found'), soldOut: status('sold-out'), buy: status('buy-failed'), page: status('page-error') };
-  const hasActivity = scans > 0 || salesToday.length > 0 || refundCount > 0 || feedback.length > 0 || abandonedOrders.length > 0;
-  const { revenue, profitAfterFees, grossProfit } = today.profit;
-  const methods = today.payments.methods;
+  const hasActivity = scans > 0 || salesInPeriod.length > 0 || refundCount > 0 || feedback.length > 0 || abandonedOrders.length > 0;
+  const { revenue, profitAfterFees, grossProfit } = period.profit;
+  const methods = period.payments.methods;
 
-  const subject = salesToday.length
-    ? `Daily summary ${dateLabel}: ${money(revenue)} from ${salesToday.length} sale${salesToday.length === 1 ? '' : 's'}`
-    : `Daily summary ${dateLabel}: no sales, ${scans} scan${scans === 1 ? '' : 's'}`;
+  const subject = salesInPeriod.length
+    ? `Monthly summary ${dateLabel}: ${money(revenue)} from ${salesInPeriod.length} sale${salesInPeriod.length === 1 ? '' : 's'}`
+    : `Monthly summary ${dateLabel}: no sales, ${scans} scan${scans === 1 ? '' : 's'}`;
 
   const li = (items: string[]) => items.map((i) => `<li style="margin:3px 0;">${i}</li>`).join('');
   const section = (title: string, body: string) =>
@@ -78,12 +79,12 @@ export async function buildDailySummary(now: Date = new Date()) {
 <html><body style="margin:0; padding:0; background:#f3f4f6; font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif; color:#111827;">
   <div style="max-width:600px; margin:0 auto; padding:24px 16px;">
     <div style="background:#ffffff; border-radius:12px; padding:24px;">
-      <div style="font-size:13px; color:#6b7280;">Last 24 hours &middot; ${esc(dateLabel)}</div>
-      <div style="font-size:30px; font-weight:800; margin:2px 0;">${money(revenue)} <span style="font-size:15px; font-weight:500; color:#6b7280;">from ${salesToday.length} sale${salesToday.length === 1 ? '' : 's'}</span></div>
+      <div style="font-size:13px; color:#6b7280;">Last month &middot; ${esc(dateLabel)}</div>
+      <div style="font-size:30px; font-weight:800; margin:2px 0;">${money(revenue)} <span style="font-size:15px; font-weight:500; color:#6b7280;">from ${salesInPeriod.length} sale${salesInPeriod.length === 1 ? '' : 's'}</span></div>
       <div style="font-size:14px; color:#374151;">Est. profit ${money(profitAfterFees)} after card fees <span style="color:#6b7280;">(${money(grossProfit)} before)</span></div>
 
       ${section('Scans', `<ul style="padding-left:18px; margin:0; font-size:14px;">${li([
-        `${scans} scan${scans === 1 ? '' : 's'}${scans > 0 ? `, ${Math.round((salesToday.length / scans) * 100)}% ended in a sale` : ''}`,
+        `${scans} scan${scans === 1 ? '' : 's'}${scans > 0 ? `, ${Math.round((salesInPeriod.length / scans) * 100)}% ended in a sale` : ''}`,
         `${abandonedOrders.length} abandoned checkout${abandonedOrders.length === 1 ? '' : 's'} (tapped Buy now, never paid)`,
         ...(failed.soldOut ? [`${failed.soldOut} scan${failed.soldOut === 1 ? '' : 's'} of sold-out books (lost sales)`] : []),
         ...(failed.unknown ? [`<b>${failed.unknown} unknown code${failed.unknown === 1 ? '' : 's'}</b>: a sticker points to no book`] : []),
@@ -105,7 +106,7 @@ export async function buildDailySummary(now: Date = new Date()) {
 
       ${feedback.length ? section('Book requests', `<ul style="padding-left:18px; margin:0; font-size:14px;">${li(feedback.map((f) => `${esc(f.message)}${f.location ? ` <span style="color:#6b7280;">(${esc(f.location)})</span>` : ''}`))}</ul>`) : ''}
     </div>
-    <p style="font-size:12px; color:#6b7280; text-align:center; margin:14px 0 0;">Sent automatically each evening. Full details are in Admin &rarr; QR Scans and Insights.</p>
+    <p style="font-size:12px; color:#6b7280; text-align:center; margin:14px 0 0;">Sent automatically on the 1st of each month. Full details are in Admin &rarr; QR Scans and Insights.</p>
   </div>
 </body></html>`;
 
@@ -121,5 +122,5 @@ export async function buildDailySummary(now: Date = new Date()) {
     ...(feedback.length ? ['', 'Book requests:', ...feedback.map((f) => `- ${f.message}`)] : []),
   ].join('\n');
 
-  return { subject, html, text, hasActivity, stats: { scans, sales: salesToday.length, revenue, abandoned: abandonedOrders.length, refunds: refundCount } };
+  return { subject, html, text, hasActivity, stats: { scans, sales: salesInPeriod.length, revenue, abandoned: abandonedOrders.length, refunds: refundCount } };
 }
