@@ -26,7 +26,9 @@
     "test:report": "playwright show-report test-results/html-report",
     "test:codegen": "playwright codegen http://localhost:3000",
     "test:prod": "NODE_ENV=production playwright test",
-    "test:server": "playwright test --config=playwright.config.server.ts"
+    "test:server": "playwright test --config=playwright.config.server.ts",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.134.0",
@@ -68,6 +70,7 @@
     "tailwindcss": "^4.1.7",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.3",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.12"
   }
 }
