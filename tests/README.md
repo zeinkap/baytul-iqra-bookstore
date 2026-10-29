@@ -1,14 +1,24 @@
 # Tests
 
-End-to-end tests for Baytul Iqra Bookstore, written with [Playwright](https://playwright.dev) (Chromium only).
+Tests for Baytul Iqra Bookstore: [Vitest](https://vitest.dev) for pure-logic unit tests, and [Playwright](https://playwright.dev) (Chromium only) for everything that needs a browser, the database or Stripe.
 
-There are three kinds of tests:
+There are four kinds of tests:
 
 | Kind | Where | Runs with | What it covers |
 | --- | --- | --- | --- |
+| Unit tests | `unit/` (`*.test.ts`) | `npm run test:unit` | Pure functions with no server, database or network: price research rules, event fee maths, estimated card fees. Runs in under a second and needs no setup |
 | UI tests | `e2e/` | `npm test` | Pages: search, categories, book detail, cart, checkout success, contact, QR scan, basket, receipt, venue welcome |
 | Money-path API tests | `e2e/` (`*-api.spec.ts`, `pricing-integrity`) | `npm test` | Orders, stock, promo codes, Stripe webhook, refunds, in-shop buy, online vs in-person pricing. They create their own rows in the database |
 | Production-build tests | `server/` | `npm run test:server` | Catalog cache and a real paid checkout (needs a production build and the Stripe CLI) |
+
+## Unit tests (Vitest)
+
+```bash
+npm run test:unit          # run once (also runs in CI as its own job)
+npm run test:unit:watch    # re-run on save
+```
+
+Put a test in `tests/unit/<name>.test.ts` when the code under test is a pure function (import it with the `@/` alias for `src/`). If it needs a browser, the database, signed webhooks or a running server, write it in `tests/e2e/` instead. Config: `vitest.config.mts`.
 
 ## Setup
 
@@ -63,15 +73,15 @@ Safety: `next start` normally reads `.env.production` (the production database a
 
 ## Hand-recorded sales
 
-`e2e/manual-sales.spec.ts` covers the cash/Zelle recording: no estimated card fee in reports (pure), the admin API (price, venue, stock, undo; needs a local database and `ADMIN_PASSWORD`) and the Record Sale page.
+`e2e/manual-sales.spec.ts` covers the cash/Zelle recording: the admin API (price, venue, stock, undo; needs a local database and `ADMIN_PASSWORD`) and the Record Sale page. The no-card-fee report rule is a unit test (`unit/manual-sales-reports.test.ts`).
 
 ## Event fees
 
-`e2e/venue-fees.spec.ts` covers the per-venue flat fee: the calculation (pure, no server), the admin API (needs a local database and `ADMIN_PASSWORD`; it signs its own admin session), the Insights page form, and the daily summary email text.
+`unit/venue-fees.test.ts` covers the per-venue flat fee calculation. `e2e/venue-fees.spec.ts` covers the admin API (needs a local database and `ADMIN_PASSWORD`; it signs its own admin session), the Insights page form, and the daily summary email text.
 
 ## Price research rules
 
-`e2e/price-research-rules.spec.ts` tests the pure rules in `scripts/priceUtils.ts` (margin floors, in-person discount, whole-dollar rounding). It needs no server, database or network. The Claude web search part of `scripts/suggestPrices.ts` is not tested automatically (it would cost money); try it with `--limit 2`.
+`unit/price-research-rules.test.ts` tests the pure rules in `scripts/priceUtils.ts` (margin floors, in-person discount, whole-dollar rounding). It needs no server, database or network. The Claude web search part of `scripts/suggestPrices.ts` is not tested automatically (it would cost money); try it with `--limit 2`.
 
 ## Money-path API tests
 

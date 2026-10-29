@@ -28,6 +28,20 @@ env:
   STRIPE_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY || 'dummy_key_no_stripe' }}
 
 jobs:
+  # Unit tests (Vitest): pure logic, no database or server, so they run in seconds and on their own
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run test:unit
+
   # The main suite (tests/e2e), split across 4 machines. Add or remove shard numbers (and change the 4 in
   # --shard) to change how many machines are used.
   e2e:
