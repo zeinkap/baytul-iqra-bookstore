@@ -70,6 +70,7 @@ function main() {
       ${steps}
   </ol>
   <div class="pay"><span>Apple Pay</span><span>Google Pay</span><span>Credit / debit card</span></div>
+  <p class="links">baytuliqra.com &nbsp;·&nbsp; Instagram @baytul_iqra</p>
 </section>`);
   }
   if (pages.length === 0) process.exit(1);
@@ -83,19 +84,20 @@ function main() {
   * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact }
   body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color: #1f2937 }
   .page { width: 8.5in; height: 11in; text-align: center; page-break-after: always; display: flex; flex-direction: column; align-items: center; background: #fffaf0; border-bottom: 0.22in solid #d97706 }
-  .band { position: relative; width: 100%; background: #050505; color: #fff; padding: 0.5in 0.7in 0.45in; border-bottom: 0.1in solid #c9a24b; display: flex; flex-direction: column; align-items: center; overflow: hidden }
+  .band { position: relative; width: 100%; background: #050505; color: #fff; padding: 0.4in 0.7in 0.35in; flex: none; border-bottom: 0.1in solid #c9a24b; display: flex; flex-direction: column; align-items: center; overflow: hidden }
   .leaf { position: absolute }
-  .logo { width: 1.7in; height: 1.7in; object-fit: contain; position: relative }
-  h1 { margin: 0.15in 0 0; font-size: 42pt; font-weight: 800; color: #fff; position: relative }
+  .logo { width: 1.45in; height: 1.45in; object-fit: contain; position: relative }
+  h1 { margin: 0.12in 0 0; font-size: 38pt; line-height: 1.1; font-weight: 800; color: #fff; position: relative }
   .store { margin: 0.08in 0 0; font-size: 18pt; letter-spacing: 0.08em; text-transform: uppercase; color: #e5c36a; position: relative }
-  .tagline { margin: 0.4in 0 0; font-size: 26pt; font-weight: 800; color: #b45309 }
-  ol { list-style: none; padding: 0; margin: 0.3in 0 0; text-align: left; font-size: 19pt; line-height: 1.3; width: 6.9in }
-  li { display: flex; align-items: center; gap: 0.22in; margin-bottom: 0.2in; padding: 0.14in 0.22in; background: #fff; border: 2px solid #f3d9a4; border-radius: 0.2in }
+  .tagline { margin: 0.3in 0 0; font-size: 26pt; font-weight: 800; color: #b45309 }
+  ol { list-style: none; padding: 0; margin: 0.22in 0 0; text-align: left; font-size: 19pt; line-height: 1.3; width: 6.9in }
+  li { display: flex; align-items: center; gap: 0.22in; margin-bottom: 0.16in; padding: 0.12in 0.22in; background: #fff; border: 2px solid #f3d9a4; border-radius: 0.2in }
   .n { flex: none; width: 0.55in; height: 0.55in; border-radius: 50%; background: #d97706; color: #fff; font-weight: 800; font-size: 22pt; display: flex; align-items: center; justify-content: center }
   .ic { flex: none; width: 0.55in; height: 0.55in; color: #0f766e }
   .ic svg { width: 100%; height: 100% }
   .t { flex: 1 }
-  .pay { margin-top: auto; margin-bottom: 0.45in; display: flex; gap: 0.15in }
+  .pay { margin-top: auto; flex: none; display: flex; gap: 0.15in }
+  .links { margin: 0.22in 0 0.3in; font-size: 17pt; font-weight: 700; color: #0f766e }
   .pay span { padding: 0.09in 0.24in; border: 2px solid #111827; border-radius: 999px; font-size: 14pt; font-weight: 700; color: #111827; background: #fff }
 </style>${pages.join('\n')}`;
   fs.writeFileSync(path.join(outDir, 'venue-signs.html'), html);
