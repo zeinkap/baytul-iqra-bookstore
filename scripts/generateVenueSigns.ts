@@ -1,25 +1,22 @@
 /**
- * Prints a sign with a QR code for each venue (no database needed).
+ * Prints a sign for each venue (no database needed).
  *
- *   BASE_URL=https://www.baytuliqra.com npm run qr:venue-signs -- cafe-a bazaar-oct
+ *   npm run qr:venue-signs -- cafe-a bazaar-oct
  *
- * Writes qr-labels/venue-signs.html: one letter-size page per venue, styled like the welcome page the QR code
- * opens (/venue/welcome) and using the same steps (src/lib/venueCopy.ts). Customers who scan a sign get that page
- * and their purchases are credited to that venue for the day. Book stickers stay the same.
+ * Writes qr-labels/venue-signs.html: one letter-size page per venue, styled like the venue welcome page
+ * (/venue/welcome) and using the same steps (src/lib/venueCopy.ts). Book stickers stay the same.
  */
 import fs from 'fs';
 import path from 'path';
-import QRCode from 'qrcode';
 import { normalizeLocation } from '../src/lib/location';
 import { VENUE_STEPS, VENUE_STORE_NAME, boldSegments, prettyVenue } from '../src/lib/venueCopy';
 
-const baseUrl = (process.env.BASE_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? '').replace(/\/$/, '');
 const escapeHtml = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
-async function main() {
+function main() {
   const venues = process.argv.slice(2);
-  if (!baseUrl || venues.length === 0) {
-    console.error('Usage: BASE_URL=https://yourshop.com npm run qr:venue-signs -- <venue> [<venue> ...]   (e.g. cafe-a bazaar-oct)');
+  if (venues.length === 0) {
+    console.error('Usage: npm run qr:venue-signs -- <venue> [<venue> ...]   (e.g. cafe-a bazaar-oct)');
     process.exit(1);
   }
 
@@ -41,7 +38,6 @@ async function main() {
       console.error(`Skipping "${raw}": use lowercase letters, numbers and dashes (e.g. cafe-a)`);
       continue;
     }
-    const svg = await QRCode.toString(`${baseUrl}/v/${venue}`, { type: 'svg', errorCorrectionLevel: 'M', margin: 4 });
     pages.push(`<section class="page">
   <img class="logo" src="${logo}" alt="${escapeHtml(VENUE_STORE_NAME)}">
   <h1>Welcome to ${escapeHtml(prettyVenue(venue))}!</h1>
@@ -49,8 +45,6 @@ async function main() {
   <ol>
       ${steps}
   </ol>
-  <div class="qr">${svg}</div>
-  <p class="scan">Scan this code to get started</p>
 </section>`);
   }
   if (pages.length === 0) process.exit(1);
@@ -70,9 +64,6 @@ async function main() {
   ol { list-style: none; padding: 0; margin: 0.4in 0 0; text-align: left; font-size: 19pt; line-height: 1.35; max-width: 6.9in }
   li { margin-bottom: 0.16in }
   .n { font-weight: 600 }
-  .qr { margin-top: auto }
-  .qr svg { width: 3.4in; height: 3.4in }
-  .scan { margin: 0.1in 0 0; font-size: 16pt; font-weight: 600; color: #111827 }
 </style>${pages.join('\n')}`;
   fs.writeFileSync(path.join(outDir, 'venue-signs.html'), html);
   console.log(`Wrote ${pages.length} venue sign(s) to ${path.join(outDir, 'venue-signs.html')} (open in a browser and print)`);

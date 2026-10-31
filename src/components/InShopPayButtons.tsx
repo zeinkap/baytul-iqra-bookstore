@@ -142,7 +142,7 @@ function WalletButtons({ items, location, reportCode, onConflict, disabled, onAv
         key={hideLink ? "no-link" : "all"}
         options={{
           buttonHeight: 48,
-          buttonType: { applePay: "buy", googlePay: "buy" },
+          buttonType: { applePay: "plain", googlePay: "plain" },
           emailRequired: true,
           paymentMethods: { applePay: "auto", googlePay: "auto", link: hideLink ? "never" : "auto", amazonPay: "never", paypal: "never" },
           layout: { maxColumns: 1, maxRows: 2 },
