@@ -13,6 +13,9 @@ import { VENUE_STEPS, VENUE_STORE_NAME, boldSegments, prettyVenue } from '../src
 
 const escapeHtml = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
+// Keeps the heading on one line: full size for short names, shrinking for long ones (about 0.49em per character)
+const headingPt = (text: string) => Math.min(42, Math.floor(1000 / text.length));
+
 function main() {
   const venues = process.argv.slice(2);
   if (venues.length === 0) {
@@ -62,7 +65,7 @@ function main() {
     pages.push(`<section class="page">
   <header class="band">${leaves}
     <img class="logo" src="${logo}" alt="${escapeHtml(VENUE_STORE_NAME)}">
-    <h1>Welcome to ${escapeHtml(prettyVenue(venue))}!</h1>
+    <h1 style="font-size:${headingPt(`Welcome to ${prettyVenue(venue)}!`)}pt">Welcome to ${escapeHtml(prettyVenue(venue))}!</h1>
     <p class="store">${escapeHtml(VENUE_STORE_NAME)}</p>
   </header>
   <p class="tagline">Tap to pay, no cash needed.</p>
@@ -87,16 +90,16 @@ function main() {
   .band { position: relative; width: 100%; background: #050505; color: #fff; padding: 0.4in 0.7in 0.35in; flex: none; border-bottom: 0.1in solid #c9a24b; display: flex; flex-direction: column; align-items: center; overflow: hidden }
   .leaf { position: absolute }
   .logo { width: 1.45in; height: 1.45in; object-fit: contain; position: relative }
-  h1 { margin: 0.12in 0 0; font-size: 38pt; line-height: 1.1; font-weight: 800; color: #fff; position: relative }
+  h1 { margin: 0.12in 0 0; white-space: nowrap; line-height: 1.1; font-weight: 800; color: #fff; position: relative }
   .store { margin: 0.08in 0 0; font-size: 18pt; letter-spacing: 0.08em; text-transform: uppercase; color: #e5c36a; position: relative }
   .tagline { margin: 0.3in 0 0; font-size: 26pt; font-weight: 800; color: #b45309 }
-  ol { list-style: none; padding: 0; margin: 0.22in 0 0; text-align: left; font-size: 19pt; line-height: 1.3; width: 6.9in }
-  li { display: flex; align-items: center; gap: 0.22in; margin-bottom: 0.16in; padding: 0.12in 0.22in; background: #fff; border: 2px solid #f3d9a4; border-radius: 0.2in }
+  ol { list-style: none; padding: 0; margin: 0.1in 0; flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; text-align: left; font-size: 19pt; line-height: 1.3; width: 6.9in }
+  li { display: flex; align-items: center; gap: 0.22in; padding: 0.16in 0.22in; background: #fff; border: 2px solid #f3d9a4; border-radius: 0.2in }
   .n { flex: none; width: 0.55in; height: 0.55in; border-radius: 50%; background: #d97706; color: #fff; font-weight: 800; font-size: 22pt; display: flex; align-items: center; justify-content: center }
   .ic { flex: none; width: 0.55in; height: 0.55in; color: #0f766e }
   .ic svg { width: 100%; height: 100% }
   .t { flex: 1 }
-  .pay { margin-top: auto; flex: none; display: flex; gap: 0.15in }
+  .pay { flex: none; display: flex; gap: 0.15in }
   .links { margin: 0.22in 0 0.3in; font-size: 17pt; font-weight: 700; color: #0f766e }
   .pay span { padding: 0.09in 0.24in; border: 2px solid #111827; border-radius: 999px; font-size: 14pt; font-weight: 700; color: #111827; background: #fff }
 </style>${pages.join('\n')}`;
