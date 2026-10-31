@@ -9,6 +9,7 @@
 import fs from 'fs';
 import path from 'path';
 import { normalizeLocation } from '../src/lib/location';
+import { BRAND_ICONS } from './brandIcons';
 import { VENUE_STEPS, VENUE_STORE_NAME, boldSegments, prettyVenue } from '../src/lib/venueCopy';
 
 const escapeHtml = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -55,6 +56,13 @@ function main() {
     leaf(-15, '#b91c1c', 0.55, '90%', '80%'),
 ].join('');
 
+  const brand = (b: { viewBox: string; path: string }) => `<svg viewBox="${b.viewBox}" fill="currentColor"><path d="${b.path}"/></svg>`;
+  const GLOBE = icon('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 3.5 5.5 3.5 9S14.500 18.500 12 21c-2.500-2.500-3.500-5.500-3.500-9S9.500 5.500 12 3z"/>');
+  // Accepted payment methods: Apple Pay, Google Pay, and the card networks (Visa, Mastercard)
+  const payBadges = [BRAND_ICONS.applePay, BRAND_ICONS.googlePay, BRAND_ICONS.visa, BRAND_ICONS.mastercard]
+    .map((b) => `<span>${brand(b)}</span>`)
+    .join('');
+
   const pages: string[] = [];
   for (const raw of venues) {
     const venue = normalizeLocation(raw);
@@ -72,8 +80,11 @@ function main() {
   <ol>
       ${steps}
   </ol>
-  <div class="pay"><span>Apple Pay</span><span>Google Pay</span><span>Credit / debit card</span></div>
-  <p class="links">baytuliqra.com &nbsp;·&nbsp; Instagram @baytul_iqra</p>
+  <div class="pay">${payBadges}</div>
+  <div class="links">
+    <span>${GLOBE}baytuliqra.com</span>
+    <span>${brand(BRAND_ICONS.instagram)}@baytul_iqra</span>
+  </div>
 </section>`);
   }
   if (pages.length === 0) process.exit(1);
@@ -99,9 +110,12 @@ function main() {
   .ic { flex: none; width: 0.55in; height: 0.55in; color: #0f766e }
   .ic svg { width: 100%; height: 100% }
   .t { flex: 1 }
-  .pay { flex: none; display: flex; gap: 0.15in }
-  .links { margin: 0.22in 0 0.3in; font-size: 17pt; font-weight: 700; color: #0f766e }
-  .pay span { padding: 0.09in 0.24in; border: 2px solid #111827; border-radius: 999px; font-size: 14pt; font-weight: 700; color: #111827; background: #fff }
+  .pay { flex: none; display: flex; gap: 0.16in }
+  .pay span { width: 1.45in; height: 0.72in; padding: 0.14in 0.2in; border: 2px solid #d1d5db; border-radius: 0.14in; background: #fff; color: #111827; display: flex; align-items: center; justify-content: center }
+  .pay svg { width: 100%; height: 100% }
+  .links { margin: 0.22in 0 0.3in; display: flex; gap: 0.5in; font-size: 18pt; font-weight: 700; color: #0f766e }
+  .links span { display: flex; align-items: center; gap: 0.1in }
+  .links svg { width: 0.38in; height: 0.38in }
 </style>${pages.join('\n')}`;
   fs.writeFileSync(path.join(outDir, 'venue-signs.html'), html);
   console.log(`Wrote ${pages.length} venue sign(s) to ${path.join(outDir, 'venue-signs.html')} (open in a browser and print)`);
