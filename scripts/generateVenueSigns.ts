@@ -11,6 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import { pathToFileURL } from 'url';
 import { normalizeLocation } from '../src/lib/location';
+import QRCode from 'qrcode';
 import { chromium } from '@playwright/test';
 import { BRAND_ICONS } from './brandIcons';
 import { VENUE_STEPS, VENUE_STORE_NAME, boldSegments, prettyVenue } from '../src/lib/venueCopy';
@@ -18,6 +19,9 @@ import { VENUE_STEPS, VENUE_STORE_NAME, boldSegments, prettyVenue } from '../src
 const escapeHtml = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
 // Keeps the heading on one line: full size for short names, shrinking for long ones (about 0.49em per character)
+const SITE_URL = 'https://www.baytuliqra.com/';
+const INSTAGRAM_URL = 'https://www.instagram.com/baytul_iqra/';
+
 const headingPt = (text: string) => Math.min(42, Math.floor(1000 / text.length));
 
 async function main() {
@@ -66,6 +70,10 @@ async function main() {
     .map((b) => `<span>${brand(b)}</span>`)
     .join('');
 
+  // Scannable codes for the footer (same for every venue, so made once). Light squares are transparent so the white tile shows through.
+  const qr = (url: string) => QRCode.toString(url, { type: 'svg', errorCorrectionLevel: 'M', margin: 0, color: { dark: '#111827', light: '#0000' } });
+  const [siteQr, instagramQr] = await Promise.all([qr(SITE_URL), qr(INSTAGRAM_URL)]);
+
   const pages: string[] = [];
   for (const raw of venues) {
     const venue = normalizeLocation(raw);
@@ -79,14 +87,13 @@ async function main() {
     <h1 style="font-size:${headingPt(`Welcome to ${prettyVenue(venue)}!`)}pt">Welcome to ${escapeHtml(prettyVenue(venue))}!</h1>
     <p class="store">${escapeHtml(VENUE_STORE_NAME)}</p>
   </header>
-  <p class="tagline">Tap to pay, no cash needed.</p>
   <ol>
       ${steps}
   </ol>
   <div class="pay">${payBadges}</div>
   <div class="links">
-    <span>${GLOBE}baytuliqra.com</span>
-    <span>${brand(BRAND_ICONS.instagram)}@baytul_iqra</span>
+    <div class="link"><div class="qr">${siteQr}</div><div class="who">${GLOBE}<b>baytuliqra.com</b><small>Scan to visit our website</small></div></div>
+    <div class="link"><div class="qr">${instagramQr}</div><div class="who">${brand(BRAND_ICONS.instagram)}<b>@baytul_iqra</b><small>Scan to follow us</small></div></div>
   </div>
 </section>`);
   }
@@ -94,7 +101,7 @@ async function main() {
 
   const outDir = path.resolve('qr-labels');
   fs.mkdirSync(outDir, { recursive: true });
-  // Fall bazaar look: dark header band with leaves, tagline, steps as cards with number + icon, payment badges at the bottom
+  // Fall bazaar look: dark header band with leaves, steps as cards with number + icon, payment badges at the bottom
   const html = `<!doctype html><meta charset="utf-8"><title>Venue signs</title>
 <style>
   @page { size: letter; margin: 0 }
@@ -106,8 +113,7 @@ async function main() {
   .logo { width: 1.45in; height: 1.45in; object-fit: contain; position: relative }
   h1 { margin: 0.12in 0 0; white-space: nowrap; line-height: 1.1; font-weight: 800; color: #fff; position: relative }
   .store { margin: 0.08in 0 0; font-size: 18pt; letter-spacing: 0.08em; text-transform: uppercase; color: #e5c36a; position: relative }
-  .tagline { margin: 0.3in 0 0; font-size: 26pt; font-weight: 800; color: #b45309 }
-  ol { list-style: none; padding: 0; margin: 0.1in 0; flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; text-align: left; font-size: 19pt; line-height: 1.3; width: 6.9in }
+  ol { list-style: none; padding: 0; margin: 0.25in 0 0.15in; flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; text-align: left; font-size: 19pt; line-height: 1.3; width: 6.9in }
   li { display: flex; align-items: center; gap: 0.22in; padding: 0.16in 0.22in; background: #fff; border: 2px solid #f3d9a4; border-radius: 0.2in }
   .n { flex: none; width: 0.55in; height: 0.55in; border-radius: 50%; background: #d97706; color: #fff; font-weight: 800; font-size: 22pt; display: flex; align-items: center; justify-content: center }
   .ic { flex: none; width: 0.55in; height: 0.55in; color: #0f766e }
@@ -116,9 +122,14 @@ async function main() {
   .pay { flex: none; display: flex; gap: 0.16in }
   .pay span { width: 1.45in; height: 0.72in; padding: 0.14in 0.2in; border: 2px solid #d1d5db; border-radius: 0.14in; background: #fff; color: #111827; display: flex; align-items: center; justify-content: center }
   .pay svg { width: 100%; height: 100% }
-  .links { margin: 0.22in 0 0.3in; display: flex; gap: 0.5in; font-size: 18pt; font-weight: 700; color: #0f766e }
-  .links span { display: flex; align-items: center; gap: 0.1in }
-  .links svg { width: 0.38in; height: 0.38in }
+  .links { margin: 0.2in 0 0.3in; display: flex; gap: 0.35in; color: #0f766e }
+  .link { display: flex; align-items: center; gap: 0.16in; text-align: left }
+  .qr { flex: none; width: 1.05in; height: 1.05in; padding: 0.08in; background: #fff; border: 2px solid #d1d5db; border-radius: 0.12in }
+  .qr svg { width: 100%; height: 100% }
+  .who { display: grid; grid-template-columns: auto 1fr; column-gap: 0.1in; align-items: center }
+  .who svg { width: 0.34in; height: 0.34in }
+  .who b { font-size: 16pt }
+  .who small { grid-column: 1 / -1; margin-top: 0.03in; font-size: 11pt; font-weight: 600; color: #4b5563 }
 </style>${pages.join('\n')}`;
   const htmlPath = path.join(outDir, 'venue-signs.html');
   const pdfPath = path.join(outDir, 'venue-signs.pdf');
