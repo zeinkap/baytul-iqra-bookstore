@@ -72,7 +72,7 @@ export default function InShopPayButtons(props: Props) {
           <WalletButtons {...props} onAvailable={(available) => setWallet(available ? "ready" : "none")} />
         </Elements>
       )}
-      <CardButton {...props} label={wallet === "none" ? `Buy now · ${total}` : `Pay with card · ${total}`} secondary={wallet !== "none"} />
+      <CardButton {...props} label={`Pay with card · ${total}`} secondary={wallet !== "none"} />
     </div>
   );
 }
