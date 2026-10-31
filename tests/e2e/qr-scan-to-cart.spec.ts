@@ -139,14 +139,14 @@ test.describe('QR scan to cart', () => {
     await expect(page.getByTestId('scan-buy-now')).toBeEnabled();
   });
 
-  test('if Stripe.js cannot load, the card button still appears as the main Buy now button', async ({ page }) => {
+  test('if Stripe.js cannot load, the card button still appears as the main pay button', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
     await page.route('https://js.stripe.com/**', (route) => route.abort());
 
     await page.goto(`/b/${book.id}`);
 
     // The wallet check gives up after a few seconds and falls back to the plain card button
-    await expect(page.getByTestId('scan-buy-now')).toContainText('Buy now', { timeout: 10_000 });
+    await expect(page.getByTestId('scan-buy-now')).toContainText('Pay with card', { timeout: 10_000 });
     await expect(page.getByTestId('wallet-skeleton')).toHaveCount(0);
     await expect(page.getByTestId('scan-buy-now')).toBeEnabled();
   });
