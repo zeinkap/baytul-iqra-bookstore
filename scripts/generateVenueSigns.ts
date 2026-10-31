@@ -119,8 +119,8 @@ async function main() {
   .ic { flex: none; width: 0.55in; height: 0.55in; color: #0f766e }
   .ic svg { width: 100%; height: 100% }
   .t { flex: 1 }
-  .pay { flex: none; display: flex; gap: 0.16in }
-  .pay span { width: 1.45in; height: 0.72in; padding: 0.14in 0.2in; border: 2px solid #d1d5db; border-radius: 0.14in; background: #fff; color: #111827; display: flex; align-items: center; justify-content: center }
+  .pay { flex: none; display: flex; gap: 0.12in }
+  .pay span { width: 1.05in; height: 0.52in; padding: 0.1in 0.15in; border: 2px solid #d1d5db; border-radius: 0.14in; background: #fff; color: #111827; display: flex; align-items: center; justify-content: center }
   .pay svg { width: 100%; height: 100% }
   .links { margin: 0.2in 0 0.3in; display: flex; gap: 0.35in; color: #0f766e }
   .link { display: flex; align-items: center; gap: 0.16in; text-align: left }
