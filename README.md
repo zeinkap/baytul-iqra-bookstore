@@ -82,7 +82,7 @@ See [.env.example](.env.example). Never commit `.env` files.
 | `npm run db:sync-from-prod` | Copy the production catalog to your local database |
 | `npm run db:seed-test` | Seed an empty local database for tests |
 | `npm run qr:generate` | QR labels for every book (SVG, printable HTML, 2×2 in PDF, CSV) in `qr-labels/` |
-| `npm run qr:venue-signs -- <venue> ...` | Printable venue signs |
+| `npm run qr:venue-signs -- <venue> ...` | Printable venue signs: writes `qr-labels/venue-signs.pdf` (print this) and `.html`. The PDF needs Chromium once: `npx playwright install chromium` |
 | `npm test`, `test:headed`, `test:ui`, `test:debug`, `test:report`, `test:server` | Playwright (see [Testing](#testing)) |
 
 Other one-off scripts live in `scripts/` and run with `npx tsx scripts/<name>.ts` (header comments explain usage), e.g. `suggestAgeRanges` / `applyAgeRanges` and `suggestDescriptions` / `applyDescriptions` (Claude writes suggestions to a CSV for you to review; `apply` is a dry run unless you pass `--apply`; run `npm run db:backup` first). For prices, see [Pricing](#pricing).

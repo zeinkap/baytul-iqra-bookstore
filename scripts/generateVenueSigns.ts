@@ -3,12 +3,15 @@
  *
  *   npm run qr:venue-signs -- cafe-a bazaar-oct
  *
- * Writes qr-labels/venue-signs.html: one letter-size page per venue, styled like the venue welcome page
+ * Writes qr-labels/venue-signs.html and qr-labels/venue-signs.pdf (print the PDF: colours and page size are already right).
+ * One letter-size page per venue, styled like the venue welcome page
  * (/venue/welcome) and using the same steps (src/lib/venueCopy.ts). Book stickers stay the same.
  */
 import fs from 'fs';
 import path from 'path';
+import { pathToFileURL } from 'url';
 import { normalizeLocation } from '../src/lib/location';
+import { chromium } from '@playwright/test';
 import { BRAND_ICONS } from './brandIcons';
 import { VENUE_STEPS, VENUE_STORE_NAME, boldSegments, prettyVenue } from '../src/lib/venueCopy';
 
@@ -17,7 +20,7 @@ const escapeHtml = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '
 // Keeps the heading on one line: full size for short names, shrinking for long ones (about 0.49em per character)
 const headingPt = (text: string) => Math.min(42, Math.floor(1000 / text.length));
 
-function main() {
+async function main() {
   const venues = process.argv.slice(2);
   if (venues.length === 0) {
     console.error('Usage: npm run qr:venue-signs -- <venue> [<venue> ...]   (e.g. cafe-a bazaar-oct)');
@@ -117,8 +120,29 @@ function main() {
   .links span { display: flex; align-items: center; gap: 0.1in }
   .links svg { width: 0.38in; height: 0.38in }
 </style>${pages.join('\n')}`;
-  fs.writeFileSync(path.join(outDir, 'venue-signs.html'), html);
-  console.log(`Wrote ${pages.length} venue sign(s) to ${path.join(outDir, 'venue-signs.html')} (open in a browser and print)`);
+  const htmlPath = path.join(outDir, 'venue-signs.html');
+  const pdfPath = path.join(outDir, 'venue-signs.pdf');
+  fs.writeFileSync(htmlPath, html);
+  console.log(`Wrote ${pages.length} venue sign(s) to ${htmlPath}`);
+
+  // The PDF prints exactly as designed (colours, letter size) without browser print settings
+  try {
+    const browser = await chromium.launch();
+    try {
+      const page = await browser.newPage();
+      await page.goto(pathToFileURL(htmlPath).href);
+      await page.pdf({ path: pdfPath, format: 'Letter', printBackground: true, preferCSSPageSize: true });
+    } finally {
+      await browser.close();
+    }
+    console.log(`Wrote ${pdfPath} (print this one)`);
+  } catch (e) {
+    console.error(`Could not make the PDF (${e instanceof Error ? e.message.split('\n')[0] : e}).`);
+    console.error('Run "npx playwright install chromium" once, then try again. Or open the HTML in Chrome and print with "Background graphics" on.');
+  }
 }
 
-main();
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
