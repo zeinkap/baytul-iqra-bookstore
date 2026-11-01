@@ -32,7 +32,7 @@ type Props = {
 };
 
 /**
- * Pay for in-shop items: Apple Pay / Google Pay / Link right on the page when the phone has them (no redirect,
+ * Pay for in-shop items: Apple Pay / Google Pay right on the page when the phone has them (no redirect,
  * one Face ID), plus a card button that goes through Stripe Checkout. Without Stripe's public key or a wallet on
  * the device it is just the card button.
  */
@@ -81,16 +81,6 @@ function WalletButtons({ items, location, reportCode, onConflict, disabled, onAv
   const stripe = useStripe();
   const elements = useElements();
   const router = useRouter();
-  // Link is only worth showing when the phone has no Apple Pay / Google Pay: three buttons is too many
-  // iPhones tell us up front whether Apple Pay works, so we can skip Link without building the element twice
-  const [hideLink, setHideLink] = useState(() => {
-    try {
-      return typeof window !== "undefined" && !!(window as { ApplePaySession?: { canMakePayments(): boolean } }).ApplePaySession?.canMakePayments();
-    } catch {
-      return false;
-    }
-  });
-
   const handleConfirm = async (event: StripeExpressCheckoutElementConfirmEvent) => {
     if (!stripe || !elements) return;
     const fail = (message: string, detail: string) => {
@@ -138,21 +128,14 @@ function WalletButtons({ items, location, reportCode, onConflict, disabled, onAv
   return (
     <div className={disabled ? "pointer-events-none opacity-60" : undefined} data-testid="wallet-buttons">
       <ExpressCheckoutElement
-        // Stripe can't change which wallets a mounted element offers, so hiding Link remounts it
-        key={hideLink ? "no-link" : "all"}
         options={{
           buttonHeight: 48,
           buttonType: { applePay: "plain", googlePay: "plain" },
           emailRequired: true,
-          paymentMethods: { applePay: "auto", googlePay: "auto", link: hideLink ? "never" : "auto", amazonPay: "never", paypal: "never" },
+          paymentMethods: { applePay: "auto", googlePay: "auto", link: "never", amazonPay: "never", paypal: "never" },
           layout: { maxColumns: 1, maxRows: 2 },
         }}
         onReady={({ availablePaymentMethods }) => {
-          if (!hideLink && (availablePaymentMethods?.applePay || availablePaymentMethods?.googlePay)) {
-            // Stay in the loading state until the remounted element (without Link) is ready
-            setHideLink(true);
-            return;
-          }
           onAvailable(!!availablePaymentMethods);
         }}
         onLoadError={() => onAvailable(false)}
