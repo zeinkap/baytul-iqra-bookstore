@@ -233,3 +233,6 @@ TC-231,Orders,Promo codes (in-shop),Buy or wallet payment with a bad code is ref
 TC-232,Orders,Promo codes (in-shop),Apple Pay / Google Pay PaymentIntent is for the discounted amount,API,Automated,tests/e2e/in-shop-promo.spec.ts,Local DB + Stripe test key,,
 TC-233,Orders,Promo codes (in-shop),"Scan page and basket take one code; it shows in the pay button, follows quantity and can be removed",UI,Automated,tests/e2e/in-shop-promo.spec.ts,Local DB,,
 TC-234,Orders,Promo codes (in-shop),"Percentage rounding, minimum charge and use counting (once, in-shop only)",Unit,Automated,tests/unit/in-shop-promo.test.ts,,,
+TC-235,Storefront,Chat assistant,On a phone the chat opens as a full-screen sheet and the keyboard does not pop up by itself,UI,Automated,tests/e2e/chat-widget.spec.ts,,,
+TC-236,Storefront,Chat assistant,The phone sheet follows the visible area when it shrinks (keyboard) and the page behind does not scroll,UI,Automated,tests/e2e/chat-widget.spec.ts,,,
+TC-237,Storefront,Chat assistant,On a computer the chat stays a small corner window with the field focused,UI,Automated,tests/e2e/chat-widget.spec.ts,,,
