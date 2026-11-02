@@ -61,6 +61,13 @@ export async function finalizePaidOrder(
 
   // Only the call that flips the order from unpaid to paid sends the shop's sale alert, so it goes out once
   const justPaid = (await prisma.order.updateMany({ where: { id: orderId, paidAt: null }, data: { paidAt: new Date() } })).count === 1;
+  // An in-shop order is created before payment with its promo code already on it, so the code's use is counted
+  // here, once, by the call that flips it to paid (online orders count theirs when the webhook creates them)
+  if (justPaid && existing.source === 'in-shop' && existing.promoCodeId) {
+    await prisma.promoCode
+      .update({ where: { id: existing.promoCodeId }, data: { currentUses: { increment: 1 } } })
+      .catch((error) => console.error('Error updating promo code usage:', error));
+  }
   if (details.paymentMethod) {
     await prisma.order.updateMany({ where: { id: orderId, paymentMethod: null }, data: { paymentMethod: details.paymentMethod } });
   }

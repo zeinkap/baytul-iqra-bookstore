@@ -20,6 +20,14 @@ redirect), or by card through Stripe Checkout. They can also add several books t
 6. Refunds: `charge.refunded` finds the order from the PaymentIntent's metadata, so refunds of wallet payments are
    recorded and the customer gets the refund email like any other.
 
+7. Promo codes (`src/components/PromoCodeBox.tsx`): the scan page (single book) and the basket have a "Have a promo
+   code?" field. One code at a time (remove it to try another). `POST /api/in-shop/promo` prices the items at in-person
+   prices and returns the discount in cents (`resolveInShopPromo` in `src/lib/pricing.ts`: same rules as the online
+   cart, plus a $0.50 minimum charge). The browser only ever sends the code: `/api/in-shop/buy` and
+   `/api/in-shop/payment-intent` work the discount out again, store it on the order (`promoCodeId`, `discountAmount`),
+   and charge the discounted amount (a one-off Stripe coupon for the Checkout session, the PaymentIntent amount for
+   wallets). The code's use count goes up once, when the order is marked paid (`finalizePaidOrder`).
+
 Without `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, or on a phone/browser with no wallet set up, the pay area is just the
 card button.
 

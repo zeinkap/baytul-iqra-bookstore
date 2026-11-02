@@ -225,3 +225,11 @@ TC-223,Non-functional,Visual regression,Screenshot comparison of key pages,UI,No
 TC-224,Non-functional,CI,Playwright suite runs on every PR (4 shards) with throwaway Postgres,CI,Automated,.github/workflows/playwright.yml,,,Stripe-dependent tests skip in CI unless STRIPE_TEST_SECRET_KEY is set
 TC-225,Non-functional,CI,Production-build tests (tests/server) run in CI,CI,Partial,.github/workflows/playwright.yml,STRIPE_TEST_SECRET_KEY repo secret,Low,"Separate CI job, skipped on fork PRs and when the secret is missing"
 TC-226,Non-functional,CI,Vitest unit tests run on every PR (npm run test:unit),CI,Automated,.github/workflows/playwright.yml,,,
+TC-227,Orders,Promo codes (in-shop),"Code is worked out from the in-person price, in cents",API,Automated,tests/e2e/in-shop-promo.spec.ts,Local DB,,
+TC-228,Orders,Promo codes (in-shop),"Unknown, expired and below-minimum codes are refused with a reason",API,Automated,tests/e2e/in-shop-promo.spec.ts,Local DB,,
+TC-229,Orders,Promo codes (in-shop),A code that leaves less than Stripe can charge is refused,API,Automated,tests/e2e/in-shop-promo.spec.ts,Local DB,,
+TC-230,Orders,Promo codes (in-shop),"Buy with a code: order, discount and Stripe session agree; nothing used up until paid",API,Automated,tests/e2e/in-shop-promo.spec.ts,Local DB + Stripe test key,,
+TC-231,Orders,Promo codes (in-shop),Buy or wallet payment with a bad code is refused and creates no order,API,Automated,tests/e2e/in-shop-promo.spec.ts,Local DB + Stripe test key,,
+TC-232,Orders,Promo codes (in-shop),Apple Pay / Google Pay PaymentIntent is for the discounted amount,API,Automated,tests/e2e/in-shop-promo.spec.ts,Local DB + Stripe test key,,
+TC-233,Orders,Promo codes (in-shop),"Scan page and basket take one code; it shows in the pay button, follows quantity and can be removed",UI,Automated,tests/e2e/in-shop-promo.spec.ts,Local DB,,
+TC-234,Orders,Promo codes (in-shop),"Percentage rounding, minimum charge and use counting (once, in-shop only)",Unit,Automated,tests/unit/in-shop-promo.test.ts,,,

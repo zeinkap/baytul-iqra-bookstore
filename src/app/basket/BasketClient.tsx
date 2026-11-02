@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 import InShopPayButtons from "@/components/InShopPayButtons";
+import PromoCodeBox, { useInShopPromo } from "@/components/PromoCodeBox";
 import {
   basketCount,
   basketTotal,
@@ -49,6 +50,9 @@ export default function BasketClient() {
   }, [hasLines]);
 
   const total = basketTotal(lines);
+  // One promo code at most; the server prices the basket and works out the discount
+  const promo = useInShopPromo(lines.map((l) => ({ id: l.id, quantity: l.quantity })));
+  const subtotalCents = lines.reduce((sum, l) => sum + Math.round(l.price * 100) * l.quantity, 0);
 
   return (
     <main className="max-w-md mx-auto px-4 pt-6 pb-52 sm:pb-8" data-testid="in-shop-basket">
@@ -119,9 +123,25 @@ export default function BasketClient() {
             ))}
           </ul>
 
+          <div className="mb-3" data-testid="basket-promo">
+            <PromoCodeBox promo={promo} />
+          </div>
+
+          {promo.applied && (
+            <>
+              <div className="flex justify-between px-1 mb-1 text-sm text-gray-700" data-testid="basket-subtotal">
+                <span>Subtotal</span>
+                <span>{money(total)}</span>
+              </div>
+              <div className="flex justify-between px-1 mb-1 text-sm text-emerald-700" data-testid="basket-discount">
+                <span>Promo {promo.applied.code}</span>
+                <span>−{money(promo.applied.discountCents / 100)}</span>
+              </div>
+            </>
+          )}
           <div className="flex justify-between items-baseline px-1 mb-1">
             <span className="font-bold text-gray-900">Total ({basketCount(lines)} {basketCount(lines) === 1 ? "book" : "books"})</span>
-            <span className="text-xl font-extrabold text-emerald-700" data-testid="basket-total">{money(total)}</span>
+            <span className="text-xl font-extrabold text-emerald-700" data-testid="basket-total">{money(promo.applied ? promo.applied.finalCents / 100 : total)}</span>
           </div>
           <p className="text-xs text-gray-500 text-right px-1 mb-4">Tax included</p>
           <p className="text-sm text-gray-600 text-center mb-4" data-testid="basket-scan-hint">
@@ -132,7 +152,8 @@ export default function BasketClient() {
             <div className="max-w-md mx-auto">
               <InShopPayButtons
                 items={lines.map((l) => ({ id: l.id, quantity: l.quantity }))}
-                amountCents={lines.reduce((sum, l) => sum + Math.round(l.price * 100) * l.quantity, 0)}
+                amountCents={promo.applied ? promo.applied.finalCents : subtotalCents}
+                promoCode={promo.applied?.code}
                 location={location}
                 cancelPath="/basket"
                 reportCode="basket"
