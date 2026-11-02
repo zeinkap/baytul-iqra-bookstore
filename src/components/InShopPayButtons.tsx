@@ -22,6 +22,8 @@ type Props = {
   /** Total in cents, as shown to the customer: the wallet sheet displays it, the server re-prices everything. */
   amountCents: number;
   location?: string;
+  /** The one promo code applied to these items, if any. `amountCents` must already include its discount (the server re-checks both). */
+  promoCode?: string;
   /** Where Stripe's card page sends the customer back to if they cancel */
   cancelPath: string;
   /** Label for scan analytics when a payment attempt breaks */
@@ -77,7 +79,7 @@ export default function InShopPayButtons(props: Props) {
   );
 }
 
-function WalletButtons({ items, location, reportCode, onConflict, disabled, onAvailable }: Props & { onAvailable: (available: boolean) => void }) {
+function WalletButtons({ items, location, promoCode, reportCode, onConflict, disabled, onAvailable }: Props & { onAvailable: (available: boolean) => void }) {
   const stripe = useStripe();
   const elements = useElements();
   const router = useRouter();
@@ -99,6 +101,7 @@ function WalletButtons({ items, location, reportCode, onConflict, disabled, onAv
         body: JSON.stringify({
           items,
           location,
+          promoCode,
           email: event.billingDetails?.email,
           name: event.billingDetails?.name,
         }),
@@ -145,7 +148,7 @@ function WalletButtons({ items, location, reportCode, onConflict, disabled, onAv
   );
 }
 
-function CardButton({ items, location, cancelPath, reportCode, onConflict, disabled, label, secondary }: Props & { label: string; secondary: boolean }) {
+function CardButton({ items, location, promoCode, cancelPath, reportCode, onConflict, disabled, label, secondary }: Props & { label: string; secondary: boolean }) {
   const [busy, setBusy] = useState(false);
 
   const handleClick = async () => {
@@ -158,7 +161,7 @@ function CardButton({ items, location, cancelPath, reportCode, onConflict, disab
       const res = await fetch("/api/in-shop/buy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items, location, cancelPath }),
+        body: JSON.stringify({ items, location, cancelPath, promoCode }),
       });
       const data = await res.json();
       if (res.status === 409) {

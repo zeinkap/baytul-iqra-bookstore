@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { priceItems } from '@/lib/pricing';
+import { priceItems, resolveInShopPromo, subtotalCentsOf } from '@/lib/pricing';
 import { findStockProblems, stockProblemMessage } from '@/lib/stockManager';
 import { normalizeLocation } from '@/lib/location';
 import { deviceFromUserAgent } from '@/lib/device';
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Too many attempts. Please wait a moment and try again.' }, { status: 429 });
     }
 
-    const { items: rawItems, location, email, name } = await req.json();
+    const { items: rawItems, location, email, name, promoCode } = await req.json();
     const priced = await priceItems(rawItems, 'in-shop');
     if (!priced.ok) {
       return NextResponse.json({ error: priced.error }, { status: priced.status });
@@ -36,12 +36,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: stockProblemMessage(stockProblems), stockProblems }, { status: 409 });
     }
 
+    // At most one promo code. The discount is worked out here from the database; the browser only sends the code.
+    let promo: { promoCodeId: string; discountCents: number } | null = null;
+    if (typeof promoCode === 'string' && promoCode.trim()) {
+      const resolved = await resolveInShopPromo(promoCode, subtotalCentsOf(items));
+      if (!resolved.ok) return NextResponse.json({ error: resolved.error }, { status: resolved.status });
+      promo = { promoCodeId: resolved.promoId, discountCents: resolved.discountCents };
+    }
+
     const venue = normalizeLocation(location);
     const device = deviceFromUserAgent(req.headers.get('user-agent'));
-    const orderId = await getOrCreateInShopOrder({ items, total, venue, device });
+    const orderId = await getOrCreateInShopOrder({ items, total, promo, venue, device });
 
     const intent = await stripe.paymentIntents.create({
-      amount: items.reduce((sum, i) => sum + Math.round(i.price * 100) * i.quantity, 0),
+      amount: subtotalCentsOf(items) - (promo?.discountCents ?? 0),
       currency: 'usd',
       // Wallets (Apple Pay, Google Pay, Link) come through Stripe's automatic payment methods
       automatic_payment_methods: { enabled: true },
@@ -50,6 +58,8 @@ export async function POST(req: NextRequest) {
         flow: IN_SHOP_WALLET_FLOW,
         orderId,
         source: 'in-shop',
+        promoCodeId: promo?.promoCodeId ?? '',
+        discountAmount: String(promo?.discountCents ?? 0),
         location: venue || '',
         // Kept here (not on receipt_email) so Stripe doesn't send its own receipt; the shop's receipt email does
         email: cap(email, 200),

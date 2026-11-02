@@ -10,10 +10,11 @@ import type { PricedItem } from './pricing';
 export async function findReusableInShopOrder(args: {
   items: { id?: string; quantity: number }[];
   finalTotal: number;
+  promoCodeId?: string | null;
   venue: string | null;
   device: string | null;
 }) {
-  const { items, finalTotal, venue, device } = args;
+  const { items, finalTotal, promoCodeId, venue, device } = args;
   if (items.length !== 1) return null;
   const recent = await prisma.order.findMany({
     where: { source: 'in-shop', paidAt: null, email: null, location: venue, device, createdAt: { gte: new Date(Date.now() - 10 * 60_000) } },
@@ -23,7 +24,7 @@ export async function findReusableInShopOrder(args: {
   return (
     recent.find((o) => {
       const prev = extractBookItems(o.items);
-      return prev.length === 1 && prev[0].id === items[0].id && prev[0].quantity === items[0].quantity && Math.abs(o.finalTotal - finalTotal) < 0.005;
+      return prev.length === 1 && prev[0].id === items[0].id && prev[0].quantity === items[0].quantity && Math.abs(o.finalTotal - finalTotal) < 0.005 && (o.promoCodeId ?? null) === (promoCodeId ?? null);
     }) ?? null
   );
 }
@@ -39,18 +40,23 @@ export function safeInShopCancelPath(cancelPath: unknown): string {
 export async function getOrCreateInShopOrder(args: {
   items: PricedItem[];
   total: number;
+  /** One promo code at most: its id and the discount in cents, already worked out on the server */
+  promo?: { promoCodeId: string; discountCents: number } | null;
   venue: string | null;
   device: string | null;
 }): Promise<string> {
-  const { items, total, venue, device } = args;
-  const existing = await findReusableInShopOrder({ items, finalTotal: total, venue, device });
+  const { items, total, promo, venue, device } = args;
+  const discountAmount = promo ? promo.discountCents / 100 : 0;
+  const finalTotal = Math.round((total - discountAmount) * 100) / 100;
+  const existing = await findReusableInShopOrder({ items, finalTotal, promoCodeId: promo?.promoCodeId ?? null, venue, device });
   if (existing) return existing.id;
   const created = await prisma.order.create({
     data: {
       items: items as unknown as Prisma.InputJsonValue,
       total,
-      discountAmount: 0,
-      finalTotal: total,
+      discountAmount,
+      finalTotal,
+      promoCodeId: promo?.promoCodeId ?? null,
       fulfillmentType: 'pickup',
       pickupLocation: 'In shop',
       source: 'in-shop',

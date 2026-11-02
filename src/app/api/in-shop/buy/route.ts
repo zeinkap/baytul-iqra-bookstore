@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { priceItems } from '@/lib/pricing';
+import { priceItems, resolveInShopPromo, subtotalCentsOf } from '@/lib/pricing';
 import { findStockProblems, stockProblemMessage } from '@/lib/stockManager';
 import { normalizeLocation } from '@/lib/location';
 import { deviceFromUserAgent } from '@/lib/device';
@@ -15,7 +15,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
  */
 export async function POST(req: NextRequest) {
   try {
-    const { items: rawItems, location, cancelPath } = await req.json();
+    const { items: rawItems, location, cancelPath, promoCode } = await req.json();
     const priced = await priceItems(rawItems, 'in-shop');
     if (!priced.ok) {
       return NextResponse.json({ error: priced.error }, { status: priced.status });
@@ -27,9 +27,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: stockProblemMessage(stockProblems), stockProblems }, { status: 409 });
     }
 
+    // At most one promo code. The discount is worked out here from the database; the browser only sends the code.
+    let promo: { promoCodeId: string; discountCents: number } | null = null;
+    if (typeof promoCode === 'string' && promoCode.trim()) {
+      const resolved = await resolveInShopPromo(promoCode, subtotalCentsOf(items));
+      if (!resolved.ok) return NextResponse.json({ error: resolved.error }, { status: resolved.status });
+      promo = { promoCodeId: resolved.promoId, discountCents: resolved.discountCents };
+    }
+
     const venue = normalizeLocation(location);
     const device = deviceFromUserAgent(req.headers.get('user-agent'));
-    const orderId = await getOrCreateInShopOrder({ items, total, venue, device });
+    const orderId = await getOrCreateInShopOrder({ items, total, promo, venue, device });
+
+    // A one-off Stripe coupon takes the exact discount off the whole order (Checkout shows it as its own line)
+    const coupon = promo
+      ? await stripe.coupons.create({ amount_off: promo.discountCents, currency: 'usd', duration: 'once', max_redemptions: 1, name: 'Promo code', metadata: { orderId } })
+      : null;
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || req.nextUrl.origin || 'http://localhost:3000';
     const params = {
@@ -45,6 +58,7 @@ export async function POST(req: NextRequest) {
         },
         quantity: item.quantity,
       })),
+      ...(coupon ? { discounts: [{ coupon: coupon.id }] } : {}),
       success_url: `${req.nextUrl.origin}/receipt?orderId=${orderId}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.nextUrl.origin}${safeInShopCancelPath(cancelPath)}`,
       // A stale link can't be paid after the book has moved on
@@ -54,9 +68,9 @@ export async function POST(req: NextRequest) {
       phone_number_collection: { enabled: false },
       metadata: {
         orderId,
-        promoCodeId: '',
+        promoCodeId: promo?.promoCodeId ?? '',
         fulfillmentType: 'pickup',
-        discountAmount: '0',
+        discountAmount: String(promo?.discountCents ?? 0),
         pickupLocation: 'In shop',
         source: 'in-shop',
         location: venue || '',
