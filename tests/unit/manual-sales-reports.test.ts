@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { computeInsights, type InsightOrder } from '@/lib/insights';
 
 describe('Hand-recorded sales: reports', () => {
-  it('cash and other hand-recorded sales carry no estimated card fee', () => {
+  it('TC-169: cash and other hand-recorded sales carry no estimated card fee', () => {
     const order = (paymentMethod: string): InsightOrder => ({
       items: [{ id: 'b1', title: 'Book', price: 20, quantity: 1 }],
       finalTotal: 20,

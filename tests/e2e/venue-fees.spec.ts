@@ -21,20 +21,20 @@ test.describe('Event fees: admin API', () => {
   });
   const headers = async () => ({ cookie: `${ADMIN_COOKIE}=${await createSessionToken()}` });
 
-  test('needs an admin session', async ({ request }) => {
+  test('TC-188: without an admin session, reading or setting a venue fee returns 401', async ({ request }) => {
     const venue = newVenue();
     expect((await request.get('/api/admin/venue-fees')).status()).toBe(401);
     expect((await request.put('/api/admin/venue-fees', { data: { venue, fee: 50 } })).status()).toBe(401);
   });
 
-  test('rejects a bad venue name or fee', async ({ request }) => {
+  test('TC-189: a malformed venue name, or a negative, non-numeric or absurdly large fee, is rejected with 400', async ({ request }) => {
     const venue = newVenue();
     for (const data of [{ venue: 'Not A Slug!', fee: 50 }, { venue, fee: -5 }, { venue, fee: 'lots' }, { venue, fee: 1e9 }]) {
       expect((await request.put('/api/admin/venue-fees', { headers: await headers(), data })).status()).toBe(400);
     }
   });
 
-  test('a saved fee shows up in the insights for that venue, and clears again', async ({ request }) => {
+  test('TC-190: a saved fee shows up in the insights for that venue, and clears again', async ({ request }) => {
     const venue = newVenue();
     const book = await fx.book({ price: 20 });
     await fx.order(book, { paid: true, location: venue });
@@ -55,7 +55,7 @@ test.describe('Event fees: admin API', () => {
     expect((await cleared.json()).fees[venue]).toBeUndefined();
   });
 
-  test('the Insights page sets a fee and shows the venue after the fee', async ({ page, context, baseURL }) => {
+  test('TC-191: the Insights page sets a fee and shows the venue after the fee', async ({ page, context, baseURL }) => {
     const venue = newVenue();
     const book = await fx.book({ price: 20 });
     await fx.order(book, { paid: true, location: venue });
@@ -75,7 +75,7 @@ test.describe('Event fees: admin API', () => {
     await expect(row).toContainText('3 (sold 1)');
   });
 
-  test('the daily summary email shows the fee and what is still to cover', async () => {
+  test('TC-192: the daily summary email shows the fee and what is still to cover', async () => {
     const venue = newVenue();
     const book = await fx.book({ price: 20 });
     await fx.order(book, { paid: true, location: venue });

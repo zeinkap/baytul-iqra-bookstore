@@ -8,7 +8,7 @@ import { initializeAPIHelper } from '../helpers/test-workflows.helper';
  * the basket page, and the server endpoints behind it.
  */
 test.describe('In-shop basket', () => {
-  test('a scanned book can be added to the basket and shows up on the basket page', async ({ page }) => {
+  test('TC-125: a scanned book can be added to the basket and shows up on the basket page', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
 
     await page.goto(`/b/${book.id}`);
@@ -22,7 +22,7 @@ test.describe('In-shop basket', () => {
     await expect(page.locator('header')).toHaveCount(0);
   });
 
-  test('quantity and remove work, and an empty basket says so', async ({ page }) => {
+  test('TC-126: changing quantity updates the basket line, and removing the last book shows the empty-basket message', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
 
     await page.goto(`/b/${book.id}`);
@@ -40,7 +40,7 @@ test.describe('In-shop basket', () => {
     await expect(page.getByTestId('basket-line')).toHaveCount(0);
   });
 
-  test('with books in the basket, scanning adds to it instead of paying for one book alone', async ({ page }) => {
+  test('TC-127: with books in the basket, scanning adds to it instead of paying for one book alone', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
 
     await page.goto(`/b/${book.id}`);
@@ -54,7 +54,7 @@ test.describe('In-shop basket', () => {
     await expect(page.getByTestId('scan-buy-now')).toHaveCount(0);
   });
 
-  test('the basket survives a reload', async ({ page }) => {
+  test('TC-128: a basket with one book still shows that book after a page reload', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
 
     await page.goto(`/b/${book.id}`);
@@ -66,7 +66,7 @@ test.describe('In-shop basket', () => {
     await expect(page.getByTestId('basket-line')).toContainText(book.title);
   });
 
-  test('quote returns fresh prices and drops books that no longer exist', async ({ page }) => {
+  test('TC-129: quote returns fresh prices and drops books that no longer exist', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
 
     const response = await page.request.post('/api/in-shop/quote', {
@@ -81,7 +81,7 @@ test.describe('In-shop basket', () => {
     expect((await page.request.post('/api/in-shop/quote', { data: { items: [] } })).status()).toBe(400);
   });
 
-  test('wallet payment endpoints refuse bad requests without calling Stripe', async ({ page }) => {
+  test('TC-130: wallet payment endpoints refuse bad requests without calling Stripe', async ({ page }) => {
     expect((await page.request.post('/api/in-shop/payment-intent', { data: { items: [] } })).status()).toBe(400);
     expect(
       (await page.request.post('/api/in-shop/payment-intent', { data: { items: [{ id: 'no-such-book', quantity: 1 }] } })).status()

@@ -10,7 +10,7 @@ import { generateTestEmail } from '../fixtures/test-data';
  */
 
 test.describe('Contact Page', () => {
-  test('should allow user to send message via contact form', async ({ contactPage }) => {
+  test('TC-021: submitting a filled-in contact form shows the success message', async ({ contactPage }) => {
     // Navigate to contact page
     await contactPage.navigate();
 
@@ -32,7 +32,7 @@ test.describe('Contact Page', () => {
     expect(isSuccessVisible).toBe(true);
   });
 
-  test('should show validation errors for empty required fields', async ({ contactPage }) => {
+  test('TC-022: submitting an empty contact form is blocked by validation and shows no success message', async ({ contactPage }) => {
     // Navigate to contact page
     await contactPage.navigate();
 
@@ -45,7 +45,7 @@ test.describe('Contact Page', () => {
     expect(isSuccessVisible).toBe(false);
   });
 
-  test('should display error message when API fails', async ({ contactPage, page }) => {
+  test('TC-023: when the contact API returns an error, the form shows an error message instead of success', async ({ contactPage, page }) => {
     // Navigate to contact page
     await contactPage.navigate();
 

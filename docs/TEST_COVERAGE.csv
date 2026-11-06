@@ -168,7 +168,7 @@ TC-166,Admin,Orders,"Admin orders page lists, filters and searches orders",UI,Pa
 TC-167,Admin,Orders,"Order detail, status update, shipping fulfilment",UI/API,Not covered,,,High,
 TC-168,Admin,Orders,Update-stock endpoint (/api/orders/[id]/update-stock) happy path and idempotency,API,Partial,tests/e2e/in-shop-receipt.spec.ts,,Medium,Only 'unpaid order never takes stock'
 TC-169,Admin,Manual sales,Cash/other sales carry no estimated card fee,Unit,Automated,tests/unit/manual-sales-reports.test.ts,,,
-TC-170,Admin,Manual sales,Needs an admin session,API,Automated,tests/e2e/manual-sales.spec.ts,Local DB + ADMIN_PASSWORD,,
+TC-170,Admin,Manual sales,Without an admin session, recording, listing or undoing a hand-recorded sale returns 401,API,Automated,tests/e2e/manual-sales.spec.ts,Local DB + ADMIN_PASSWORD,,
 TC-171,Admin,Manual sales,"Rejects bad payment method, empty cart, bad venue",API,Automated,tests/e2e/manual-sales.spec.ts,Local DB + ADMIN_PASSWORD,,
 TC-172,Admin,Manual sales,Sold-out book cannot be recorded,API,Automated,tests/e2e/manual-sales.spec.ts,Local DB + ADMIN_PASSWORD,,
 TC-173,Admin,Manual sales,"Cash sale is a paid in-shop order at in-person price at the venue, takes stock",API,Automated,tests/e2e/manual-sales.spec.ts,Local DB + ADMIN_PASSWORD,,
@@ -177,7 +177,7 @@ TC-175,Admin,Manual sales,Only hand-recorded sales can be voided,API,Automated,t
 TC-176,Admin,Manual sales,Record Sale page records a cash sale and lists it,UI,Automated,tests/e2e/manual-sales.spec.ts,Local DB + ADMIN_PASSWORD,,
 TC-177,Admin,Feedback / book requests,Public submit (/api/feedback) validation and storage,API,Partial,tests/e2e/in-shop-receipt.spec.ts,,Medium,Only the receipt UI path
 TC-178,Admin,Feedback / book requests,New requests start as 'new',API,Automated,tests/e2e/feedback-admin.spec.ts,Local DB + ADMIN_PASSWORD,,
-TC-179,Admin,Feedback / book requests,Needs an admin session,API,Automated,tests/e2e/feedback-admin.spec.ts,Local DB + ADMIN_PASSWORD,,
+TC-179,Admin,Feedback / book requests,Without an admin session, changing or deleting a request returns 401 and leaves it unchanged,API,Automated,tests/e2e/feedback-admin.spec.ts,Local DB + ADMIN_PASSWORD,,
 TC-180,Admin,Feedback / book requests,"Status changes between new / in-progress / fulfilled, nothing else",API,Automated,tests/e2e/feedback-admin.spec.ts,Local DB + ADMIN_PASSWORD,,
 TC-181,Admin,Feedback / book requests,A request can be deleted once,API,Automated,tests/e2e/feedback-admin.spec.ts,Local DB + ADMIN_PASSWORD,,
 TC-182,Admin,Feedback / book requests,"Admin page marks in progress / fulfilled, filters, deletes",UI,Automated,tests/e2e/feedback-admin.spec.ts,Local DB + ADMIN_PASSWORD,,
@@ -186,7 +186,7 @@ TC-184,Admin,Event fees,Venue covered once profit passes fee,Unit,Automated,test
 TC-185,Admin,Event fees,Venues without fee / untagged sales not charged,Unit,Automated,tests/unit/venue-fees.test.ts,,,
 TC-186,Admin,Event fees,Profit after event fees subtracts fees of venues with sales,Unit,Automated,tests/unit/venue-fees.test.ts,,,
 TC-187,Admin,Event fees,Picked venue with fee but no sales shows whole fee as loss; unpicked hidden,Unit,Automated,tests/unit/venue-fees.test.ts,,,
-TC-188,Admin,Event fees,Needs an admin session,API,Automated,tests/e2e/venue-fees.spec.ts,Local DB + ADMIN_PASSWORD,,
+TC-188,Admin,Event fees,Without an admin session, reading or setting a venue fee returns 401,API,Automated,tests/e2e/venue-fees.spec.ts,Local DB + ADMIN_PASSWORD,,
 TC-189,Admin,Event fees,Rejects bad venue name or fee,API,Automated,tests/e2e/venue-fees.spec.ts,Local DB + ADMIN_PASSWORD,,
 TC-190,Admin,Event fees,Saved fee shows in insights and clears again,API,Automated,tests/e2e/venue-fees.spec.ts,Local DB + ADMIN_PASSWORD,,
 TC-191,Admin,Event fees,Insights page sets a fee and shows venue after the fee,UI,Automated,tests/e2e/venue-fees.spec.ts,Local DB + ADMIN_PASSWORD,,
@@ -214,7 +214,7 @@ TC-212,Pricing tools,Price research rules,Margin measured on price before tax,Un
 TC-213,Pricing tools,Price research rules,In-person ignores shipping for margin floor,Unit,Automated,tests/unit/price-research-rules.test.ts,,,
 TC-214,Pricing tools,Price research rules,In-person lifted to its floor but never above online price,Unit,Automated,tests/unit/price-research-rules.test.ts,,,
 TC-215,Pricing tools,Price research rules,No cost price means no margin check,Unit,Automated,tests/unit/price-research-rules.test.ts,,,
-TC-216,Pricing tools,Price research rules,Defaults and date format,Unit,Automated,tests/unit/price-research-rules.test.ts,,,
+TC-216,Pricing tools,Price research rules,Default rules (15% margin, 10% in-person discount, 8% tax) and YYYY-MM-DD date format,Unit,Automated,tests/unit/price-research-rules.test.ts,,,
 TC-217,Pricing tools,Price research rules,suggestPrices.ts Claude web-search step,Script,Not covered,,Anthropic key,Low,Deliberately manual (costs money)
 TC-218,Pricing tools,Other scripts,"suggestDescriptions, suggestAgeRanges, applyPrices, applyDescriptions, backfill, fixOrderTotals, backup/restore",Script,Not covered,,,Low,Dry-run / unit tests for the data-changing scripts would be the first to add
 TC-219,Non-functional,Accessibility,Automated a11y scan (axe) on key pages,UI,Not covered,,,Medium,

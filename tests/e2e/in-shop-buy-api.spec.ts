@@ -15,33 +15,33 @@ test.describe('In-shop buy API', () => {
 
   const buy = (request: import('@playwright/test').APIRequestContext, data: unknown) => request.post('/api/in-shop/buy', { data });
 
-  test('rejects an empty or malformed cart', async ({ request }) => {
+  test('TC-132: rejects an empty or malformed cart', async ({ request }) => {
     expect((await buy(request, { items: [] })).status()).toBe(400);
     expect((await buy(request, {})).status()).toBe(400);
     expect((await buy(request, { items: [{ id: 'x', quantity: 0 }] })).status()).toBe(400);
     expect((await buy(request, { items: [{ id: 'x', quantity: 1.5 }] })).status()).toBe(400);
   });
 
-  test('rejects a book that does not exist', async ({ request }) => {
+  test('TC-133: rejects a book that does not exist', async ({ request }) => {
     const res = await buy(request, { items: [{ id: 'does-not-exist', quantity: 1 }] });
     expect(res.status()).toBe(409);
   });
 
-  test('a sold-out book is refused before any order or session is created', async ({ request }) => {
+  test('TC-134: a sold-out book is refused before any order or session is created', async ({ request }) => {
     const book = await fx.book({ stock: 0 });
     const res = await buy(request, { items: [{ id: book.id, quantity: 1 }] });
     expect(res.status()).toBe(409);
     expect((await res.json()).error).toContain('just sold out');
   });
 
-  test('asking for more copies than are in stock is refused', async ({ request }) => {
+  test('TC-135: asking for more copies than are in stock is refused', async ({ request }) => {
     const book = await fx.book({ stock: 1 });
     const res = await buy(request, { items: [{ id: book.id, quantity: 2 }] });
     expect(res.status()).toBe(409);
     expect((await res.json()).error).toContain('Only 1 left');
   });
 
-  test('the in-shop basket quote uses the in-person price, falling back to the online price', async ({ request }) => {
+  test('TC-136: the in-shop basket quote uses the in-person price, falling back to the online price', async ({ request }) => {
     const withPrice = await fx.book({ price: 15, inShopPrice: 12, stock: 3 });
     const without = await fx.book({ price: 9.5, stock: 3 });
     const res = await request.post('/api/in-shop/quote', {
@@ -54,7 +54,7 @@ test.describe('In-shop buy API', () => {
     expect(priceOf(without.id)).toBe(9.5);
   });
 
-  test('online orders ignore the in-person price', async ({ request }) => {
+  test('TC-047: online orders ignore the in-person price', async ({ request }) => {
     const book = await fx.book({ price: 15, inShopPrice: 12, stock: 3 });
     const res = await request.post('/api/orders', {
       data: { items: [{ id: book.id, quantity: 1 }], fulfillmentType: 'pickup', email: 'e2e@example.com' },
@@ -69,7 +69,7 @@ test.describe('In-shop buy API', () => {
   test.describe('with Stripe test mode', () => {
     test.skip(!stripeTestMode, 'needs STRIPE_SECRET_KEY to be a test-mode key');
 
-    test('an in-shop order is charged the in-person price', async ({ request }) => {
+    test('TC-137: an in-shop order is charged the in-person price', async ({ request }) => {
       const book = await fx.book({ price: 15, inShopPrice: 12, stock: 3 });
       const res = await buy(request, { items: [{ id: book.id, quantity: 2 }] });
       expect(res.status()).toBe(200);
@@ -81,7 +81,7 @@ test.describe('In-shop buy API', () => {
       expect(session.amount_total).toBe(2400);
     });
 
-    test('prices come from the database, the order is unpaid and in-shop, and the session matches it', async ({ request }) => {
+    test('TC-138: prices come from the database, the order is unpaid and in-shop, and the session matches it', async ({ request }) => {
       const book = await fx.book({ price: 12.34, stock: 3 });
       const res = await buy(request, {
         items: [{ id: book.id, title: 'Tampered', price: 0.01, quantity: 1 }],
@@ -113,7 +113,7 @@ test.describe('In-shop buy API', () => {
       expect((await db.book.findUniqueOrThrow({ where: { id: book.id } })).stock).toBe(3);
     });
 
-    test('tapping Buy now again reuses the unpaid order instead of creating a second one', async ({ request }) => {
+    test('TC-139: tapping Buy now again reuses the unpaid order instead of creating a second one', async ({ request }) => {
       const book = await fx.book();
       const data = { items: [{ id: book.id, quantity: 1 }], location: 'e2e-reuse' };
       const first = await (await buy(request, data)).json();
@@ -123,7 +123,7 @@ test.describe('In-shop buy API', () => {
       expect(await db.order.count({ where: { id: first.orderId } })).toBe(1);
     });
 
-    test('a different venue gets its own order', async ({ request }) => {
+    test('TC-140: a different venue gets its own order', async ({ request }) => {
       const book = await fx.book();
       const a = await (await buy(request, { items: [{ id: book.id, quantity: 1 }], location: 'e2e-a' })).json();
       const b = await (await buy(request, { items: [{ id: book.id, quantity: 1 }], location: 'e2e-b' })).json();
@@ -132,7 +132,7 @@ test.describe('In-shop buy API', () => {
       expect(b.orderId).not.toBe(a.orderId);
     });
 
-    test('the cancel link only goes back to a scanned book page, never off-site', async ({ request }) => {
+    test('TC-141: the cancel link only goes back to a scanned book page, never off-site', async ({ request }) => {
       const book = await fx.book();
       const ok = await (await buy(request, { items: [{ id: book.id, quantity: 1 }], location: 'e2e-cancel-1', cancelPath: '/b/abc123?loc=cafe' })).json();
       const bad = await (await buy(request, { items: [{ id: book.id, quantity: 1 }], location: 'e2e-cancel-2', cancelPath: 'https://evil.example.com/b/abc' })).json();

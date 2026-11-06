@@ -20,6 +20,10 @@ npm run test:unit:watch    # re-run on save
 
 Put a test in `tests/unit/<name>.test.ts` when the code under test is a pure function (import it with the `@/` alias for `src/`). If it needs a browser, the database, signed webhooks or a running server, write it in `tests/e2e/` instead. Config: `vitest.config.mts`.
 
+### Test titles and traceability
+
+Every test title starts with its ID from `docs/TEST_COVERAGE.csv` (for example `TC-170: without an admin session, recording ... returns 401`), then says what is tested and the expected outcome. When one test covers several rows, list them (`TC-016, TC-163:`). A new test gets a new row in the CSV first. Run one row's tests with `npx playwright test -g "TC-170"` (e2e and server) or `npx vitest run -t "TC-234"` (unit).
+
 ## Setup
 
 Tests change stock, orders and promo codes, so **run them against a throwaway local database, never production.**

@@ -10,7 +10,7 @@ import { initializeAPIHelper, setupCartViaLocalStorage } from '../helpers/test-w
  * checked for presence here); the email-only cart mode is covered by seeding its state.
  */
 test.describe('QR scan to cart', () => {
-  test('scan shows the book with a single Buy now action', async ({ page }) => {
+  test('TC-109: scan shows the book with a single Buy now action', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
 
     await page.goto(`/b/${book.id}`);
@@ -23,7 +23,7 @@ test.describe('QR scan to cart', () => {
     await expect(page.getByTestId('scan-description')).not.toContainText(/<\/?(p|em|br|strong|ul|li)\b/i);
   });
 
-  test('quantity stepper changes the Buy now total and stays within stock', async ({ page }) => {
+  test('TC-110: quantity stepper changes the Buy now total and stays within stock', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
 
     await page.goto(`/b/${book.id}`);
@@ -39,7 +39,7 @@ test.describe('QR scan to cart', () => {
     await expect(page.getByTestId('scan-buy-now')).toContainText(`$${(book.price * 2).toFixed(2)}`);
   });
 
-  test('scan page is focused: tax note shown, no navbar or chat button', async ({ page }) => {
+  test('TC-111: scan page is focused: tax note shown, no navbar or chat button', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
 
     await page.goto(`/b/${book.id}`);
@@ -50,7 +50,7 @@ test.describe('QR scan to cart', () => {
     await expect(page.getByText('Ask us')).toHaveCount(0);
   });
 
-  test('in-shop cart mode asks only for email (no shipping/pickup choice)', async ({ page, cartPage }) => {
+  test('TC-112: in-shop cart mode asks only for email (no shipping/pickup choice)', async ({ page, cartPage }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
 
     await setupCartViaLocalStorage(page, cartPage, [book]);
@@ -62,13 +62,13 @@ test.describe('QR scan to cart', () => {
     await expect(cartPage.fulfillmentTypePickup).toHaveCount(0);
   });
 
-  test('unknown code shows a friendly message with book suggestions', async ({ page }) => {
+  test('TC-113: unknown code shows a friendly message with book suggestions', async ({ page }) => {
     await page.goto('/b/0000000000000');
     await expect(page.getByTestId('scan-message-title')).toHaveText("We couldn't find that book");
     await expect(page.getByTestId('scan-suggestions')).toBeVisible();
   });
 
-  test('tapping the cover opens the larger photo viewer', async ({ page }) => {
+  test('TC-114: tapping the cover opens the larger photo viewer', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
 
     await page.goto(`/b/${book.id}`);
@@ -77,7 +77,7 @@ test.describe('QR scan to cart', () => {
     await expect(page.locator('.yarl__container')).toBeVisible();
   });
 
-  test('the venue tag in the link is recorded with the scan', async ({ page }) => {
+  test('TC-115: the venue tag in the link is recorded with the scan', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
 
     const scanRequest = page.waitForRequest((r) => r.url().includes('/api/scans') && r.method() === 'POST');
@@ -85,7 +85,7 @@ test.describe('QR scan to cart', () => {
     expect((await scanRequest).postDataJSON()).toEqual({ code: book.id, location: 'test-venue' });
   });
 
-  test('a Buy now failure is reported so it shows up as a failed scan', async ({ page }) => {
+  test('TC-116: a Buy now failure is reported so it shows up as a failed scan', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
     // Make the buy request fail like a server error
     await page.route('**/api/in-shop/buy', (route) => route.fulfill({ status: 500, contentType: 'application/json', body: '{"error":"boom"}' }));
@@ -98,7 +98,7 @@ test.describe('QR scan to cart', () => {
     await expect(page.getByTestId('scan-buy-now')).toBeEnabled();
   });
 
-  test('scans are recorded', async ({ page }) => {
+  test('TC-117: opening a scanned book page sends a scan record containing that book\'s code', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
 
     const scanRequest = page.waitForRequest((r) => r.url().includes('/api/scans') && r.method() === 'POST');
@@ -107,7 +107,7 @@ test.describe('QR scan to cart', () => {
     expect((await scanRequest).postDataJSON()).toMatchObject({ code: book.id });
   });
 
-  test('an out-of-stock book shows a message and similar books, with no way to buy it', async ({ page }) => {
+  test('TC-118: an out-of-stock book shows a message and similar books, with no way to buy it', async ({ page }) => {
     let book;
     try {
       book = await initializeAPIHelper(page).findOutOfStockBook();
@@ -124,7 +124,7 @@ test.describe('QR scan to cart', () => {
     await expect(page.getByTestId('scan-add-to-basket')).toHaveCount(0);
   });
 
-  test('a sold-out response tells the customer, reports sold-out-race and re-enables the button', async ({ page }) => {
+  test('TC-119: a sold-out response tells the customer, reports sold-out-race and re-enables the button', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
     await page.route('**/api/in-shop/buy', (route) =>
       route.fulfill({ status: 409, contentType: 'application/json', body: '{"error":"Sorry, this book just sold out."}' })
@@ -139,7 +139,7 @@ test.describe('QR scan to cart', () => {
     await expect(page.getByTestId('scan-buy-now')).toBeEnabled();
   });
 
-  test('if Stripe.js cannot load, the card button still appears as the main pay button', async ({ page }) => {
+  test('TC-120: if Stripe.js cannot load, the card button still appears as the main pay button', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
     await page.route('https://js.stripe.com/**', (route) => route.abort());
 
@@ -154,7 +154,7 @@ test.describe('QR scan to cart', () => {
   test.describe('on a phone', () => {
     test.use({ viewport: { width: 375, height: 667 } });
 
-    test('no sideways scrolling, and the pinned pay bar never hides the page content', async ({ page }) => {
+    test('TC-121: no sideways scrolling, and the pinned pay bar never hides the page content', async ({ page }) => {
       const book = await initializeAPIHelper(page).findInStockBook();
 
       await page.goto(`/b/${book.id}`);
@@ -172,7 +172,7 @@ test.describe('QR scan to cart', () => {
       expect(trust!.y + trust!.height).toBeLessThanOrEqual(pay!.y);
     });
 
-    test('the price and the pay button are on screen without scrolling', async ({ page }) => {
+    test('TC-122: the price and the pay button are on screen without scrolling', async ({ page }) => {
       const book = await initializeAPIHelper(page).findInStockBook();
 
       await page.goto(`/b/${book.id}`);

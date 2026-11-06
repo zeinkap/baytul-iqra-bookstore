@@ -10,7 +10,7 @@ test.describe('Chat assistant', () => {
   test.describe('on a phone', () => {
     test.use({ viewport: { width: 390, height: 700 }, hasTouch: true, isMobile: true });
 
-    test('opens as a full-screen sheet without raising the keyboard', async ({ page }) => {
+    test('TC-235: opens as a full-screen sheet without raising the keyboard', async ({ page }) => {
       await page.goto('/');
       await page.getByTestId('chat-open').click();
 
@@ -28,7 +28,7 @@ test.describe('Chat assistant', () => {
       await expect(page.getByTestId('chat-input')).toBeFocused();
     });
 
-    test('the sheet follows the visible area when it shrinks (keyboard open) and the page behind does not scroll', async ({ page }) => {
+    test('TC-236: the sheet follows the visible area when it shrinks (keyboard open) and the page behind does not scroll', async ({ page }) => {
       await page.goto('/');
       await page.getByTestId('chat-open').click();
       await expect(page.getByTestId('chat-panel')).toBeVisible();
@@ -53,7 +53,7 @@ test.describe('Chat assistant', () => {
   test.describe('on a computer', () => {
     test.use({ viewport: { width: 1280, height: 800 } });
 
-    test('stays a small window in the corner, with the field ready to type in', async ({ page }) => {
+    test('TC-237: stays a small window in the corner, with the field ready to type in', async ({ page }) => {
       await page.goto('/');
       await page.getByTestId('chat-open').click();
 
