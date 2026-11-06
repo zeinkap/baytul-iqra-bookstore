@@ -124,7 +124,7 @@ test.describe('In-shop receipt', () => {
     await expect(page.getByTestId('receipt-wish')).toContainText('Thank you');
   });
 
-  test('suggests other books to buy', async ({ page }) => {
+  test('a paid receipt shows a "You might also like" section with book suggestions', async ({ page }) => {
     const { order } = await createInShopOrder(initializeAPIHelper(page));
 
     await openPaidReceipt(page, order.id);

@@ -22,7 +22,7 @@ test.describe('Search Functionality', () => {
     testBook = await apiHelper.findInStockBook();
   });
 
-  test('should search for books by full and partial title', async ({ homePage }) => {
+  test('searching by a book\'s full title shows that book, and a partial title still returns results', async ({ homePage }) => {
     await homePage.navigate();
 
     // Search by full title and verify specific book appears
@@ -37,7 +37,7 @@ test.describe('Search Functionality', () => {
     await expect.poll(() => homePage.getVisibleBooksCount()).toBeGreaterThan(0);
   });
 
-  test('should display no results for invalid search', async ({ homePage }) => {
+  test('searching for text that matches no book shows zero results', async ({ homePage }) => {
     await homePage.navigate();
     await homePage.searchForBook(TEST_DATA.INVALID_SEARCH_QUERY);
     expect(await homePage.getVisibleBooksCount()).toBe(0);

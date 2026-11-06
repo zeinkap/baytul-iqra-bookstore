@@ -53,7 +53,7 @@ describe('Price research rules', () => {
     expect(suggestPrices(5, {}, noTax).online).toBe(5);
   });
 
-  it('defaults and date format', () => {
+  it('default rules are 15% minimum margin, 10% in-person discount and 8% tax, and dates are formatted as YYYY-MM-DD', () => {
     expect(DEFAULT_RULES).toEqual({ minMargin: 0.15, inPersonDiscount: 0.1, taxRate: 0.08 });
     expect(today(new Date(2026, 9, 5))).toBe('2026-10-05');
   });

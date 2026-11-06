@@ -7,7 +7,7 @@ import { test, expect } from '../fixtures/base-test';
  * including with the old forgeable `adminAuth=true` cookie.
  */
 test.describe('Admin authentication', () => {
-  test('admin API mutations are rejected without a session', async ({ request }) => {
+  test('admin and cron API endpoints return 401 when called without an admin session', async ({ request }) => {
     const create = await request.post('/api/books', { data: { title: 'x' } });
     expect(create.status()).toBe(401);
 
@@ -31,7 +31,7 @@ test.describe('Admin authentication', () => {
     expect((await request.put('/api/admin/venue', { data: { venue: 'cafe-a' } })).status()).toBe(401);
   });
 
-  test('forged cookies do not grant access', async ({ page, baseURL }) => {
+  test('forged admin cookies are rejected: the API returns 401 and admin pages redirect to login', async ({ page, baseURL }) => {
     await page.context().addCookies([
       { name: 'adminAuth', value: 'true', url: baseURL! },
       { name: 'admin_session', value: '9999999999.forged', url: baseURL! },
@@ -43,12 +43,12 @@ test.describe('Admin authentication', () => {
     await expect(page).toHaveURL(/\/admin\/login/);
   });
 
-  test('wrong password is rejected', async ({ request }) => {
+  test('logging in with a wrong password is refused (401, or 429 when rate-limited)', async ({ request }) => {
     const response = await request.post('/api/admin/auth', { data: { password: 'definitely-wrong' } });
     expect([401, 429]).toContain(response.status());
   });
 
-  test('public book browsing stays open', async ({ request }) => {
+  test('the public books API stays open to visitors without a session (200)', async ({ request }) => {
     expect((await request.get('/api/books')).status()).toBe(200);
   });
 });

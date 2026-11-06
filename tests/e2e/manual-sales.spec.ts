@@ -15,13 +15,13 @@ test.describe('Hand-recorded sales: admin API and page', () => {
     request.post('/api/admin/manual-sales', { headers: await headers(), data });
   const stockOf = async (id: string) => (await db.book.findUniqueOrThrow({ where: { id } })).stock;
 
-  test('needs an admin session', async ({ request }) => {
+  test('without an admin session, recording, listing or undoing a hand-recorded sale returns 401', async ({ request }) => {
     expect((await request.post('/api/admin/manual-sales', { data: {} })).status()).toBe(401);
     expect((await request.get('/api/admin/manual-sales')).status()).toBe(401);
     expect((await request.post('/api/admin/manual-sales/x/void')).status()).toBe(401);
   });
 
-  test('rejects a bad payment method, an empty cart and a bad venue', async ({ request }) => {
+  test('a bad payment method, an empty cart or a malformed venue is rejected with 400 and stock is untouched', async ({ request }) => {
     const book = await fx.book({ stock: 3 });
     const items = [{ id: book.id, quantity: 1 }];
     expect((await record(request, { items, method: 'bitcoin' })).status()).toBe(400);
@@ -30,7 +30,7 @@ test.describe('Hand-recorded sales: admin API and page', () => {
     expect(await stockOf(book.id)).toBe(3);
   });
 
-  test('a sold-out book cannot be recorded', async ({ request }) => {
+  test('recording more copies than are in stock is refused with 409 and stock is unchanged', async ({ request }) => {
     const book = await fx.book({ stock: 1 });
     const res = await record(request, { items: [{ id: book.id, quantity: 2 }], method: 'cash' });
     expect(res.status()).toBe(409);
@@ -81,7 +81,7 @@ test.describe('Hand-recorded sales: admin API and page', () => {
     expect(await stockOf(book.id)).toBe(4);
   });
 
-  test('only hand-recorded sales can be undone here', async ({ request }) => {
+  test('undoing a Stripe order is refused (409) and undoing an unknown order returns 404', async ({ request }) => {
     const book = await fx.book({ stock: 2 });
     const stripeOrder = await fx.order(book, { paid: true });
     const res = await request.post(`/api/admin/manual-sales/${stripeOrder.id}/void`, { headers: await headers() });

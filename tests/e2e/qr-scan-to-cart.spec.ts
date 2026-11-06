@@ -98,7 +98,7 @@ test.describe('QR scan to cart', () => {
     await expect(page.getByTestId('scan-buy-now')).toBeEnabled();
   });
 
-  test('scans are recorded', async ({ page }) => {
+  test('opening a scanned book page sends a scan record containing that book\'s code', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
 
     const scanRequest = page.waitForRequest((r) => r.url().includes('/api/scans') && r.method() === 'POST');

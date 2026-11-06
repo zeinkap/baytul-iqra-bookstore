@@ -126,7 +126,7 @@ test.describe('Refunds: admin restock', () => {
     db.order.update({ where: { id: orderId }, data: { refundedAmount: amount, refundedAt: new Date() } });
   const stockOf = async (bookId: string) => (await db.book.findUniqueOrThrow({ where: { id: bookId } })).stock;
 
-  test('an unknown order is not found', async ({ request }) => {
+  test('restocking an order that does not exist returns 404', async ({ request }) => {
     expect((await restock(request, 'no-such-order')).status()).toBe(404);
   });
 

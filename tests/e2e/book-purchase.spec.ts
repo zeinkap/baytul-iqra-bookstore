@@ -26,7 +26,7 @@ test.describe('Book Purchase Flow', () => {
     testBook = await apiHelper.findInStockBook();
   });
 
-  test('should show email validation error when email is missing', async ({ cartPage, page }) => {
+  test('checking out without an email shows "Email is required." and stays on the cart', async ({ cartPage, page }) => {
     // Fast setup: Add to cart via localStorage instead of UI
     await setupCartViaLocalStorage(page, cartPage, [testBook]);
 
@@ -38,7 +38,7 @@ test.describe('Book Purchase Flow', () => {
     expect(await cartPage.isEmailErrorVisible()).toBe(true);
   });
 
-  test('should proceed to checkout with valid email and shipping', async ({ cartPage, page }) => {
+  test('checking out with a valid email and shipping leaves the cart for the Stripe checkout page', async ({ cartPage, page }) => {
     test.skip(!stripeTestMode, 'creating a Stripe Checkout session needs a Stripe test key');
     // Fast setup: Add to cart via localStorage instead of UI
     await setupCartViaLocalStorage(page, cartPage, [testBook]);
@@ -53,7 +53,7 @@ test.describe('Book Purchase Flow', () => {
     expect(page.url()).not.toContain('/cart');
   });
 
-  test('should complete full purchase flow from search to checkout', async ({ 
+  test('searching for a book, adding it and checking out for pickup leaves the cart for the Stripe checkout page', async ({ 
     homePage, 
     cartPage, 
     page 

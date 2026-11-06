@@ -22,7 +22,7 @@ test.describe('In-shop basket', () => {
     await expect(page.locator('header')).toHaveCount(0);
   });
 
-  test('quantity and remove work, and an empty basket says so', async ({ page }) => {
+  test('changing quantity updates the basket line, and removing the last book shows the empty-basket message', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
 
     await page.goto(`/b/${book.id}`);
@@ -54,7 +54,7 @@ test.describe('In-shop basket', () => {
     await expect(page.getByTestId('scan-buy-now')).toHaveCount(0);
   });
 
-  test('the basket survives a reload', async ({ page }) => {
+  test('a basket with one book still shows that book after a page reload', async ({ page }) => {
     const book = await initializeAPIHelper(page).findInStockBook();
 
     await page.goto(`/b/${book.id}`);
