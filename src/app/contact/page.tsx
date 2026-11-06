@@ -270,7 +270,7 @@ export default function ContactPage() {
                 <div className="space-y-6">
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-2">How long does shipping take?</h3>
-                    <p className="text-gray-600">Standard shipping within the United States typically takes 4-5 business days. The shipping fee is a flat $5 per order and is shown at checkout. Local pickup in Alpharetta, GA is free.</p>
+                    <p className="text-gray-600">Standard shipping within the United States typically takes 4-5 business days. The shipping fee is a flat $5 per order, free on orders of $60 or more, and is shown at checkout. Local pickup in Alpharetta, GA is free.</p>
                   </div>
                   <div>
                     <h3 className="font-semibold text-gray-900 mb-2">What payment methods do you accept?</h3>

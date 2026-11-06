@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useCart } from '@/components/CartProvider';
 import { toast } from 'react-hot-toast';
 import { useState, useEffect, use } from 'react';
+import { centsToFreeShipping, shippingCentsFor } from '@/lib/shipping';
 import Button from '@/components/Button';
 
 // Add type for book stock information
@@ -52,7 +53,9 @@ export default function CartPage({
   
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const shippingFee = fulfillmentType === 'shipping' ? 5 : 0;
+  // Flat $5, free from $60 of books (before any promo code)
+  const shippingFee = shippingCentsFor(Math.round(total * 100), fulfillmentType) / 100;
+  const awayFromFreeShipping = fulfillmentType === 'shipping' ? centsToFreeShipping(Math.round(total * 100)) / 100 : 0;
   const discountAmount = appliedPromoCode ? appliedPromoCode.discountAmount : 0;
   const grandTotal = total + shippingFee - discountAmount;
 
@@ -613,10 +616,17 @@ export default function CartPage({
                         <span>{fulfillmentType === 'pickup' ? 'Local Pickup:' : 'Shipping:'}</span>
                         {fulfillmentType === 'pickup' ? (
                           <span>Free (Alpharetta, GA)</span>
+                        ) : shippingFee === 0 ? (
+                          <span className="text-emerald-600 font-medium" data-testid="cart-shipping-free">Free</span>
                         ) : (
                           <span>$5 (flat rate)</span>
                         )}
                       </div>
+                      {fulfillmentType === 'shipping' && awayFromFreeShipping > 0 && (
+                        <p className="text-sm text-emerald-700" data-testid="cart-free-shipping-hint">
+                          Add ${awayFromFreeShipping.toFixed(2)} more for free shipping
+                        </p>
+                      )}
                       {appliedPromoCode && (
                         <div className="flex justify-between text-emerald-600">
                           <span>Discount ({appliedPromoCode.description}):</span>

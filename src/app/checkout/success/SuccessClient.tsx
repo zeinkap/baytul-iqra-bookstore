@@ -369,7 +369,12 @@ export default function SuccessClient({
                 {order.fulfillmentType === 'shipping' && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-600">Shipping</span>
-                    <span className="text-gray-900">$5.00</span>
+                    {/* What was charged on top of the books: free once the order reached the free-shipping line */}
+                    <span className="text-gray-900" data-testid="receipt-shipping">
+                      {Math.round((order.finalTotal - order.total + order.discountAmount) * 100) > 0
+                        ? formatCurrency(order.finalTotal - order.total + order.discountAmount)
+                        : 'Free'}
+                    </span>
                   </div>
                 )}
                 
