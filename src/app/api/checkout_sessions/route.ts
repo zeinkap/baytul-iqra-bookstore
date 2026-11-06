@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
 import { findStockProblems, stockProblemMessage } from '@/lib/stockManager';
 import { priceItems, discountForPromoId } from '@/lib/pricing';
+import { shippingCentsFor } from '@/lib/shipping';
 import { isAdminRequest } from '@/lib/adminAuth';
 import { normalizeLocation } from '@/lib/location';
 import { safeInShopCancelPath } from '@/lib/inShopOrders';
@@ -91,6 +92,14 @@ export async function POST(req: NextRequest) {
       quantity: item.quantity,
     }));
 
+    // Shipping is worked out from the books' value before any promo code, so a code can't take an order back under
+    // the free-shipping line (flat $5, free from $60)
+    const merchandiseCents = product_line_items.reduce(
+      (sum, item) => sum + (item.price_data?.unit_amount ?? 0) * (item.quantity ?? 0),
+      0
+    );
+    const shippingCents = shippingCentsFor(merchandiseCents, fulfillmentType);
+
     // Apply discount to product line items only (before adding shipping)
     if (promoCodeId) {
       try {
@@ -163,7 +172,7 @@ export async function POST(req: NextRequest) {
       console.log('Skipping shipping line item to prevent Stripe archiving - shipping cost will be included in product prices');
       
       // Add shipping cost to each product line item proportionally
-      const shippingCostCents = 500; // $5.00 shipping
+      const shippingCostCents = shippingCents;
       const totalProductValue = product_line_items.reduce((sum, item) => {
         if (item.price_data && item.price_data.unit_amount && item.quantity) {
           return sum + (item.price_data.unit_amount * item.quantity);
@@ -171,7 +180,7 @@ export async function POST(req: NextRequest) {
         return sum;
       }, 0);
       
-      if (totalProductValue > 0) {
+      if (totalProductValue > 0 && shippingCostCents > 0) {
         const shippingRatio = shippingCostCents / totalProductValue;
         
         line_items = product_line_items.map(item => {
@@ -281,6 +290,7 @@ export async function POST(req: NextRequest) {
           promoCodeId: promoCodeId || '',
           fulfillmentType,
           discountAmount: discountAmount ? String(discountAmount) : '0',
+          shippingCostCents: String(shippingCents),
           pickupLocation: pickupLocation || '',
           customerEmail: email || '',
           customerPhone: phone || '',
@@ -380,6 +390,7 @@ export async function POST(req: NextRequest) {
         promoCodeId: promoCodeId || '',
         fulfillmentType,
         discountAmount: discountAmount ? String(discountAmount) : '0',
+        shippingCostCents: String(shippingCents),
         pickupLocation: pickupLocation || '',
         source: inShop ? 'in-shop' : 'online',
         location: venue || '',

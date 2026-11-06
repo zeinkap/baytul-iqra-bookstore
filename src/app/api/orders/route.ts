@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import Stripe from 'stripe';
 import type { Prisma } from '@prisma/client';
 import { findStockProblems, stockProblemMessage } from '@/lib/stockManager';
+import { shippingCentsFor } from '@/lib/shipping';
 import { priceItems, discountForPromoId } from '@/lib/pricing';
 import { normalizeLocation } from '@/lib/location';
 import { toPublicOrder } from '@/lib/publicOrder';
@@ -142,7 +143,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: stockProblemMessage(stockProblems), stockProblems }, { status: 409 });
     }
     // Add shipping cost to final total if fulfillment type is shipping
-    const shippingCost = fulfillmentType === 'shipping' ? 5.00 : 0;
+    // Flat $5, free from $60 of books (counted before any promo code)
+    const shippingCost = shippingCentsFor(Math.round(total * 100), fulfillmentType) / 100;
     const finalTotal = total + shippingCost - discountAmount;
     
     const venue = normalizeLocation(location);
