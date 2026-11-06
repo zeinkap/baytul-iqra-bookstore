@@ -55,7 +55,7 @@ test.describe('Book page', () => {
   test('shows the shipping promise and not the date the book was added', async ({ page }) => {
     const book = await fx.book({ price: 20, stock: 3 });
     await page.goto(`/books/${book.id}`);
-    await expect(page.getByTestId('book-shipping-note')).toHaveText('Ships in 1-2 days. Free standard shipping on orders over $60');
+    await expect(page.getByTestId('book-shipping-note')).toHaveText('Orders are dispatched within 1-2 days. Free standard shipping on orders over $60');
     await expect(page.getByText('Availability')).toBeVisible();
     await expect(page.getByText('Added', { exact: true })).toHaveCount(0);
   });
