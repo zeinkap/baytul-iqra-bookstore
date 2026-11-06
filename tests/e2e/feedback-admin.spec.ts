@@ -19,18 +19,18 @@ test.describe('Book requests: admin', () => {
   };
   const statusOf = async (id: string) => (await db.feedback.findUniqueOrThrow({ where: { id } })).status;
 
-  test('a newly submitted book request starts with status "new"', async () => {
+  test('TC-178: a newly submitted book request starts with status "new"', async () => {
     expect((await request1()).status).toBe('new');
   });
 
-  test('without an admin session, changing or deleting a request returns 401 and leaves it unchanged', async ({ request }) => {
+  test('TC-179: without an admin session, changing or deleting a request returns 401 and leaves it unchanged', async ({ request }) => {
     const row = await request1();
     expect((await request.patch(`/api/admin/feedback/${row.id}`, { data: { status: 'fulfilled' } })).status()).toBe(401);
     expect((await request.delete(`/api/admin/feedback/${row.id}`)).status()).toBe(401);
     expect(await statusOf(row.id)).toBe('new');
   });
 
-  test('status can be set to new, in-progress or fulfilled (200); any other status is rejected (400) and an unknown request is 404', async ({ request }) => {
+  test('TC-180: status can be set to new, in-progress or fulfilled (200); any other status is rejected (400) and an unknown request is 404', async ({ request }) => {
     const row = await request1();
     for (const status of ['in-progress', 'fulfilled', 'new']) {
       const res = await request.patch(`/api/admin/feedback/${row.id}`, { headers: await headers(), data: { status } });
@@ -43,14 +43,14 @@ test.describe('Book requests: admin', () => {
     expect((await request.patch('/api/admin/feedback/does-not-exist', { headers: await headers(), data: { status: 'fulfilled' } })).status()).toBe(404);
   });
 
-  test('deleting a request removes it (200); deleting it again returns 404', async ({ request }) => {
+  test('TC-181: deleting a request removes it (200); deleting it again returns 404', async ({ request }) => {
     const row = await request1();
     expect((await request.delete(`/api/admin/feedback/${row.id}`, { headers: await headers() })).status()).toBe(200);
     expect(await db.feedback.findUnique({ where: { id: row.id } })).toBeNull();
     expect((await request.delete(`/api/admin/feedback/${row.id}`, { headers: await headers() })).status()).toBe(404);
   });
 
-  test('the page marks requests in progress and fulfilled, filters them and deletes them', async ({ page, context, baseURL }) => {
+  test('TC-182: the page marks requests in progress and fulfilled, filters them and deletes them', async ({ page, context, baseURL }) => {
     const tag = randomUUID().slice(0, 8);
     const row = await request1(`E2E page request ${tag}`);
     await context.addCookies([{ name: ADMIN_COOKIE, value: (await createSessionToken())!, url: baseURL! }]);

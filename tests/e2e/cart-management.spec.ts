@@ -23,7 +23,7 @@ test.describe('Cart Management', () => {
     apiHelper = initializeAPIHelper(page);
   });
 
-  test('adding two books shows both titles as two items in the cart', async ({ homePage, cartPage }) => {
+  test('TC-027: adding two books shows both titles as two items in the cart', async ({ homePage, cartPage }) => {
     const books = await apiHelper.findMultipleInStockBooks(2);
 
     await addMultipleBooksToCart(homePage, books);
@@ -36,7 +36,7 @@ test.describe('Cart Management', () => {
     expect(cartTitles).toContain(books[1].title);
   });
 
-  test('removing the only book from the cart shows the empty cart', async ({ cartPage, page }) => {
+  test('TC-028: removing the only book from the cart shows the empty cart', async ({ cartPage, page }) => {
     const testBook = await apiHelper.findInStockBook();
 
     // Fast setup: Add to cart via localStorage instead of UI
@@ -47,7 +47,7 @@ test.describe('Cart Management', () => {
     expect(await cartPage.isCartEmpty()).toBe(true);
   });
 
-  test('cart items are still there after navigating to other pages and back', async ({ homePage, cartPage }) => {
+  test('TC-029: cart items are still there after navigating to other pages and back', async ({ homePage, cartPage }) => {
     const testBook = await apiHelper.findInStockBook();
 
     await addBookToCart(homePage, testBook);

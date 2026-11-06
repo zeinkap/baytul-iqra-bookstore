@@ -8,7 +8,7 @@ import { VENUE_STEPS, boldSegments } from '../../src/lib/venueCopy';
  * src/lib/venueCopy.ts, so the steps checked here are exactly what the sign prints.
  */
 test.describe('Venue welcome', () => {
-  test('scanning a venue sign lands on the welcome page with the shared steps', async ({ page }) => {
+  test('TC-151: scanning a venue sign lands on the welcome page with the shared steps', async ({ page }) => {
     await page.goto('/v/test-cafe');
 
     await expect(page).toHaveURL(/\/venue\/welcome\?v=test-cafe/);
@@ -20,7 +20,7 @@ test.describe('Venue welcome', () => {
     await expect(page.locator('header')).toHaveCount(0);
   });
 
-  test('an invalid venue goes to the home page', async ({ page }) => {
+  test('TC-152: an invalid venue goes to the home page', async ({ page }) => {
     await page.goto('/v/Not%20A%20Venue!');
     await expect(page).toHaveURL(/\/$/);
   });

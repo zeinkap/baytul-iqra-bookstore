@@ -19,7 +19,7 @@ test.describe('Stock: order creation', () => {
   const createOrder = (request: import('@playwright/test').APIRequestContext, bookId: string, quantity: number) =>
     request.post('/api/orders', { data: { items: [{ id: bookId, quantity }], fulfillmentType: 'pickup' } });
 
-  test('buying more copies than are in stock is refused and creates no order', async ({ request }) => {
+  test('TC-049: buying more copies than are in stock is refused and creates no order', async ({ request }) => {
     const book = await fx.book({ stock: 2 });
     const res = await createOrder(request, book.id, 3);
     expect(res.status()).toBe(409);
@@ -28,14 +28,14 @@ test.describe('Stock: order creation', () => {
     expect(body.stockProblems).toEqual([expect.objectContaining({ id: book.id, requested: 3, available: 2 })]);
   });
 
-  test('a sold-out book cannot be ordered', async ({ request }) => {
+  test('TC-050: a sold-out book cannot be ordered', async ({ request }) => {
     const book = await fx.book({ stock: 0 });
     const res = await createOrder(request, book.id, 1);
     expect(res.status()).toBe(409);
     expect((await res.json()).error).toContain('just sold out');
   });
 
-  test('ordering exactly the remaining stock works, and creating the order does not take stock yet', async ({ request }) => {
+  test('TC-051: ordering exactly the remaining stock works, and creating the order does not take stock yet', async ({ request }) => {
     const book = await fx.book({ stock: 2 });
     const res = await createOrder(request, book.id, 2);
     expect(res.status()).toBe(201);
@@ -43,7 +43,7 @@ test.describe('Stock: order creation', () => {
     expect((await db.book.findUniqueOrThrow({ where: { id: book.id } })).stock).toBe(2);
   });
 
-  test('the same book on two lines counts together against stock', async ({ request }) => {
+  test('TC-052: the same book on two lines counts together against stock', async ({ request }) => {
     const book = await fx.book({ stock: 3 });
     const res = await request.post('/api/orders', {
       data: { items: [{ id: book.id, quantity: 2 }, { id: book.id, quantity: 2 }], fulfillmentType: 'pickup' },
@@ -51,7 +51,7 @@ test.describe('Stock: order creation', () => {
     expect(res.status()).toBe(409);
   });
 
-  test('invalid quantities are rejected', async ({ request }) => {
+  test('TC-053: invalid quantities are rejected', async ({ request }) => {
     const book = await fx.book({ stock: 5 });
     for (const quantity of [0, -1, 1.5, 100]) {
       expect((await createOrder(request, book.id, quantity)).status(), `quantity ${quantity}`).toBe(400);
@@ -89,7 +89,7 @@ test.describe('Stock: paid Stripe event', () => {
     return { orderId, send, stock };
   }
 
-  test('a paid event takes stock by the ordered quantity once, and a repeat delivery does not take it again', async ({ request }) => {
+  test('TC-054: a paid event takes stock by the ordered quantity once, and a repeat delivery does not take it again', async ({ request }) => {
     const { orderId, send, stock } = await paidEventFor(request);
 
     expect((await send()).status()).toBe(200);
@@ -101,14 +101,14 @@ test.describe('Stock: paid Stripe event', () => {
     expect(await stock()).toBe(4);
   });
 
-  test('two deliveries of the same event at the same moment take stock once', async ({ request }) => {
+  test('TC-055: two deliveries of the same event at the same moment take stock once', async ({ request }) => {
     const { send, stock } = await paidEventFor(request);
     const [a, b] = await Promise.all([send(), send()]);
     expect([a.status(), b.status()]).toEqual([200, 200]);
     expect(await stock()).toBe(4);
   });
 
-  test('stock already taken by another server instance (recorded in the database) is not taken again', async ({ request }) => {
+  test('TC-056: stock already taken by another server instance (recorded in the database) is not taken again', async ({ request }) => {
     // The in-memory shortcut can't know about other instances, so this must be decided by Order.stockUpdatedAt
     const { send, stock } = await paidEventFor(request, { stockTaken: true });
     expect((await send()).status()).toBe(200);

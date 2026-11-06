@@ -9,7 +9,7 @@ import { initializeAPIHelper } from '../helpers/test-workflows.helper';
  * from the database, so a tampered request can't underpay.
  */
 test.describe('Pricing integrity', () => {
-  test('a tampered price or total sent by the client is ignored: the saved order uses the real book price and title', async ({ page }) => {
+  test('TC-045: a tampered price or total sent by the client is ignored: the saved order uses the real book price and title', async ({ page }) => {
     const apiHelper = initializeAPIHelper(page);
     const book = await apiHelper.findInStockBook();
 
@@ -27,7 +27,7 @@ test.describe('Pricing integrity', () => {
     expect(saved.items[0].title).toBe(book.title);
   });
 
-  test('ordering a book id that does not exist is rejected with 409', async ({ page }) => {
+  test('TC-046: ordering a book id that does not exist is rejected with 409', async ({ page }) => {
     const response = await page.request.post('/api/orders', {
       data: {
         items: [{ id: 'does-not-exist', title: 'Nope', price: 1, quantity: 1 }],

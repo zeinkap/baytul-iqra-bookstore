@@ -17,7 +17,7 @@ test.describe('Book Detail Page', () => {
     apiHelper = initializeAPIHelper(page);
   });
 
-  test('adding an in-stock book from its detail page puts that book in the cart', async ({ 
+  test('TC-011: adding an in-stock book from its detail page puts that book in the cart', async ({ 
     bookDetailPage,
     cartPage 
   }) => {
@@ -43,7 +43,7 @@ test.describe('Book Detail Page', () => {
     expect(cartTitles).toContain(testBook.title);
   });
 
-  test('an out-of-stock book detail page shows it as out of stock and disables Add to cart', async ({ bookDetailPage }) => {
+  test('TC-012: an out-of-stock book detail page shows it as out of stock and disables Add to cart', async ({ bookDetailPage }) => {
     // Find a book that's out of stock
     let outOfStockBook;
     try {
@@ -72,7 +72,7 @@ test.describe('Book Detail Page', () => {
     expect(isDisabled).toBe(true);
   });
 
-  test('a book detail page shows the title, a dollar price and the author', async ({ bookDetailPage }) => {
+  test('TC-013: a book detail page shows the title, a dollar price and the author', async ({ bookDetailPage }) => {
     // Find a book that's in stock
     const testBook = await apiHelper.findInStockBook();
 

@@ -16,13 +16,13 @@ test.describe('from-session API: refusals', () => {
     await disconnect();
   });
 
-  test('a request without a session id is rejected', async ({ request }) => {
+  test('TC-064: a request without a session id is rejected', async ({ request }) => {
     const res = await request.post('/api/orders/from-session', { data: {} });
     expect(res.status()).toBe(400);
     expect((await res.json()).error).toBe('Missing sessionId');
   });
 
-  test('an unpaid session is refused and leaves the order untouched', async ({ request }) => {
+  test('TC-065: an unpaid session is refused and leaves the order untouched', async ({ request }) => {
     const book = await fx.book({ stock: 3 });
     const buy = await request.post('/api/in-shop/buy', { data: { items: [{ id: book.id, quantity: 1 }], location: 'e2e-from-session' } });
     const { url, orderId } = await buy.json();
@@ -37,7 +37,7 @@ test.describe('from-session API: refusals', () => {
     expect((await db.book.findUniqueOrThrow({ where: { id: book.id } })).stock).toBe(3);
   });
 
-  test('a session id Stripe does not know fails cleanly without creating an order', async ({ request }) => {
+  test('TC-066: a session id Stripe does not know fails cleanly without creating an order', async ({ request }) => {
     const before = await db.order.count();
     const res = await request.post('/api/orders/from-session', { data: { sessionId: 'cs_test_doesnotexist123' } });
     expect(res.status()).toBe(500);

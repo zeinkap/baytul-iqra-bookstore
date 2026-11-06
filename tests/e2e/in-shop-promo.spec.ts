@@ -17,7 +17,7 @@ test.describe('In-shop promo codes', () => {
   const check = (request: import('@playwright/test').APIRequestContext, data: unknown) => request.post('/api/in-shop/promo', { data });
 
   test.describe('checking a code', () => {
-    test('a percentage code is worked out from the in-person price, in cents', async ({ request }) => {
+    test('TC-227: a percentage code is worked out from the in-person price, in cents', async ({ request }) => {
       const book = await fx.book({ price: 15, inShopPrice: 12, stock: 5 });
       const promo = await fx.promo({ discountType: 'percentage', discountValue: 10 });
       const res = await check(request, { items: [{ id: book.id, quantity: 2 }], code: promo.code });
@@ -25,7 +25,7 @@ test.describe('In-shop promo codes', () => {
       expect(await res.json()).toEqual({ code: promo.code, subtotalCents: 2400, discountCents: 240, finalCents: 2160 });
     });
 
-    test('a fixed code is stored in cents, and the typed code ignores case and spaces', async ({ request }) => {
+    test('TC-227: a fixed code is stored in cents, and the typed code ignores case and spaces', async ({ request }) => {
       const book = await fx.book({ price: 20, stock: 5 });
       const promo = await fx.promo({ discountType: 'fixed', discountValue: 300 });
       const res = await check(request, { items: [{ id: book.id, quantity: 1 }], code: `  ${promo.code.toLowerCase()} ` });
@@ -33,7 +33,7 @@ test.describe('In-shop promo codes', () => {
       expect(await res.json()).toMatchObject({ discountCents: 300, finalCents: 1700 });
     });
 
-    test('unknown, expired and below-minimum codes are refused with a reason', async ({ request }) => {
+    test('TC-228: unknown, expired and below-minimum codes are refused with a reason', async ({ request }) => {
       const book = await fx.book({ price: 20, stock: 5 });
       const items = [{ id: book.id, quantity: 1 }];
 
@@ -52,7 +52,7 @@ test.describe('In-shop promo codes', () => {
       expect((await minimumRes.json()).error).toContain('Minimum order');
     });
 
-    test('a code that would leave less than Stripe can charge is refused', async ({ request }) => {
+    test('TC-229: a code that would leave less than Stripe can charge is refused', async ({ request }) => {
       const book = await fx.book({ price: 20, stock: 5 });
       const promo = await fx.promo({ discountType: 'percentage', discountValue: 100 });
       const res = await check(request, { items: [{ id: book.id, quantity: 1 }], code: promo.code });
@@ -60,7 +60,7 @@ test.describe('In-shop promo codes', () => {
       expect((await res.json()).error).toContain('below');
     });
 
-    test('an empty cart or an empty code is refused', async ({ request }) => {
+    test('TC-228: an empty cart or an empty code is refused', async ({ request }) => {
       const book = await fx.book({ stock: 5 });
       expect((await check(request, { items: [], code: 'X' })).status()).toBe(400);
       expect((await check(request, { items: [{ id: book.id, quantity: 1 }], code: '  ' })).status()).toBe(400);
@@ -70,7 +70,7 @@ test.describe('In-shop promo codes', () => {
   test.describe('with Stripe test mode', () => {
     test.skip(!stripeTestMode, 'needs STRIPE_SECRET_KEY to be a test-mode key');
 
-    test('Buy with a code: the order, the discount and the Stripe session all agree', async ({ request }) => {
+    test('TC-230: Buy with a code: the order, the discount and the Stripe session all agree', async ({ request }) => {
       const book = await fx.book({ price: 15, inShopPrice: 12, stock: 5 });
       const promo = await fx.promo({ discountType: 'percentage', discountValue: 10 });
       const res = await request.post('/api/in-shop/buy', { data: { items: [{ id: book.id, quantity: 2 }], promoCode: promo.code, location: 'e2e-promo' } });
@@ -93,14 +93,14 @@ test.describe('In-shop promo codes', () => {
       expect((await db.promoCode.findUniqueOrThrow({ where: { id: promo.id } })).currentUses).toBe(0);
     });
 
-    test('Buy with a bad code is refused and creates no order', async ({ request }) => {
+    test('TC-231: Buy with a bad code is refused and creates no order', async ({ request }) => {
       const book = await fx.book({ price: 20, stock: 5 });
       const res = await request.post('/api/in-shop/buy', { data: { items: [{ id: book.id, quantity: 1 }], promoCode: 'NO-SUCH-CODE', location: 'e2e-promo-bad' } });
       expect(res.status()).toBe(400);
       expect(await db.order.count({ where: { location: 'e2e-promo-bad' } })).toBe(0);
     });
 
-    test('with and without a code are different orders, and the same code reuses its order', async ({ request }) => {
+    test('TC-230: with and without a code are different orders, and the same code reuses its order', async ({ request }) => {
       const book = await fx.book({ price: 20, stock: 5 });
       const promo = await fx.promo({ discountType: 'fixed', discountValue: 200 });
       const items = [{ id: book.id, quantity: 1 }];
@@ -114,7 +114,7 @@ test.describe('In-shop promo codes', () => {
       expect((await db.order.findUniqueOrThrow({ where: { id: first.orderId } })).finalTotal).toBeCloseTo(18, 2);
     });
 
-    test('Apple Pay / Google Pay: the PaymentIntent is for the discounted amount', async ({ request }) => {
+    test('TC-232: Apple Pay / Google Pay: the PaymentIntent is for the discounted amount', async ({ request }) => {
       const book = await fx.book({ price: 20, stock: 5 });
       const promo = await fx.promo({ discountType: 'percentage', discountValue: 25 });
       const res = await request.post('/api/in-shop/payment-intent', { data: { items: [{ id: book.id, quantity: 1 }], promoCode: promo.code } });
@@ -130,7 +130,7 @@ test.describe('In-shop promo codes', () => {
       expect(order.promoCodeId).toBe(promo.id);
     });
 
-    test('Apple Pay / Google Pay with a bad code is refused before any payment starts', async ({ request }) => {
+    test('TC-231: Apple Pay / Google Pay with a bad code is refused before any payment starts', async ({ request }) => {
       const book = await fx.book({ price: 20, stock: 5 });
       const res = await request.post('/api/in-shop/payment-intent', { data: { items: [{ id: book.id, quantity: 1 }], promoCode: 'NO-SUCH-CODE' } });
       expect(res.status()).toBe(400);
@@ -138,7 +138,7 @@ test.describe('In-shop promo codes', () => {
   });
 
   test.describe('on the scan page and the basket', () => {
-    test('one code can be applied to a scanned book, shows in the pay button, and can be removed', async ({ page }) => {
+    test('TC-233: one code can be applied to a scanned book, shows in the pay button, and can be removed', async ({ page }) => {
       const book = await fx.book({ price: 20, stock: 5 });
       const promo = await fx.promo({ discountType: 'percentage', discountValue: 10 });
       await page.goto(`/b/${book.id}`);
@@ -163,7 +163,7 @@ test.describe('In-shop promo codes', () => {
       await expect(page.getByTestId('promo-input')).toBeVisible();
     });
 
-    test('the discount follows the quantity, and the code carries over to the basket', async ({ page }) => {
+    test('TC-233: the discount follows the quantity, and the code carries over to the basket', async ({ page }) => {
       const book = await fx.book({ price: 20, stock: 5 });
       const promo = await fx.promo({ discountType: 'percentage', discountValue: 10 });
       await page.goto(`/b/${book.id}`);
@@ -182,7 +182,7 @@ test.describe('In-shop promo codes', () => {
       await expect(page.getByTestId('basket-subtotal')).toContainText('$40.00');
     });
 
-    test('the basket takes a code too', async ({ page }) => {
+    test('TC-233: the basket takes a code too', async ({ page }) => {
       const book = await fx.book({ price: 20, stock: 5 });
       const promo = await fx.promo({ discountType: 'fixed', discountValue: 500 });
       await page.goto(`/b/${book.id}`);

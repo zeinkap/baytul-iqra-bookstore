@@ -33,7 +33,7 @@ async function openPaidReceipt(page: Page, orderId: string) {
 }
 
 test.describe('In-shop receipt', () => {
-  test('a paid receipt is focused: amount, time, short ref, no placeholders, shipping rows or navbar', async ({ page }) => {
+  test('TC-142: a paid receipt is focused: amount, time, short ref, no placeholders, shipping rows or navbar', async ({ page }) => {
     const { book, order } = await createInShopOrder(initializeAPIHelper(page));
 
     await openPaidReceipt(page, order.id);
@@ -49,7 +49,7 @@ test.describe('In-shop receipt', () => {
     await expect(page.getByRole('link', { name: 'Browse more books' })).toBeVisible();
   });
 
-  test('an unpaid order never shows "Paid" while the payment is being confirmed', async ({ page }) => {
+  test('TC-143: an unpaid order never shows "Paid" while the payment is being confirmed', async ({ page }) => {
     const { order } = await createInShopOrder(initializeAPIHelper(page));
 
     await page.goto(`/receipt?orderId=${order.id}&session_id=cs_test_not_paid_yet`);
@@ -62,7 +62,7 @@ test.describe('In-shop receipt', () => {
     await expect(page.getByTestId('receipt-wish')).toHaveCount(0);
   });
 
-  test('an unpaid order opened without a Stripe session is shown as processing, not paid', async ({ page }) => {
+  test('TC-144: an unpaid order opened without a Stripe session is shown as processing, not paid', async ({ page }) => {
     const { order } = await createInShopOrder(initializeAPIHelper(page));
 
     await page.goto(`/receipt?orderId=${order.id}`);
@@ -73,7 +73,7 @@ test.describe('In-shop receipt', () => {
     await expect(page.getByText('Paid ✓')).toHaveCount(0);
   });
 
-  test('"processing" turns into the paid receipt by itself once the payment is confirmed', async ({ page }) => {
+  test('TC-145: "processing" turns into the paid receipt by itself once the payment is confirmed', async ({ page }) => {
     const { order } = await createInShopOrder(initializeAPIHelper(page));
 
     let confirmed = false;
@@ -89,7 +89,7 @@ test.describe('In-shop receipt', () => {
     await expect(page.getByTestId('order-success-message')).toContainText('Paid', { timeout: 15_000 });
   });
 
-  test('the paid receipt shows a live clock and says the receipt was emailed; the resend API refuses unpaid orders', async ({ page }) => {
+  test('TC-146: the paid receipt shows a live clock and says the receipt was emailed; the resend API refuses unpaid orders', async ({ page }) => {
     const { order } = await createInShopOrder(initializeAPIHelper(page));
 
     await openPaidReceipt(page, order.id);
@@ -101,7 +101,7 @@ test.describe('In-shop receipt', () => {
     expect(response.status()).toBe(409);
   });
 
-  test('opening the receipt of an unpaid order never takes stock', async ({ page }) => {
+  test('TC-057: opening the receipt of an unpaid order never takes stock', async ({ page }) => {
     const apiHelper = initializeAPIHelper(page);
     const { book, order } = await createInShopOrder(apiHelper);
     const stockBefore = (await apiHelper.getBook(book.id)).stock;
@@ -113,7 +113,7 @@ test.describe('In-shop receipt', () => {
     expect((await apiHelper.getBook(book.id)).stock).toBe(stockBefore);
   });
 
-  test('customers can leave a book request on the receipt', async ({ page }) => {
+  test('TC-147: customers can leave a book request on the receipt', async ({ page }) => {
     const { order } = await createInShopOrder(initializeAPIHelper(page));
 
     await openPaidReceipt(page, order.id);
@@ -124,7 +124,7 @@ test.describe('In-shop receipt', () => {
     await expect(page.getByTestId('receipt-wish')).toContainText('Thank you');
   });
 
-  test('a paid receipt shows a "You might also like" section with book suggestions', async ({ page }) => {
+  test('TC-148: a paid receipt shows a "You might also like" section with book suggestions', async ({ page }) => {
     const { order } = await createInShopOrder(initializeAPIHelper(page));
 
     await openPaidReceipt(page, order.id);

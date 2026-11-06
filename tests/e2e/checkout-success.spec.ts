@@ -23,7 +23,7 @@ test.describe('Checkout Success Page', () => {
     testBook = await apiHelper.findInStockBook();
   });
 
-  test('success page for a pickup order shows a total equal to the book price (no shipping)', async ({ 
+  test('TC-041: success page for a pickup order shows a total equal to the book price (no shipping)', async ({ 
     checkoutSuccessPage,
     page 
   }) => {
@@ -60,7 +60,7 @@ test.describe('Checkout Success Page', () => {
     expect(displayedTotal).toBe(expectedTotal);
   });
 
-  test('success page for a shipping order shows the book price plus $5.00 shipping as the total', async ({ 
+  test('TC-042: success page for a shipping order shows the book price plus $5.00 shipping as the total', async ({ 
     checkoutSuccessPage,
     page 
   }) => {
@@ -106,7 +106,7 @@ test.describe('Checkout Success Page', () => {
     expect(displayedTotal).toBe(expectedTotal);
   });
 
-  test('success page shows the customer\'s email masked (never in full) and the pickup location, not a shipping address', async ({ 
+  test('TC-043: success page shows the customer\'s email masked (never in full) and the pickup location, not a shipping address', async ({ 
     checkoutSuccessPage,
     page 
   }) => {

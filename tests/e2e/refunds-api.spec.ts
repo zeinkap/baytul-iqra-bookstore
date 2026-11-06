@@ -21,7 +21,7 @@ test.describe('Refunds: recording', () => {
 
   const refundedOf = async (id: string) => db.order.findUniqueOrThrow({ where: { id }, select: { refundedAmount: true, refundedAt: true } });
 
-  test('a partial refund is stored and the order keeps its remaining value', async () => {
+  test('TC-092: a partial refund is stored and the order keeps its remaining value', async () => {
     const book = await fx.book({ price: 20 });
     const order = await fx.order(book, { paid: true });
 
@@ -33,7 +33,7 @@ test.describe('Refunds: recording', () => {
     expect(isFullyRefunded(updated!)).toBe(false);
   });
 
-  test('refunds are cumulative: a bigger total raises the amount and keeps the first refund time', async () => {
+  test('TC-093: refunds are cumulative: a bigger total raises the amount and keeps the first refund time', async () => {
     const book = await fx.book({ price: 20 });
     const order = await fx.order(book, { paid: true });
 
@@ -46,7 +46,7 @@ test.describe('Refunds: recording', () => {
     expect(second.refundedAt!.getTime()).toBe(first.refundedAt!.getTime());
   });
 
-  test('repeated or out-of-order Stripe events never lower or change the recorded refund', async () => {
+  test('TC-094: repeated or out-of-order Stripe events never lower or change the recorded refund', async () => {
     const book = await fx.book({ price: 20 });
     const order = await fx.order(book, { paid: true });
 
@@ -57,7 +57,7 @@ test.describe('Refunds: recording', () => {
     expect((await refundedOf(order.id)).refundedAmount).toBe(12);
   });
 
-  test('two events at the same moment end at the highest amount', async () => {
+  test('TC-095: two events at the same moment end at the highest amount', async () => {
     const book = await fx.book({ price: 20 });
     const order = await fx.order(book, { paid: true });
 
@@ -66,7 +66,7 @@ test.describe('Refunds: recording', () => {
     expect((await refundedOf(order.id)).refundedAmount).toBe(9);
   });
 
-  test('refunding the whole order marks it fully refunded', async () => {
+  test('TC-096: refunding the whole order marks it fully refunded', async () => {
     const book = await fx.book({ price: 20 });
     const order = await fx.order(book, { paid: true, quantity: 2 });
 
@@ -76,7 +76,7 @@ test.describe('Refunds: recording', () => {
     expect(netOrderTotal(updated!)).toBeCloseTo(0, 2);
   });
 
-  test('a refund for an order we do not have is ignored', async () => {
+  test('TC-097: a refund for an order we do not have is ignored', async () => {
     expect(await recordRefund('no-such-order', 5)).toBeNull();
   });
 });
@@ -84,7 +84,7 @@ test.describe('Refunds: recording', () => {
 test.describe('Refunds: charge.refunded webhook', () => {
   test.skip(!localDbAvailable || !webhookSecret, 'needs a local database and STRIPE_WEBHOOK_SECRET');
 
-  test('a signed refund with no payment attached is acknowledged and changes nothing', async ({ request }) => {
+  test('TC-098: a signed refund with no payment attached is acknowledged and changes nothing', async ({ request }) => {
     const { payload, header } = signedEvent('charge.refunded', { id: 'ch_e2e', object: 'charge', amount_refunded: 500, payment_intent: null });
     const res = await request.post('/api/stripe/webhook', {
       data: payload,
@@ -94,7 +94,7 @@ test.describe('Refunds: charge.refunded webhook', () => {
     expect(await res.json()).toMatchObject({ eventType: 'charge.refunded' });
   });
 
-  test('a refund signed with the wrong secret is refused', async ({ request }) => {
+  test('TC-099: a refund signed with the wrong secret is refused', async ({ request }) => {
     const { payload, header } = signedEvent(
       'charge.refunded',
       { id: 'ch_e2e', object: 'charge', amount_refunded: 500, payment_intent: 'pi_e2e' },
@@ -126,11 +126,11 @@ test.describe('Refunds: admin restock', () => {
     db.order.update({ where: { id: orderId }, data: { refundedAmount: amount, refundedAt: new Date() } });
   const stockOf = async (bookId: string) => (await db.book.findUniqueOrThrow({ where: { id: bookId } })).stock;
 
-  test('restocking an order that does not exist returns 404', async ({ request }) => {
+  test('TC-100: restocking an order that does not exist returns 404', async ({ request }) => {
     expect((await restock(request, 'no-such-order')).status()).toBe(404);
   });
 
-  test('an order that was never refunded cannot be restocked', async ({ request }) => {
+  test('TC-101: an order that was never refunded cannot be restocked', async ({ request }) => {
     const book = await fx.book({ stock: 3, price: 20 });
     const order = await fx.order(book, { paid: true });
     const res = await restock(request, order.id);
@@ -138,7 +138,7 @@ test.describe('Refunds: admin restock', () => {
     expect(await stockOf(book.id)).toBe(3);
   });
 
-  test('a partly refunded order cannot be restocked', async ({ request }) => {
+  test('TC-102: a partly refunded order cannot be restocked', async ({ request }) => {
     const book = await fx.book({ stock: 3, price: 20 });
     const order = await fx.order(book, { paid: true });
     await refundOrder(order.id, 5);
@@ -146,7 +146,7 @@ test.describe('Refunds: admin restock', () => {
     expect(await stockOf(book.id)).toBe(3);
   });
 
-  test('a fully refunded order puts its books back once', async ({ request }) => {
+  test('TC-103: a fully refunded order puts its books back once', async ({ request }) => {
     const book = await fx.book({ stock: 3, price: 20 });
     const order = await fx.order(book, { paid: true, quantity: 2 });
     await refundOrder(order.id, 40);
@@ -163,7 +163,7 @@ test.describe('Refunds: admin restock', () => {
     expect(await stockOf(book.id)).toBe(5);
   });
 
-  test('a double click restocks only once', async ({ request }) => {
+  test('TC-104: a double click restocks only once', async ({ request }) => {
     const book = await fx.book({ stock: 1, price: 20 });
     const order = await fx.order(book, { paid: true });
     await refundOrder(order.id, 20);
