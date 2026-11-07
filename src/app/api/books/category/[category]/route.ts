@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withoutPrivateFields } from '@/lib/publicBook';
 import { Category } from '@prisma/client';
 
 // GET /api/books/category/[category] - Get books by category
@@ -33,7 +34,7 @@ export async function GET(
     
     // Map categories to string[]
     const booksWithCategories = books.map(book => ({
-      ...book,
+      ...withoutPrivateFields(book),
       categories: (book.categories as Category[]).map((cat) => cat.name)
     }));
 
