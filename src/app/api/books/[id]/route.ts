@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/adminAuth';
+import { isAdminRequest, requireAdmin } from '@/lib/adminAuth';
+import { withoutPrivateFields } from '@/lib/publicBook';
 import { prisma } from '@/lib/prisma';
 import { Category } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
 import { normalizeIsbn } from '@/lib/isbn';
 
-// GET /api/books/[id] - Get a single book
+// GET /api/books/[id] - Get a single book (cost price and shipping cost are only included for a signed-in admin)
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -16,8 +17,9 @@ export async function GET(
     include: { categories: true }
   });
   if (!book) return NextResponse.json({ error: 'Book not found' }, { status: 404 });
+  const admin = await isAdminRequest(req);
   return NextResponse.json({
-    ...book,
+    ...(admin ? book : withoutPrivateFields(book)),
     categories: book.categories.map((cat: Category) => cat.name)
   }, {
     headers: {
