@@ -13,6 +13,8 @@
     "db:restore": "npx tsx scripts/restoreFromBackup.ts",
     "qr:venue-signs": "npx tsx scripts/generateVenueSigns.ts",
     "qr:generate": "npx tsx scripts/generateQrCodes.ts",
+    "qr:books": "set -a; . ./.env.production; set +a; BOOKS_ONLY=1 BASE_URL=${BASE_URL:-https://www.baytuliqra.com} npx tsx scripts/generateQrCodes.ts",
+    "qr:paintings": "set -a; . ./.env.production; set +a; CATEGORY=\"Names of Allah x Scenes of Nature\" BASE_URL=${BASE_URL:-https://www.baytuliqra.com} npx tsx scripts/generateQrCodes.ts",
     "db:sync-from-prod": "npx tsx scripts/syncProdToLocal.ts",
     "db:migrate": "npx prisma migrate dev",
     "db:seed-test": "npx tsx scripts/seedTestData.ts",

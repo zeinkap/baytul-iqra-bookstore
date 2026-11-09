@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ART_CATEGORY, ART_LABEL_TITLE, isArtCategory, isArtPiece, categoryWrites, withoutArt } from '@/lib/artCollection';
+import { ART_CATEGORY, ART_LABEL_TITLE, isArtCategory, isArtPiece, categoryWrites, withoutArt, slugify, artSlugs } from '@/lib/artCollection';
 
 /** Which catalog rows count as paintings from the Names of Allah x Scenes of Nature series (pure logic, no server or database). */
 describe('Names of Allah x Scenes of Nature collection', () => {
@@ -39,5 +39,24 @@ describe('Names of Allah x Scenes of Nature collection', () => {
       connectOrCreate: [{ where: { name: ART_CATEGORY }, create: { name: ART_CATEGORY } }],
     });
     expect(categoryWrites(['Seerah']).connectOrCreate).toEqual([]);
+  });
+});
+
+describe('art page addresses', () => {
+  it('slugifies titles', () => {
+    expect(slugify('As-Salaam')).toBe('as-salaam');
+    expect(slugify("Al-Rahman's Light!")).toBe('al-rahmans-light');
+    expect(slugify('???')).toBe('painting');
+  });
+
+  it('keeps slugs unique, oldest title keeps the plain one', () => {
+    const slugs = artSlugs([
+      { id: 'b', title: 'As-Salaam', createdAt: '2026-02-01' },
+      { id: 'a', title: 'as salaam', createdAt: '2026-01-01' },
+      { id: 'c', title: 'Al-Noor', createdAt: '2026-03-01' },
+    ]);
+    expect(slugs.get('a')).toBe('as-salaam');
+    expect(slugs.get('b')).toBe('as-salaam-2');
+    expect(slugs.get('c')).toBe('al-noor');
   });
 });
