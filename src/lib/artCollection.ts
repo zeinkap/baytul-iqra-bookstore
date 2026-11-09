@@ -8,6 +8,8 @@
  * pages can say "painting" instead of "book".
  */
 export const ART_CATEGORY = 'Names of Allah x Scenes of Nature';
+/** Short label for the site menu; the full collection name is shown on the collection page. */
+export const ART_NAV_LABEL = 'Art Canvases';
 export const ART_PATH = '/names-of-allah';
 /** Title printed on each painting's QR sticker (shorter than the collection title so it fits a 2 x 2 inch label). */
 export const ART_LABEL_TITLE = 'Names of Allah';
