@@ -6,6 +6,7 @@ import { htmlToText } from '@/lib/htmlToText';
 import ScanBook from './ScanBook';
 import ScanLogger from './ScanLogger';
 import { resolveVenue } from '@/lib/venue';
+import { ART_PATH, isArtPiece } from '@/lib/artCollection';
 import { unitPrice } from '@/lib/pricing';
 import BookSuggestions from '@/components/BookSuggestions';
 import { similarBooks, popularBooks, type Suggestion } from '@/lib/suggestions';
@@ -41,7 +42,17 @@ export default async function ScanBookPage({
     );
   }
 
+  const art = isArtPiece(book.categories);
+
   if (book.stock <= 0) {
+    if (art) {
+      // One-of-a-kind: a sold painting can't be restocked, so point to the rest of the series
+      return (
+        <Message code={code} location={location} title={`"${book.title}" has been sold`} suggestions={await similarBooks(book)} suggestionsTitle="Paintings still available" homeHref={ART_PATH} homeLabel="See the collection">
+          Thank you for your interest. This painting is one-of-a-kind and has found a home. Here are other pieces from the collection.
+        </Message>
+      );
+    }
     return (
       <Message code={code} location={location} title={`"${book.title}" is out of stock`} suggestions={await similarBooks(book)} suggestionsTitle="Similar books you can buy now">
         Sorry about that. These are similar and available right now.
@@ -55,6 +66,7 @@ export default async function ScanBookPage({
       <ScanBook
         location={location}
         code={book.isbn ?? book.id}
+        isArt={art}
         stock={book.stock}
         description={htmlToText(book.description)}
         ageRange={book.ageRange ?? undefined}
@@ -79,6 +91,8 @@ function Message({
   children,
   suggestions,
   suggestionsTitle,
+  homeHref = '/',
+  homeLabel = 'Browse all books',
 }: {
   code: string;
   location?: string;
@@ -86,6 +100,8 @@ function Message({
   children: React.ReactNode;
   suggestions: Suggestion[];
   suggestionsTitle: string;
+  homeHref?: string;
+  homeLabel?: string;
 }) {
   return (
     <main className="max-w-md mx-auto px-4 pt-3 pb-10 text-center">
@@ -101,8 +117,8 @@ function Message({
         <BookSuggestions title={suggestionsTitle} suggestions={suggestions} />
       </div>
 
-      <Link href="/" className="inline-block px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500">
-        Browse all books
+      <Link href={homeHref} className="inline-block px-6 py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-amber-500 to-orange-500">
+        {homeLabel}
       </Link>
     </main>
   );

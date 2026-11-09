@@ -8,6 +8,7 @@ import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
 import { useCart } from '@/components/CartProvider';
 import { toast } from 'react-hot-toast';
+import { ART_CATEGORY, ART_PATH, isArtPiece } from '@/lib/artCollection';
 import { ageLabel } from '@/lib/ageLabel';
 
 export type Book = {
@@ -30,6 +31,7 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
   const [selectedImageIdx, setSelectedImageIdx] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
   const { addToCart } = useCart();
+  const isArt = isArtPiece(book.categories);
 
   const isValidImageSrc = (src: unknown): src is string => {
     return (
@@ -127,14 +129,14 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
 
       {/* Header with enhanced back button */}
       <div className="max-w-7xl mx-auto px-4 py-6 lg:py-8">
-        <Link 
-          href="/" 
+        <Link
+          href={isArt ? ART_PATH : '/'}
           className="inline-flex items-center gap-3 bg-white/90 hover:bg-white border border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 px-6 py-3 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 mb-8 font-medium text-sm backdrop-blur-sm group cursor-pointer"
         >
           <svg className="w-5 h-5 transition-transform duration-200 group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Back to all books
+          {isArt ? `Back to ${ART_CATEGORY}` : 'Back to all books'}
         </Link>
         
         {/* Main content card with enhanced styling */}
@@ -355,7 +357,7 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
                       <div className={`text-sm font-medium ${
                         book.stock > 0 ? 'text-blue-700' : 'text-red-700'
                       }`}>
-                        {book.stock > 0 ? `${book.stock} in stock` : 'Out of stock'}
+                        {book.stock > 0 ? (isArt ? 'Available' : `${book.stock} in stock`) : isArt ? 'Sold' : 'Out of stock'}
                       </div>
                     </div>
                   </div>
@@ -366,8 +368,8 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
                         <path d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 11H9v-2h2v2zm0-4H9V7h2v2z" />
                       </svg>
                       <div>
-                        <div className="text-xs text-amber-600">Limited Stock</div>
-                        <div className="text-sm font-semibold text-amber-800">Last copy</div>
+                        <div className="text-xs text-amber-600">{isArt ? 'Original artwork' : 'Limited Stock'}</div>
+                        <div className="text-sm font-semibold text-amber-800">{isArt ? 'One-of-a-kind' : 'Last copy'}</div>
                       </div>
                     </div>
                   )}
@@ -381,7 +383,7 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
-                    About this book
+                    {isArt ? 'About this painting' : 'About this book'}
                   </h3>
                   <div 
                     className="text-gray-800 text-base leading-relaxed [&>p]:mb-4 [&>p:last-child]:mb-0 [&>p]:text-gray-800 prose prose-gray max-w-none" 
@@ -402,7 +404,7 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
               You May Also Like
             </h2>
             <p className="text-lg text-gray-600">
-              More books in the same category.
+              {isArt ? 'More paintings from the collection.' : 'More books in the same category.'}
             </p>
           </div>
           

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { ART_CATEGORY } from '@/lib/artCollection';
 
 // GET /api/books/categories - Get all unique book categories
 export async function GET() {
@@ -8,7 +9,8 @@ export async function GET() {
       select: { name: true },
       orderBy: { name: 'asc' },
     });
-    const categoryList = categories.map((c) => c.name);
+    // Always offer the art category in the admin's picker, even before the first painting creates it
+    const categoryList = [...new Set([...categories.map((c) => c.name), ART_CATEGORY])].sort((a, b) => a.localeCompare(b));
     return NextResponse.json(categoryList, {
       headers: {
         'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=7200', // 1 hour cache, 2 hours stale

@@ -9,6 +9,7 @@ import InShopPayButtons from "@/components/InShopPayButtons";
 import PromoCodeBox, { useInShopPromo } from "@/components/PromoCodeBox";
 import { ageLabel } from "@/lib/ageLabel";
 import { addToBasket, basketCount, useInShopBasket } from "@/lib/inShopBasket";
+import { ART_PATH } from "@/lib/artCollection";
 
 const PhotoViewer = dynamic(() => import("./PhotoViewer"), { ssr: false });
 
@@ -30,9 +31,12 @@ export default function ScanBook({
   ageRange,
   images,
   location,
+  isArt = false,
 }: {
   book: ScannedBook;
   code: string;
+  /** A painting from the Names of Allah x Scenes of Nature series: one-of-a-kind, so the copy says "painting" instead of "book". */
+  isArt?: boolean;
   stock: number;
   description?: string;
   ageRange?: string;
@@ -80,9 +84,9 @@ export default function ScanBook({
               onClick={() => setZoomOpen(true)}
               aria-label={`View larger photos of ${book.title}`}
               data-testid="scan-cover"
-              className="relative block mx-auto w-32 h-44 mb-3"
+              className={`relative block mx-auto mb-3 ${isArt ? "w-full max-w-[16rem] aspect-square" : "w-32 h-44"}`}
             >
-              <Image src={book.image} alt={book.title} fill sizes="128px" className="object-contain" priority />
+              <Image src={book.image} alt={book.title} fill sizes={isArt ? "256px" : "128px"} className="object-contain" priority />
               <span className="absolute bottom-1 right-1 px-2 py-0.5 rounded-full bg-black/60 text-white text-[10px] font-medium">
                 {gallery.length > 1 ? `Tap to enlarge · ${gallery.length} photos` : "Tap to enlarge"}
               </span>
@@ -147,10 +151,16 @@ export default function ScanBook({
             </button>
           </div>
         )}
-        {stock <= 3 && (
-          <p className="text-sm font-semibold text-amber-700 mb-3" data-testid="scan-low-stock">
-            {stock === 1 ? "Last copy!" : `Only ${stock} left`}
+        {isArt && stock === 1 ? (
+          <p className="text-sm font-semibold text-amber-700 mb-3" data-testid="scan-one-of-a-kind">
+            One-of-a-kind original
           </p>
+        ) : (
+          stock <= 3 && (
+            <p className="text-sm font-semibold text-amber-700 mb-3" data-testid="scan-low-stock">
+              {stock === 1 ? "Last copy!" : `Only ${stock} left`}
+            </p>
+          )
         )}
 
         {!basketMode && (
@@ -197,7 +207,7 @@ export default function ScanBook({
                   data-testid="scan-add-to-basket"
                   className="block mx-auto text-sm font-semibold text-emerald-700 underline"
                 >
-                  Buying more than one book? Add to basket
+                  {isArt ? "Buying more than one item? Add to basket" : "Buying more than one book? Add to basket"}
                 </button>
               </>
             )}
@@ -205,10 +215,10 @@ export default function ScanBook({
         </div>
 
         <p className="mt-4 text-xs text-gray-500" data-testid="scan-trust-note">
-          🔒 Secure checkout by Stripe. Apple Pay and Google Pay where available. Your receipt is emailed to you, and you can take your books with you right after paying.
+          🔒 Secure checkout by Stripe. Apple Pay and Google Pay where available. Your receipt is emailed to you, and you can take your {isArt ? "painting" : "books"} with you right after paying.
         </p>
-        <Link href="/" className="inline-block mt-3 text-sm text-gray-500 underline">
-          Browse more books
+        <Link href={isArt ? ART_PATH : "/"} className="inline-block mt-3 text-sm text-gray-500 underline">
+          {isArt ? "See the whole collection" : "Browse more books"}
         </Link>
       </div>
       {zoomOpen && <PhotoViewer open={zoomOpen} close={() => setZoomOpen(false)} images={gallery} alt={book.title} />}

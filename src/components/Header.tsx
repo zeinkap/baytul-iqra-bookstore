@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import CartIconBadge from './CartIconBadge';
 import { useWishlist } from './WishlistProvider';
 import { useState, useEffect } from 'react';
+import { ART_PATH } from '@/lib/artCollection';
 
 export default function Header({ categories }: { categories: string[] }) {
   // Sort categories: all except 'Other' alphabetically, then 'Other' last
@@ -151,6 +152,16 @@ export default function Header({ categories }: { categories: string[] }) {
                 </div>
               </div>
               <Link
+                href={ART_PATH}
+                className={`px-4 py-2.5 rounded-xl font-medium transition-all duration-200 text-sm ${
+                  isActive(ART_PATH)
+                    ? 'text-emerald-700 bg-emerald-50/80'
+                    : 'text-gray-700 hover:text-emerald-700 hover:bg-emerald-50'
+                }`}
+              >
+                Names of Allah x Scenes of Nature
+              </Link>
+              <Link
                 href="/contact"
                 className={`px-4 py-2.5 rounded-xl font-medium transition-all duration-200 text-sm ${
                   isActive('/contact')
@@ -284,6 +295,17 @@ export default function Header({ categories }: { categories: string[] }) {
                 )}
               </div>
             </div>
+            <Link
+              href={ART_PATH}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={`block px-3 py-2.5 rounded-lg font-medium transition-all duration-200 text-sm ${
+                isActive(ART_PATH)
+                  ? 'text-emerald-700 bg-emerald-50/80'
+                  : 'text-gray-700 hover:text-emerald-700 hover:bg-emerald-50/80'
+              }`}
+            >
+              Names of Allah x Scenes of Nature
+            </Link>
             <Link
               href="/contact"
               onClick={() => setIsMobileMenuOpen(false)}

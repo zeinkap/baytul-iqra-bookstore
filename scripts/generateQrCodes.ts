@@ -17,6 +17,10 @@
  * (see npm run qr:venue-signs). LOCATION=cafe-a is only for a set of books that stays at one venue: it adds
  * ?loc=cafe-a to every link and writes to qr-labels/cafe-a/.
  *
+ * CATEGORY: only print labels for one category, e.g. CATEGORY="Names of Allah x Scenes of Nature" for the paintings
+ * (they have no ISBN, so each QR uses the piece's id). Output goes to qr-labels/<category-slug>/. Paintings'
+ * stickers are titled "Names of Allah" (same 2 x 2 inch layout as the books); labels.csv keeps each real title.
+ *
  * Each QR encodes {BASE_URL}/b/<isbn>, falling back to the book id when a book
  * has no ISBN. Books with stock 0 are skipped unless INCLUDE_OUT_OF_STOCK=1.
  */
@@ -26,10 +30,14 @@ import QRCode from 'qrcode';
 import { buildLabelsPdf } from '../src/lib/labelPdf';
 import { prisma } from '../src/lib/prisma';
 import { normalizeLocation } from '../src/lib/location';
+import { ART_LABEL_TITLE, isArtPiece } from '../src/lib/artCollection';
 
 const baseUrl = (process.env.BASE_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? '').replace(/\/$/, '');
 const location = process.env.LOCATION ? normalizeLocation(process.env.LOCATION) : null;
-const outDir = path.resolve('qr-labels', location ?? '');
+// CATEGORY="Names of Allah x Scenes of Nature" prints stickers for just that category (the paintings), into qr-labels/names-of-allah-x-scenes-of-nature/
+const category = process.env.CATEGORY?.trim() || null;
+const categoryDir = category ? category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : '';
+const outDir = path.resolve('qr-labels', categoryDir, location ?? '');
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
@@ -44,9 +52,17 @@ async function main() {
   }
 
   const books = await prisma.book.findMany({
-    where: process.env.INCLUDE_OUT_OF_STOCK ? {} : { stock: { gt: 0 } },
+    where: {
+      ...(process.env.INCLUDE_OUT_OF_STOCK ? {} : { stock: { gt: 0 } }),
+      ...(category ? { categories: { some: { name: category } } } : {}),
+    },
+    include: { categories: { select: { name: true } } },
     orderBy: { title: 'asc' },
   });
+  if (category && books.length === 0) {
+    console.error(`No ${process.env.INCLUDE_OUT_OF_STOCK ? '' : 'in-stock '}items in category "${category}". Check the spelling or add pieces in the admin first.`);
+    process.exit(1);
+  }
   fs.mkdirSync(outDir, { recursive: true });
 
   const labels: string[] = [];
@@ -59,9 +75,10 @@ async function main() {
     // Error correction M: tolerates scuffs but keeps the pattern simple for small labels
     const svg = await QRCode.toString(url, { type: 'svg', errorCorrectionLevel: 'M', margin: 4 });
     fs.writeFileSync(path.join(outDir, `${code}.svg`), svg);
-    pdfLabels.push({ url, title: book.title });
+    const labelTitle = isArtPiece(book.categories) ? ART_LABEL_TITLE : book.title; // paintings share one short sticker title
+    pdfLabels.push({ url, title: labelTitle });
     csvRows.push([book.isbn ?? '', book.title, book.author, book.price.toFixed(2), url].map(csvCell).join(','));
-    labels.push(`<div class="label">${svg}<div class="t">${esc(book.title)}</div><div class="c">Scan to buy</div></div>`);
+    labels.push(`<div class="label">${svg}<div class="t">${esc(labelTitle)}</div><div class="c">Scan to buy</div></div>`);
   }
 
   const html = `<!doctype html><meta charset="utf-8"><title>Book QR labels</title>

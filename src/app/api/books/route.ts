@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { Category } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
 import { normalizeIsbn } from '@/lib/isbn';
+import { categoryWrites } from '@/lib/artCollection';
 
 // GET /api/books - List all books (cost price and shipping cost are only included for a signed-in admin)
 export async function GET(req: NextRequest) {
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
   const optionalCostPrice = costPrice !== undefined && typeof costPrice === 'number' && !Number.isNaN(costPrice) ? costPrice : undefined;
   const optionalShippingCost = shippingCost !== undefined && typeof shippingCost === 'number' && !Number.isNaN(shippingCost) ? shippingCost : undefined;
   // Connect to existing categories by name
-  const categoryConnect = categories.map((name: string) => ({ name }));
+  const categoryWrite = categoryWrites(categories.map(String));
   try {
     const book = await prisma.book.create({
       data: {
@@ -95,7 +96,7 @@ export async function POST(req: NextRequest) {
         format: normalizedFormat,
         ageRange: normalizedAgeRange,
         isbn: normalizedIsbn,
-        categories: { connect: categoryConnect },
+        categories: categoryWrite,
       },
       include: { categories: true }
     });
