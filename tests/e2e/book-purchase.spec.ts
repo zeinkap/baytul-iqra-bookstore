@@ -1,5 +1,5 @@
 import { test, expect } from '../fixtures/base-test';
-import { generateTestEmail } from '../fixtures/test-data';
+import { generateTestEmail, testCustomer } from '../fixtures/test-data';
 import { 
   initializeAPIHelper, 
   setupCartViaLocalStorage,
@@ -12,7 +12,7 @@ import { stripeTestMode } from '../helpers/money-path.helper';
  * End-to-End Test: Book Purchase Flow
  * 
  * This test suite covers critical purchase flow scenarios:
- * 1. Email validation (negative test) - OPTIMIZED: Uses localStorage for speed
+ * 1. Optional email: none is fine, a malformed one is rejected (negative test) - OPTIMIZED: Uses localStorage for speed
  * 2. Checkout with shipping (positive test) - OPTIMIZED: Uses localStorage for speed
  * 3. Complete purchase flow with pickup (comprehensive test) - Full UI flow to test entire journey
  */
@@ -26,16 +26,28 @@ test.describe('Book Purchase Flow', () => {
     testBook = await apiHelper.findInStockBook();
   });
 
-  test('TC-034: checking out without an email shows "Email is required." and stays on the cart', async ({ cartPage, page }) => {
-    // Fast setup: Add to cart via localStorage instead of UI
+  test('TC-034: checking out without an email is allowed and leaves the cart for the Stripe checkout page, which asks for it', async ({ cartPage, page }) => {
+    test.skip(!stripeTestMode, 'creating a Stripe Checkout session needs a Stripe test key');
     await setupCartViaLocalStorage(page, cartPage, [testBook]);
 
     await cartPage.selectShipping();
+    expect(await cartPage.emailInput.inputValue()).toBe('');
+    await cartPage.clickCheckout();
+    await waitForCheckoutNavigation(page);
+
+    expect(page.url()).not.toContain('/cart');
+  });
+
+  test('TC-035: checking out with a malformed email shows "Please enter a valid email address." and stays on the cart', async ({ cartPage, page }) => {
+    await setupCartViaLocalStorage(page, cartPage, [testBook]);
+
+    await cartPage.enterEmail(testCustomer.invalidEmail);
+    await cartPage.selectShipping();
     await cartPage.clickCheckout();
 
-    // Wait for and verify email validation error
-    await cartPage.page.locator('text="Email is required."').waitFor({ state: 'visible', timeout: 3000 });
+    await page.locator('text="Please enter a valid email address."').first().waitFor({ state: 'visible', timeout: 3000 });
     expect(await cartPage.isEmailErrorVisible()).toBe(true);
+    expect(page.url()).toContain('/cart');
   });
 
   test('TC-036: checking out with a valid email and shipping leaves the cart for the Stripe checkout page', async ({ cartPage, page }) => {

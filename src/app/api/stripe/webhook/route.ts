@@ -1,3 +1,4 @@
+import { nameFromCustomFields } from '@/lib/checkoutName';
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
@@ -278,7 +279,10 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   if (shippingAddress?.name) {
     customerName = shippingAddress.name;
   }
-  // Then try customer details name
+  // Then the name typed on the payment page (in-shop), then customer details name
+  else if (nameFromCustomFields(session)) {
+    customerName = nameFromCustomFields(session);
+  }
   else if (session.customer_details?.name) {
     customerName = session.customer_details.name;
   }
@@ -293,8 +297,8 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     productItems,
     totalCents,
     shippingAddress,
-    email: session.customer_details?.email || session.customer_email || undefined,
-    customerName: customerName,
+    email: session.customer_details?.email || session.customer_email || paymentInfo.billingEmail || undefined,
+    customerName: customerName || paymentInfo.billingName || undefined,
     source: session.metadata?.source === 'in-shop' ? 'in-shop' : 'online',
     location: session.metadata?.location || undefined,
     ...paymentInfo,

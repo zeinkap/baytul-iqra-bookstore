@@ -43,12 +43,18 @@ interface Order {
   email: string | null;
   customerName: string | null;
   source: string;
+  paidAt?: string | null;
   refundedAmount?: number | null;
   refundedAt?: string | null;
   restockedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
+
+// Orders are created before the customer pays, so one that was never paid has no name or email. paidAt only exists
+// from this date, so older orders (paid, but without it) are not called unpaid.
+const PAID_TRACKING_SINCE = new Date('2026-10-15T00:00:00Z');
+const isUnpaid = (order: { paidAt?: string | null; createdAt: string }) => !order.paidAt && new Date(order.createdAt) >= PAID_TRACKING_SINCE;
 
 interface Pagination {
   page: number;
@@ -557,6 +563,9 @@ export default function AdminOrdersPage() {
                       {order.source === 'in-shop' && (
                         <span className="ml-2 px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800">In shop</span>
                       )}
+                      {isUnpaid(order) && (
+                        <span className="ml-2 px-2 py-1 rounded text-xs font-medium bg-gray-200 text-gray-700" data-testid="unpaid-badge">Unpaid</span>
+                      )}
                       {order.refundedAt && (
                         <span className="ml-2 px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800" data-testid="refunded-badge">
                           {fullyRefunded(order) ? 'Refunded' : `Refunded $${(order.refundedAmount ?? 0).toFixed(2)}`}
@@ -666,6 +675,10 @@ export default function AdminOrdersPage() {
                 <div className="space-y-2 text-sm">
                   <p><strong>Order ID:</strong> <span className="font-mono text-xs">{selectedOrder.id}</span></p>
                   <p><strong>Date:</strong> {formatDate(selectedOrder.createdAt)}</p>
+                  <p>
+                    <strong>Payment:</strong>{' '}
+                    {selectedOrder.paidAt ? `Paid ${formatDate(selectedOrder.paidAt)}` : isUnpaid(selectedOrder) ? 'Not paid (the customer never finished paying, so there is no name or email)' : 'N/A'}
+                  </p>
                   <p><strong>Customer Name:</strong> {selectedOrder.customerName || 'N/A'}</p>
                   <p><strong>Email:</strong> {selectedOrder.email || 'N/A'}</p>
                   <p><strong>Fulfillment:</strong> {selectedOrder.fulfillmentType}</p>

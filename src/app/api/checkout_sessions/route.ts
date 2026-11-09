@@ -1,3 +1,4 @@
+import { NAME_CUSTOM_FIELD } from '@/lib/checkoutName';
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
@@ -377,11 +378,14 @@ export async function POST(req: NextRequest) {
       ...(fulfillmentType === 'shipping' && {
         shipping_address_collection: { allowed_countries: ['US', 'CA'] }
       }),
-      customer_email: email,
+      // Optional: when the cart has no email Stripe asks for it on its payment page (the webhook saves it from there)
+      customer_email: email || undefined,
       // In-shop checkouts expire after about half an hour: a stale link can't be paid after the book has moved on
       ...(inShop && { expires_at: Math.floor(Date.now() / 1000) + 31 * 60 }),
       // In-shop scans: keep checkout to email + payment (wallet-friendly), no billing address or phone
       billing_address_collection: inShop ? 'auto' : 'required', // 'required' collects customer name
+      // In-shop skips the billing address, so ask for the name directly
+      ...(inShop && { custom_fields: [NAME_CUSTOM_FIELD] }),
       phone_number_collection: {
         enabled: !inShop // Collect phone number for better customer support
       },

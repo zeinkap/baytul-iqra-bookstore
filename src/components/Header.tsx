@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import CartIconBadge from './CartIconBadge';
 import { useWishlist } from './WishlistProvider';
 import { useState, useEffect } from 'react';
-import { ART_PATH } from '@/lib/artCollection';
+import { ART_NAV_LABEL, ART_PATH } from '@/lib/artCollection';
 
 export default function Header({ categories }: { categories: string[] }) {
   // Sort categories: all except 'Other' alphabetically, then 'Other' last
@@ -159,7 +159,7 @@ export default function Header({ categories }: { categories: string[] }) {
                     : 'text-gray-700 hover:text-emerald-700 hover:bg-emerald-50'
                 }`}
               >
-                Names of Allah x Scenes of Nature
+                {ART_NAV_LABEL}
               </Link>
               <Link
                 href="/contact"
@@ -304,7 +304,7 @@ export default function Header({ categories }: { categories: string[] }) {
                   : 'text-gray-700 hover:text-emerald-700 hover:bg-emerald-50/80'
               }`}
             >
-              Names of Allah x Scenes of Nature
+              {ART_NAV_LABEL}
             </Link>
             <Link
               href="/contact"

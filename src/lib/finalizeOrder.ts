@@ -17,15 +17,23 @@ export function describePaymentMethod(method: Stripe.PaymentMethod): string | nu
 }
 
 /** The method type ("apple_pay", "google_pay", "link", "card"...) plus the customer-facing detail, from a Stripe payment method. */
-export function paymentMethodInfo(method: Stripe.PaymentMethod | null): { paymentMethod: string | null; paymentMethodDetail: string | null } {
-  if (!method) return { paymentMethod: null, paymentMethodDetail: null };
+export function paymentMethodInfo(method: Stripe.PaymentMethod | null): {
+  paymentMethod: string | null;
+  paymentMethodDetail: string | null;
+  // The name and email on the payment method: a fallback for when Checkout's own customer details come back empty
+  billingName: string | null;
+  billingEmail: string | null;
+} {
+  if (!method) return { paymentMethod: null, paymentMethodDetail: null, billingName: null, billingEmail: null };
   return {
     paymentMethod: method.type === 'card' ? (method.card?.wallet?.type ?? 'card') : method.type,
     paymentMethodDetail: describePaymentMethod(method),
+    billingName: method.billing_details?.name || null,
+    billingEmail: method.billing_details?.email || null,
   };
 }
 
-/** How the customer paid a Checkout Session, from Stripe (both fields null if it can't be read). */
+/** How the customer paid a Checkout Session, from Stripe (all fields null if it can't be read). */
 export async function checkoutPaymentMethodInfo(stripe: Stripe, session: Stripe.Checkout.Session) {
   try {
     const sessionIntent = session.payment_intent;
