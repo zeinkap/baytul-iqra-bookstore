@@ -32,8 +32,8 @@ TC-030,Cart,Cart,"Change quantity (+/-), quantity capped at stock",UI,Not covere
 TC-031,Cart,Cart,"Cart totals update (subtotal, shipping, tax)",UI,Not covered,,,High,
 TC-032,Cart,Cart,Cart survives a reload / corrupted localStorage,UI,Not covered,,,Low,
 TC-033,Cart,Cart,"Promo code applied in the cart UI (valid, invalid, removed)",UI,Not covered,,,High,"API tested, UI flow not"
-TC-034,Cart,Checkout,Missing email shows validation error,UI,Automated,tests/e2e/book-purchase.spec.ts,,,
-TC-035,Cart,Checkout,Invalid email format rejected,UI,Not covered,,,Medium,
+TC-034,Cart,Checkout,Checking out without an email is allowed (Stripe asks for it),UI,Automated,tests/e2e/book-purchase.spec.ts,Stripe test key,,
+TC-035,Cart,Checkout,Invalid email format rejected,UI,Automated,tests/e2e/book-purchase.spec.ts,,,
 TC-036,Cart,Checkout,Valid email + shipping proceeds to Stripe Checkout,UI,Automated,tests/e2e/book-purchase.spec.ts,Stripe test key,,
 TC-037,Cart,Checkout,"Full flow: search, add to cart, checkout",UI,Automated,tests/e2e/book-purchase.spec.ts,Stripe test key,,
 TC-038,Cart,Checkout,Pickup option (vs shipping) and shipping address required,UI,Not covered,,,High,

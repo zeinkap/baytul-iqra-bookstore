@@ -140,10 +140,10 @@ export class CartPage extends BasePage {
   }
 
   /**
-   * Check if email validation error is visible
+   * Check if the invalid-email error is visible (the email itself is optional, so only a malformed one is rejected)
    */
   async isEmailErrorVisible(): Promise<boolean> {
-    const errorText = this.page.locator('text="Email is required."');
+    const errorText = this.page.locator('text="Please enter a valid email address."').first();
     return errorText.isVisible();
   }
 

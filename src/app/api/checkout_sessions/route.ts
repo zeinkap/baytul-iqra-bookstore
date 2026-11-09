@@ -377,7 +377,8 @@ export async function POST(req: NextRequest) {
       ...(fulfillmentType === 'shipping' && {
         shipping_address_collection: { allowed_countries: ['US', 'CA'] }
       }),
-      customer_email: email,
+      // Optional: when the cart has no email Stripe asks for it on its payment page (the webhook saves it from there)
+      customer_email: email || undefined,
       // In-shop checkouts expire after about half an hour: a stale link can't be paid after the book has moved on
       ...(inShop && { expires_at: Math.floor(Date.now() / 1000) + 31 * 60 }),
       // In-shop scans: keep checkout to email + payment (wallet-friendly), no billing address or phone

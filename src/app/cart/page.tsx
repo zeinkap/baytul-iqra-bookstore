@@ -244,7 +244,7 @@ export default function CartPage({
               )}
               <div className="mb-2">
                 <label htmlFor="email" className="block text-gray-900 font-semibold mb-1">
-                  Email for order confirmation {!isInPersonSale && <span className="text-red-600">*</span>}
+                  Email for order confirmation <span className="text-gray-500 font-normal">(optional)</span>
                 </label>
                 <input
                   id="email"
@@ -254,17 +254,15 @@ export default function CartPage({
                     setEmail(e.target.value);
                     setEmailTouched(true);
                   }}
-                  required={!isInPersonSale}
                   placeholder={isInPersonSale ? "customer@email.com (optional)" : "you@example.com"}
                   className="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-400 placeholder-gray-700 text-gray-900"
                   onBlur={() => setEmailTouched(true)}
                   data-testid="cart-email-input"
                 />
-                {emailTouched && !email && !isInPersonSale && (
-                  <p className="text-red-600 text-sm mt-1">Email is required.</p>
-                )}
-                {isInPersonSale && (
+                {isInPersonSale ? (
                   <p className="text-gray-500 text-sm mt-1">Optional for in-person sales</p>
+                ) : (
+                  <p className="text-gray-500 text-sm mt-1">You can also enter it on the secure payment page.</p>
                 )}
                 {emailTouched && email && !/^\S+@\S+\.\S+$/.test(email) && (
                   <p className="text-red-600 text-sm mt-1">Please enter a valid email address.</p>
@@ -718,37 +716,17 @@ export default function CartPage({
                       onClick={async () => {
                         setLoading(true);
                         try {
-                          // Email validation before proceeding (only for online checkout)
-                          if (!isInPersonSale) {
+                          // The email is optional (Stripe asks for it on the payment page), but if one was typed it must look valid
+                          if (!isInPersonSale && email && !/^\S+@\S+\.\S+$/.test(email)) {
                             setEmailTouched(true);
-                            if (!email) {
-                              toast.error('Please enter your email.');
-                              setLoading(false);
-                              // Scroll to email field
-                              const emailField = document.getElementById('email');
-                              if (emailField) {
-                                emailField.scrollIntoView({ 
-                                  behavior: 'smooth', 
-                                  block: 'center' 
-                                });
-                                emailField.focus();
-                              }
-                              return;
+                            toast.error('Please enter a valid email address.');
+                            setLoading(false);
+                            const emailField = document.getElementById('email');
+                            if (emailField) {
+                              emailField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                              emailField.focus();
                             }
-                            if (!/^\S+@\S+\.\S+$/.test(email)) {
-                              toast.error('Please enter a valid email address.');
-                              setLoading(false);
-                              // Scroll to email field
-                              const emailField = document.getElementById('email');
-                              if (emailField) {
-                                emailField.scrollIntoView({ 
-                                  behavior: 'smooth', 
-                                  block: 'center' 
-                                });
-                                emailField.focus();
-                              }
-                              return;
-                            }
+                            return;
                           }
                           // 1. Create order in DB
                           const orderRes = await fetch('/api/orders', {
@@ -760,7 +738,7 @@ export default function CartPage({
                               fulfillmentType,
                               pickupLocation: inShopMode ? 'In shop' : fulfillmentType === 'pickup' ? 'Alpharetta, GA' : undefined,
                               source: inShopMode ? 'in-shop' : 'online',
-                              email,
+                              email: email || undefined,
                               promoCodeId: appliedPromoCode?.id,
                               discountAmount: appliedPromoCode?.discountAmount || 0,
                               // Add shippingAddress here if you collect it
@@ -807,7 +785,7 @@ export default function CartPage({
                                 items: cart, 
                                 fulfillmentType, 
                                 orderId, 
-                                email,
+                                email: email || undefined,
                                 promoCodeId: appliedPromoCode?.id,
                                 discountAmount: appliedPromoCode?.discountAmount || 0,
                                 pickupLocation: inShopMode ? 'In shop' : fulfillmentType === 'pickup' ? 'Alpharetta, GA' : undefined,
