@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Select, { MultiValue } from 'react-select';
-import { ART_CATEGORY } from "@/lib/artCollection";
+import { ART_ARTIST, ART_CATEGORY, isArtPiece } from "@/lib/artCollection";
 
 // Book type
 interface Book {
@@ -292,6 +292,9 @@ export default function AdminBooksPage() {
     }
   }
   
+  // Picking the art category (or editing a painting) switches the form to painting fields: no author, ISBN or age range
+  const isPaintingForm = isArtPiece(form.categories);
+
   // Helper to map categories to react-select format
   type Option = { value: string; label: string };
   const categoryOptions: Option[] = categories.map((c) => ({ value: c, label: c }));
@@ -341,6 +344,8 @@ export default function AdminBooksPage() {
       const shippingCostVal = form.shippingCost as unknown;
       const body = {
         ...form,
+        // Paintings have no author/ISBN/age range in the form: the API still needs an author, so use the artist default
+        ...(isPaintingForm && { author: form.author?.trim() || ART_ARTIST, ageRange: "", isbn: "" }),
         images: finalImages,
         inShopPrice: inShopPriceVal !== undefined && inShopPriceVal !== null && inShopPriceVal !== "" && Number(inShopPriceVal) > 0 ? Number(inShopPriceVal) : null,
         costPrice: costPriceVal !== undefined && costPriceVal !== "" && !Number.isNaN(Number(costPriceVal)) ? Number(costPriceVal) : null,
@@ -618,7 +623,7 @@ export default function AdminBooksPage() {
           onSubmit={handleSubmit}
           className="bg-gray-50 border border-gray-200 rounded-xl shadow p-6 mb-8 flex flex-col gap-4"
         >
-          <h2 className="text-xl font-bold mb-2">{editingBook ? "Edit Book" : "Add New Book"}</h2>
+          <h2 className="text-xl font-bold mb-2">{isPaintingForm ? (editingBook ? "Edit Painting" : "Add Painting") : editingBook ? "Edit Book" : "Add New Book"}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block font-medium mb-1">
@@ -626,18 +631,22 @@ export default function AdminBooksPage() {
               </label>
               <input name="title" value={form.title || ""} onChange={handleFormChange} required className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
+            {!isPaintingForm && (
             <div>
               <label className="block font-medium mb-1">
                 Author <span className="text-red-500">*</span>
               </label>
               <input name="author" value={form.author || ""} onChange={handleFormChange} required className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
+            )}
             <div>
               <label className="block font-medium mb-1">
-                Format <span className="text-gray-500 font-normal">(optional)</span>
+                {isPaintingForm ? "Medium & size" : "Format"} <span className="text-gray-500 font-normal">(optional)</span>
               </label>
-              <input name="format" value={form.format || ""} onChange={handleFormChange} className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="e.g., Paperback, Hardcover" />
+              <input name="format" value={form.format || ""} onChange={handleFormChange} className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder={isPaintingForm ? "e.g., Acrylic on wood, 12 x 12 in" : "e.g., Paperback, Hardcover"} />
             </div>
+            {!isPaintingForm && (
+            <>
             <div>
               <label className="block font-medium mb-1">
                 Age Range <span className="text-gray-500 font-normal">(optional)</span>
@@ -650,6 +659,8 @@ export default function AdminBooksPage() {
               </label>
               <input name="isbn" value={form.isbn || ""} onChange={handleFormChange} className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="e.g., 978-0-14-312779-6" />
             </div>
+            </>
+            )}
             <div className="md:col-span-2">
               <label className="block font-medium mb-1">
                 Description <span className="text-red-500">*</span>
@@ -682,7 +693,9 @@ export default function AdminBooksPage() {
               <button type="button" onClick={handleAddImageField} className="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded">Add Image</button>
             </div>
             <div>
-              <label className="block font-medium mb-1">Stock</label>
+              <label className="block font-medium mb-1">
+                Stock {isPaintingForm && <span className="text-gray-500 font-normal">(1 = one-of-a-kind; 0 shows as Sold)</span>}
+              </label>
               <input name="stock" type="number" value={form.stock || 0} onChange={handleFormChange} min={0} className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" />
             </div>
             <div>
@@ -708,7 +721,7 @@ export default function AdminBooksPage() {
               <label className="block font-medium mb-1">
                 Shipping Cost <span className="text-gray-500 font-normal">(optional)</span>
               </label>
-              <input name="shippingCost" type="number" step="0.01" value={form.shippingCost || ""} onChange={handleFormChange} min={0} className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Estimate shipping cost per book" />
+              <input name="shippingCost" type="number" step="0.01" value={form.shippingCost || ""} onChange={handleFormChange} min={0} className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 placeholder-gray-500 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder={isPaintingForm ? "Estimate shipping cost for this painting" : "Estimate shipping cost per book"} />
             </div>
             <div>
               <label className="block font-medium mb-1">
@@ -724,6 +737,7 @@ export default function AdminBooksPage() {
                 placeholder="Select categories..."
               />
             </div>
+            {!isPaintingForm && (
             <div className="md:col-span-2">
               <label className="flex items-center gap-2">
                 <input
@@ -736,6 +750,7 @@ export default function AdminBooksPage() {
                 <span className="font-medium">Mark as Bestseller</span>
               </label>
             </div>
+            )}
           </div>
           <div className="flex gap-3 mt-4">
             <button
@@ -743,7 +758,7 @@ export default function AdminBooksPage() {
               disabled={loading}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold shadow transition disabled:opacity-60"
             >
-              {editingBook ? "Update Book" : "Add Book"}
+              {isPaintingForm ? (editingBook ? "Update Painting" : "Add Painting") : editingBook ? "Update Book" : "Add Book"}
             </button>
             <button
               type="button"

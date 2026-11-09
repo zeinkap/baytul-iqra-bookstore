@@ -12,6 +12,9 @@ export const ART_PATH = '/names-of-allah';
 /** Title printed on each painting's QR sticker (shorter than the collection title so it fits a 2 x 2 inch label). */
 export const ART_LABEL_TITLE = 'Names of Allah';
 
+/** Shown as the artist on paintings (the admin's painting form has no author field). Change here to rename. */
+export const ART_ARTIST = 'Baytul Iqra';
+
 type CategoryLike = string | { name: string };
 
 /** Case-insensitive, and tolerant of extra spaces typed in the admin. */
