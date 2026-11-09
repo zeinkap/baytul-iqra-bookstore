@@ -202,7 +202,12 @@ export async function POST(req: NextRequest) {
     if (existing) {
       // Same finalizing the webhook does (paid time, payment method, name, email + receipt), in case the
       // webhook is slow or never reached us. Only fills fields that are still empty.
-      existing = (await finalizePaidOrder(orderId, { email, customerName, ...(await checkoutPaymentMethodInfo(stripe, session)) }, after)) ?? existing;
+      const paymentInfo = await checkoutPaymentMethodInfo(stripe, session);
+      existing = (await finalizePaidOrder(orderId, {
+        email: email || paymentInfo.billingEmail,
+        customerName: customerName || paymentInfo.billingName,
+        ...paymentInfo,
+      }, after)) ?? existing;
 
       // Check if existing order is missing customer information
       const needsUpdate = !existing.customerName || !existing.shippingAddress || !existing.email;

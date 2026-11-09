@@ -248,3 +248,7 @@ TC-246,Admin,Book data privacy,A signed-in admin still gets costs from the books
 TC-247,Storefront,Book data privacy,Public book data drops costs and keeps what customers see,Unit,Automated,tests/unit/public-book.test.ts,,,
 TC-248,Storefront,Book page,"Shows the age range as a badge (""Ages 4-7""; wording like ""All ages"" kept) and no badge when there is none",UI,Automated,tests/e2e/book-age-badge.spec.ts,Local DB,,
 TC-249,Storefront,Book page,"Age label wording for numeric ranges, ""All ages"" and empty values",Unit,Automated,tests/unit/age-label.test.ts,,,
+TC-250,Orders,Customer details,Name and email on the payment method are read as a fallback for paid orders,Unit,Automated,tests/unit/payment-method-info.test.ts,,,
+TC-251,Orders,Customer details,Empty billing details come back as null and cannot overwrite a saved name or email,Unit,Automated,tests/unit/payment-method-info.test.ts,,,
+TC-252,Orders,Customer details,A wallet payment still reports the wallet as the method,Unit,Automated,tests/unit/payment-method-info.test.ts,,,
+TC-253,Admin,Orders,Unpaid orders are marked Unpaid in the orders list and say so in the detail view; paid ones are not,UI,Automated,tests/e2e/admin-orders-unpaid.spec.ts,Local DB + ADMIN_PASSWORD,,
