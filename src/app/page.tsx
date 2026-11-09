@@ -22,7 +22,7 @@ export type Book = {
 
 export default async function HomePage() {
   const [allBooks, allCategories]: [Book[], string[]] = await Promise.all([getCatalogBooks(), getCatalogCategories()]);
-  // Paintings live on /allahs-names, not in the book grid
+  // Paintings live on /names-of-allah, not in the book grid
   const books = withoutArt(allBooks);
   const categories = allCategories.filter((c) => !isArtCategory(c));
 

@@ -2,15 +2,15 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { getCatalogBooks } from '@/lib/catalog';
-import { isArtPiece } from '@/lib/artCollection';
+import { ART_CATEGORY, isArtPiece } from '@/lib/artCollection';
 
 export const metadata: Metadata = {
-  title: "Allah's Names | Baytul Iqra",
-  description: "Handmade acrylic paintings on wood, one for each of the Names of Allah. Every piece is one-of-a-kind.",
+  title: `${ART_CATEGORY} | Baytul Iqra`,
+  description: "Handmade acrylic paintings on wood, the Names of Allah set against scenes of nature. Every piece is one-of-a-kind.",
 };
 
-/** The art series: each painting is a catalog item in the "Allah's Names" category (see src/lib/artCollection.ts). */
-export default async function AllahsNamesPage() {
+/** The art series: each painting is a catalog item in the ART_CATEGORY category (see src/lib/artCollection.ts). */
+export default async function NamesOfAllahPage() {
   const pieces = (await getCatalogBooks()).filter((b) => isArtPiece(b.categories));
   // Available pieces first, then sold ones (kept visible so visitors see the whole series)
   const sorted = [...pieces].sort((a, b) => Number(b.stock > 0) - Number(a.stock > 0));
@@ -20,9 +20,9 @@ export default async function AllahsNamesPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
         <header className="max-w-2xl mx-auto text-center mb-8 sm:mb-12">
           <p className="text-sm font-semibold text-emerald-700 mb-2">Handmade art collection</p>
-          <h1 className="text-3xl sm:text-5xl font-bold text-gray-900 mb-4" data-testid="art-collection-title">Allah&apos;s Names</h1>
+          <h1 className="text-3xl sm:text-5xl font-bold text-gray-900 mb-4" data-testid="art-collection-title">{ART_CATEGORY}</h1>
           <p className="text-gray-600 sm:text-lg leading-relaxed">
-            Hand-painted acrylic on wood, one painting for each of the Names of Allah. Every piece is original and
+            Hand-painted acrylic on wood: the Names of Allah set against scenes of nature. Every piece is original and
             one-of-a-kind, so when it&apos;s gone, it&apos;s gone.
           </p>
         </header>

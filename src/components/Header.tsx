@@ -159,7 +159,7 @@ export default function Header({ categories }: { categories: string[] }) {
                     : 'text-gray-700 hover:text-emerald-700 hover:bg-emerald-50'
                 }`}
               >
-                Allah&apos;s Names
+                Names of Allah x Scenes of Nature
               </Link>
               <Link
                 href="/contact"
@@ -304,7 +304,7 @@ export default function Header({ categories }: { categories: string[] }) {
                   : 'text-gray-700 hover:text-emerald-700 hover:bg-emerald-50/80'
               }`}
             >
-              Allah&apos;s Names
+              Names of Allah x Scenes of Nature
             </Link>
             <Link
               href="/contact"

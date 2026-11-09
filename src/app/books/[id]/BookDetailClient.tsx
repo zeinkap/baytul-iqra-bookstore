@@ -7,7 +7,7 @@ import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
 import { useCart } from '@/components/CartProvider';
 import { toast } from 'react-hot-toast';
-import { ART_PATH, isArtPiece } from '@/lib/artCollection';
+import { ART_CATEGORY, ART_PATH, isArtPiece } from '@/lib/artCollection';
 
 export type Book = {
   id: string;
@@ -133,7 +133,7 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
           <svg className="w-5 h-5 transition-transform duration-200 group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          {isArt ? "Back to Allah's Names" : 'Back to all books'}
+          {isArt ? `Back to ${ART_CATEGORY}` : 'Back to all books'}
         </Link>
         
         {/* Main content card with enhanced styling */}

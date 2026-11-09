@@ -1,15 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { ART_CATEGORY, isArtCategory, isArtPiece, withoutArt } from '@/lib/artCollection';
+import { ART_CATEGORY, ART_LABEL_TITLE, isArtCategory, isArtPiece, withoutArt } from '@/lib/artCollection';
 
-/** Which catalog rows count as paintings from the Allah's Names series (pure logic, no server or database). */
-describe("Allah's Names collection", () => {
-  it('recognises the category regardless of case or apostrophe style', () => {
+/** Which catalog rows count as paintings from the Names of Allah x Scenes of Nature series (pure logic, no server or database). */
+describe('Names of Allah x Scenes of Nature collection', () => {
+  it('recognises the category regardless of case or extra spaces', () => {
     expect(isArtCategory(ART_CATEGORY)).toBe(true);
-    expect(isArtCategory("allah's names")).toBe(true);
-    expect(isArtCategory('Allah’s Names')).toBe(true); // curly apostrophe from a phone keyboard
-    expect(isArtCategory(' Allah’s Names ')).toBe(true);
+    expect(isArtCategory('names of allah x scenes of nature')).toBe(true);
+    expect(isArtCategory('  Names of Allah  x Scenes of Nature ')).toBe(true);
     expect(isArtCategory('Seerah')).toBe(false);
-    expect(isArtCategory('Allahs Names')).toBe(false);
+    expect(isArtCategory('Names of Allah')).toBe(false);
+  });
+
+  it('prints a short title on the 2 x 2 inch stickers', () => {
+    expect(ART_LABEL_TITLE).toBe('Names of Allah');
   });
 
   it('treats an item as art when any of its categories is the series', () => {

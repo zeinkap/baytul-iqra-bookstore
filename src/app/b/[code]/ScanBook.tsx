@@ -33,7 +33,7 @@ export default function ScanBook({
 }: {
   book: ScannedBook;
   code: string;
-  /** A painting from the Allah's Names series: one-of-a-kind, so the copy says "painting" instead of "book". */
+  /** A painting from the Names of Allah x Scenes of Nature series: one-of-a-kind, so the copy says "painting" instead of "book". */
   isArt?: boolean;
   stock: number;
   description?: string;
