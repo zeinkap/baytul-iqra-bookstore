@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ART_CATEGORY, ART_LABEL_TITLE, isArtCategory, isArtPiece, withoutArt } from '@/lib/artCollection';
+import { ART_CATEGORY, ART_LABEL_TITLE, isArtCategory, isArtPiece, categoryWrites, withoutArt } from '@/lib/artCollection';
 
 /** Which catalog rows count as paintings from the Names of Allah x Scenes of Nature series (pure logic, no server or database). */
 describe('Names of Allah x Scenes of Nature collection', () => {
@@ -31,5 +31,13 @@ describe('Names of Allah x Scenes of Nature collection', () => {
       { title: 'Book B', categories: [] },
     ];
     expect(withoutArt(rows).map((r) => r.title)).toEqual(['Book A', 'Book B']);
+  });
+
+  it('creates the art category on first use but only connects ordinary ones', () => {
+    expect(categoryWrites(['Seerah', 'names of allah x scenes of nature'])).toEqual({
+      connect: [{ name: 'Seerah' }],
+      connectOrCreate: [{ where: { name: ART_CATEGORY }, create: { name: ART_CATEGORY } }],
+    });
+    expect(categoryWrites(['Seerah']).connectOrCreate).toEqual([]);
   });
 });

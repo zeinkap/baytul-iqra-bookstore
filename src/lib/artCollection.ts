@@ -26,6 +26,18 @@ export function isArtPiece(categories: CategoryLike[] | null | undefined): boole
   return (categories ?? []).some((c) => isArtCategory(typeof c === 'string' ? c : c.name));
 }
 
+/**
+ * Prisma category writes for a book's category names. Ordinary categories must already exist (typos shouldn't
+ * invent new ones), but the art category is created on first use so it can be picked in the admin straight away.
+ */
+export function categoryWrites(names: string[]) {
+  const canonical = names.map((n) => (isArtCategory(n) ? ART_CATEGORY : n));
+  return {
+    connect: canonical.filter((n) => n !== ART_CATEGORY).map((name) => ({ name })),
+    connectOrCreate: canonical.filter((n) => n === ART_CATEGORY).map((name) => ({ where: { name }, create: { name } })),
+  };
+}
+
 /** The books-only catalog (home page, hero, category menu): the art has its own page. */
 export function withoutArt<T extends { categories: string[] }>(books: T[]): T[] {
   return books.filter((b) => !isArtPiece(b.categories));

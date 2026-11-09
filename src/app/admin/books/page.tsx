@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Select, { MultiValue } from 'react-select';
+import { ART_CATEGORY } from "@/lib/artCollection";
 
 // Book type
 interface Book {
@@ -251,6 +252,14 @@ export default function AdminBooksPage() {
       categories: book.categories,
     });
     setEditingBook(book);
+    setShowForm(true);
+    formRef.current?.scrollIntoView({ behavior: "smooth" });
+  }
+
+  // Painting for the Names of Allah x Scenes of Nature series: one-of-a-kind, so stock 1, no ISBN needed
+  function startAddPainting() {
+    setForm({ title: "", author: "", description: "", price: 0, images: [""], stock: 1, isBestseller: false, format: "Acrylic on wood", ageRange: "", isbn: "", categories: [ART_CATEGORY] });
+    setEditingBook(null);
     setShowForm(true);
     formRef.current?.scrollIntoView({ behavior: "smooth" });
   }
@@ -583,6 +592,13 @@ export default function AdminBooksPage() {
         className="mb-6 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold shadow transition"
       >
         + Add New Book
+      </button>
+      <button
+        onClick={startAddPainting}
+        data-testid="admin-add-painting"
+        className="mb-6 ml-3 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-semibold shadow transition"
+      >
+        + Add Painting
       </button>
       
       {loading && (

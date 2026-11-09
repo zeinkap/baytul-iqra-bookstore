@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { Category } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
 import { normalizeIsbn } from '@/lib/isbn';
+import { categoryWrites } from '@/lib/artCollection';
 
 // GET /api/books/[id] - Get a single book (cost price and shipping cost are only included for a signed-in admin)
 export async function GET(
@@ -69,7 +70,7 @@ export async function PUT(
   }
 
   try {
-    const categoryConnect = categories.map((name: string) => ({ name }));
+    const categoryWrite = categoryWrites(categories.map(String));
     const updatedBook = await prisma.book.update({
     where: { id },
     data: {
@@ -90,7 +91,7 @@ export async function PUT(
         isbn: isbn !== undefined ? normalizedIsbn : undefined,
         categories: {
           set: [], // Disconnect all existing categories first
-          connect: categoryConnect,
+          ...categoryWrite,
         },
     },
       include: { categories: true },
