@@ -10,7 +10,9 @@
 export const ART_CATEGORY = 'Names of Allah x Scenes of Nature';
 /** Short label for the site menu; the full collection name is shown on the collection page. */
 export const ART_NAV_LABEL = 'Art Canvases';
-export const ART_PATH = '/names-of-allah';
+export const ART_PATH = '/art-canvases';
+/** Each painting lives at /art-canvases/<slug> (slug made from its title) instead of /books/<random id>. */
+export const ART_ITEM_PATH = ART_PATH;
 /** Title printed on each painting's QR sticker (shorter than the collection title so it fits a 2 x 2 inch label). */
 export const ART_LABEL_TITLE = 'Names of Allah';
 
@@ -46,4 +48,33 @@ export function categoryWrites(names: string[]) {
 /** The books-only catalog (home page, hero, category menu): the art has its own page. */
 export function withoutArt<T extends { categories: string[] }>(books: T[]): T[] {
   return books.filter((b) => !isArtPiece(b.categories));
+}
+
+/** "As-Salaam" -> "as-salaam": lowercase, accents and apostrophes dropped, anything else becomes a dash. */
+export function slugify(title: string): string {
+  const slug = title
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/['\u2019`]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  return slug || 'painting';
+}
+
+/**
+ * URL slug for every painting, by id. Two paintings with the same title get -2, -3 ... (oldest keeps the plain slug),
+ * so each address is unique.
+ */
+export function artSlugs(pieces: { id: string; title: string; createdAt: string }[]): Map<string, string> {
+  const used = new Set<string>();
+  const slugs = new Map<string, string>();
+  for (const piece of [...pieces].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id))) {
+    const base = slugify(piece.title);
+    let slug = base;
+    for (let n = 2; used.has(slug); n++) slug = `${base}-${n}`;
+    used.add(slug);
+    slugs.set(piece.id, slug);
+  }
+  return slugs;
 }

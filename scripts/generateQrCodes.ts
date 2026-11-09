@@ -21,6 +21,8 @@
  * (they have no ISBN, so each QR uses the piece's id). Output goes to qr-labels/<category-slug>/. Paintings'
  * stickers are titled "Names of Allah" (same 2 x 2 inch layout as the books); labels.csv keeps each real title.
  *
+ * BOOKS_ONLY=1: skip the paintings, so a run without CATEGORY prints just the books.
+ *
  * Each QR encodes {BASE_URL}/b/<isbn>, falling back to the book id when a book
  * has no ISBN. Books with stock 0 are skipped unless INCLUDE_OUT_OF_STOCK=1.
  */
@@ -30,7 +32,7 @@ import QRCode from 'qrcode';
 import { buildLabelsPdf } from '../src/lib/labelPdf';
 import { prisma } from '../src/lib/prisma';
 import { normalizeLocation } from '../src/lib/location';
-import { ART_LABEL_TITLE, isArtPiece } from '../src/lib/artCollection';
+import { ART_CATEGORY, ART_LABEL_TITLE, isArtPiece } from '../src/lib/artCollection';
 
 const baseUrl = (process.env.BASE_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? '').replace(/\/$/, '');
 const location = process.env.LOCATION ? normalizeLocation(process.env.LOCATION) : null;
@@ -55,6 +57,8 @@ async function main() {
     where: {
       ...(process.env.INCLUDE_OUT_OF_STOCK ? {} : { stock: { gt: 0 } }),
       ...(category ? { categories: { some: { name: category } } } : {}),
+      // BOOKS_ONLY=1 leaves the paintings out (they have their own stickers via the CATEGORY run)
+      ...(process.env.BOOKS_ONLY && !category ? { NOT: { categories: { some: { name: ART_CATEGORY } } } } : {}),
     },
     include: { categories: { select: { name: true } } },
     orderBy: { title: 'asc' },
