@@ -69,7 +69,10 @@ export default async function NamesOfAllahPage() {
           </ul>
         )}
 
-        <p className="text-center mt-10">
+        <p className="text-center mt-10 text-gray-700 font-medium" data-testid="art-more-coming">
+          More art collections coming soon, insha&apos;Allah.
+        </p>
+        <p className="text-center mt-4">
           <Link href="/" className="text-sm text-gray-500 underline">Browse our books</Link>
         </p>
       </div>
