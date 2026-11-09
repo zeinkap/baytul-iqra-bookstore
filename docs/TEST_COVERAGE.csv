@@ -252,3 +252,6 @@ TC-250,Orders,Customer details,Name and email on the payment method are read as 
 TC-251,Orders,Customer details,Empty billing details come back as null and cannot overwrite a saved name or email,Unit,Automated,tests/unit/payment-method-info.test.ts,,,
 TC-252,Orders,Customer details,A wallet payment still reports the wallet as the method,Unit,Automated,tests/unit/payment-method-info.test.ts,,,
 TC-253,Admin,Orders,Unpaid orders are marked Unpaid in the orders list and say so in the detail view; paid ones are not,UI,Automated,tests/e2e/admin-orders-unpaid.spec.ts,Local DB + ADMIN_PASSWORD,,
+TC-254,In-shop,Buy API,The Stripe payment page asks for the customer name and it is required,API,Automated,tests/e2e/in-shop-buy-api.spec.ts,Local DB + Stripe test key,,
+TC-255,Orders,Customer details,The name typed on the in-shop payment page is read from the session and trimmed,Unit,Automated,tests/unit/checkout-name.test.ts,,,
+TC-256,Orders,Customer details,A missing or empty name field gives no name so it cannot overwrite one from elsewhere,Unit,Automated,tests/unit/checkout-name.test.ts,,,

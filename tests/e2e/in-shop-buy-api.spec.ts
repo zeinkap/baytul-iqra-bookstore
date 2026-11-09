@@ -113,6 +113,16 @@ test.describe('In-shop buy API', () => {
       expect((await db.book.findUniqueOrThrow({ where: { id: book.id } })).stock).toBe(3);
     });
 
+    test('TC-254: the Stripe payment page asks for the customer\'s name, and it is required', async ({ request }) => {
+      const book = await fx.book({ price: 12, stock: 3 });
+      const { url, orderId } = await (await buy(request, { items: [{ id: book.id, quantity: 1 }], location: 'e2e-name' })).json();
+      fx.trackOrder(orderId);
+      const session = await stripe.checkout.sessions.retrieve(sessionIdFromUrl(url));
+      expect(session.custom_fields).toHaveLength(1);
+      expect(session.custom_fields[0]).toMatchObject({ key: 'full_name', type: 'text', optional: false });
+      expect(session.custom_fields[0].label.custom).toBe('Your name');
+    });
+
     test('TC-139: tapping Buy now again reuses the unpaid order instead of creating a second one', async ({ request }) => {
       const book = await fx.book();
       const data = { items: [{ id: book.id, quantity: 1 }], location: 'e2e-reuse' };

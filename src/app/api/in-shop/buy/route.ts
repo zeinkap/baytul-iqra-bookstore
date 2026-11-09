@@ -1,3 +1,4 @@
+import { NAME_CUSTOM_FIELD } from '@/lib/checkoutName';
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { priceItems, resolveInShopPromo, subtotalCentsOf } from '@/lib/pricing';
@@ -66,6 +67,8 @@ export async function POST(req: NextRequest) {
       // Keep checkout to email + payment (wallet-friendly): no billing address or phone
       billing_address_collection: 'auto',
       phone_number_collection: { enabled: false },
+      // The one extra field: Stripe doesn't report a name without a billing address, and every paid order should have one
+      custom_fields: [NAME_CUSTOM_FIELD],
       metadata: {
         orderId,
         promoCodeId: promo?.promoCodeId ?? '',
