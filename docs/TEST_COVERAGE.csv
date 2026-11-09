@@ -242,3 +242,7 @@ TC-240,Orders,Shipping,A promo code does not take an order back under the free-s
 TC-241,Orders,Shipping,Pickup is always free,API,Automated,tests/e2e/shipping.spec.ts,Local DB,,
 TC-242,Orders,Shipping,Flat $5 / free from $60 / pickup free / amount to free shipping,Unit,Automated,tests/unit/shipping.test.ts,,,
 TC-243,Storefront,Book page,Shows the shipping promise and not the date the book was added,UI,Automated,tests/e2e/shipping.spec.ts,Local DB,,
+TC-244,Storefront,Book data privacy,"The public books list, a single book and a category list leave out cost price and shipping cost",API,Automated,tests/e2e/book-privacy.spec.ts,Local DB,,
+TC-245,Storefront,Book data privacy,Costs are not in the book page HTML,API,Automated,tests/e2e/book-privacy.spec.ts,Local DB,,
+TC-246,Admin,Book data privacy,A signed-in admin still gets costs from the books API,API,Automated,tests/e2e/book-privacy.spec.ts,Local DB + ADMIN_PASSWORD,,
+TC-247,Storefront,Book data privacy,Public book data drops costs and keeps what customers see,Unit,Automated,tests/unit/public-book.test.ts,,,

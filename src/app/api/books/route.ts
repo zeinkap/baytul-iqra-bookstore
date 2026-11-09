@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/adminAuth';
+import { isAdminRequest, requireAdmin } from '@/lib/adminAuth';
+import { withoutPrivateFields } from '@/lib/publicBook';
 import { prisma } from '@/lib/prisma';
 import { Category } from '@prisma/client';
 import { revalidateTag } from 'next/cache';
 import { normalizeIsbn } from '@/lib/isbn';
 
-// GET /api/books - List all books
+// GET /api/books - List all books (cost price and shipping cost are only included for a signed-in admin)
 export async function GET(req: NextRequest) {
+  const admin = await isAdminRequest(req);
   const books = await prisma.book.findMany({
     include: { categories: true },
     orderBy: { createdAt: 'desc' }
   });
   const booksWithCategories = books.map(book => ({
-    ...book,
+    ...(admin ? book : withoutPrivateFields(book)),
     categories: (book.categories as Category[]).map((cat) => cat.name)
   }));
 
