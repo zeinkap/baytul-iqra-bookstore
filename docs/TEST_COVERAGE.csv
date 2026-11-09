@@ -246,3 +246,5 @@ TC-244,Storefront,Book data privacy,"The public books list, a single book and a 
 TC-245,Storefront,Book data privacy,Costs are not in the book page HTML,API,Automated,tests/e2e/book-privacy.spec.ts,Local DB,,
 TC-246,Admin,Book data privacy,A signed-in admin still gets costs from the books API,API,Automated,tests/e2e/book-privacy.spec.ts,Local DB + ADMIN_PASSWORD,,
 TC-247,Storefront,Book data privacy,Public book data drops costs and keeps what customers see,Unit,Automated,tests/unit/public-book.test.ts,,,
+TC-248,Storefront,Book page,"Shows the age range as a badge (""Ages 4-7""; wording like ""All ages"" kept) and no badge when there is none",UI,Automated,tests/e2e/book-age-badge.spec.ts,Local DB,,
+TC-249,Storefront,Book page,"Age label wording for numeric ranges, ""All ages"" and empty values",Unit,Automated,tests/unit/age-label.test.ts,,,

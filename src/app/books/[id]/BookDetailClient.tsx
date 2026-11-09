@@ -8,6 +8,7 @@ import Lightbox from 'yet-another-react-lightbox';
 import 'yet-another-react-lightbox/styles.css';
 import { useCart } from '@/components/CartProvider';
 import { toast } from 'react-hot-toast';
+import { ageLabel } from '@/lib/ageLabel';
 
 export type Book = {
   id: string;
@@ -18,6 +19,7 @@ export type Book = {
   images: string[];
   stock: number;
   format?: string;
+  ageRange?: string | null;
   categories: string[];
   createdAt: string;
   updatedAt: string;
@@ -297,10 +299,21 @@ export default function BookDetailClient({ book, relatedBooks }: { book: Book; r
                   )}
                 </div>
 
-                {/* Enhanced categories */}
-                {book.categories && book.categories.length > 0 && (
+                {/* Age range and categories */}
+                {(ageLabel(book.ageRange) || (book.categories && book.categories.length > 0)) && (
                   <div className="flex flex-wrap gap-2 mb-6">
-                    {book.categories.map((cat) => (
+                    {ageLabel(book.ageRange) && (
+                      <span
+                        className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-800 px-3 py-1.5 rounded-full text-sm font-semibold border border-amber-200"
+                        data-testid="book-age-range"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {ageLabel(book.ageRange)}
+                      </span>
+                    )}
+                    {(book.categories ?? []).map((cat) => (
                       <span key={cat} className="inline-block bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full text-sm font-medium border border-emerald-100 hover:bg-emerald-100 transition-colors duration-200">
                         {cat}
                       </span>
