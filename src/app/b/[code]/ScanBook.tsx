@@ -6,6 +6,8 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type { CartItem } from "@/components/CartProvider";
 import InShopPayButtons from "@/components/InShopPayButtons";
+import PromoCodeBox, { useInShopPromo } from "@/components/PromoCodeBox";
+import { ageLabel } from "@/lib/ageLabel";
 import { addToBasket, basketCount, useInShopBasket } from "@/lib/inShopBasket";
 import { ART_PATH } from "@/lib/artCollection";
 
@@ -49,9 +51,11 @@ export default function ScanBook({
   const [expanded, setExpanded] = useState(false);
   const [zoomOpen, setZoomOpen] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  // One promo code at most; the server prices the book and works out the discount
+  const promo = useInShopPromo([{ id: book.id, quantity }]);
   const maxQuantity = Math.min(stock, MAX_SCAN_QUANTITY);
   const gallery = images.filter((src) => typeof src === "string" && src.length > 0);
-  const chips = [ageRange && (/^\d/.test(ageRange) ? `Ages ${ageRange}` : ageRange), book.format].filter(Boolean) as string[];
+  const chips = [ageLabel(ageRange), book.format].filter(Boolean) as string[];
 
   const handleAddToBasket = () => {
     addToBasket({ id: book.id, code, title: book.title, author: book.author, price: book.price, image: book.image, stock }, quantity, location);
@@ -159,6 +163,12 @@ export default function ScanBook({
           )
         )}
 
+        {!basketMode && (
+          <div className="mb-3" data-testid="scan-promo">
+            <PromoCodeBox promo={promo} />
+          </div>
+        )}
+
         {inBasket > 0 && (
           <p className="text-sm font-medium text-emerald-700 mb-2" data-testid="scan-in-basket">
             {inBasket} {inBasket === 1 ? "copy" : "copies"} already in your basket
@@ -185,7 +195,8 @@ export default function ScanBook({
               <>
                 <InShopPayButtons
                   items={[{ id: book.id, quantity }]}
-                  amountCents={Math.round(book.price * 100) * quantity}
+                  amountCents={promo.applied ? promo.applied.finalCents : Math.round(book.price * 100) * quantity}
+                  promoCode={promo.applied?.code}
                   location={location}
                   cancelPath={`/b/${code}${location ? `?loc=${location}` : ""}`}
                   reportCode={code}

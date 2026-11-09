@@ -106,3 +106,34 @@ export async function discountForPromoId(promoCodeId: string, orderTotal: number
   if (!promo) return { valid: false, error: 'Invalid promo code' };
   return checkPromoCode(promo, orderTotal);
 }
+
+/** Stripe can't charge less than this, so an in-shop promo may not bring the total below it. */
+export const MIN_CHARGE_CENTS = 50;
+
+export type InShopPromoResult =
+  | { ok: true; promoId: string; code: string; discountCents: number; finalCents: number }
+  | { ok: false; error: string; status: number };
+
+/**
+ * Applies one promo code to an in-shop purchase. Works in whole cents so the amount the customer sees, the amount
+ * on the order and the amount Stripe charges are always the same number. `subtotalCents` must be priced on the server.
+ */
+export async function resolveInShopPromo(rawCode: unknown, subtotalCents: number): Promise<InShopPromoResult> {
+  const code = typeof rawCode === 'string' ? rawCode.trim().toUpperCase().slice(0, 40) : '';
+  if (!code) return { ok: false, error: 'Enter a promo code', status: 400 };
+  const promo = await prisma.promoCode.findUnique({ where: { code } });
+  if (!promo) return { ok: false, error: "That promo code isn't valid", status: 400 };
+  const checked = checkPromoCode(promo, subtotalCents / 100);
+  if (!checked.valid) return { ok: false, error: checked.error, status: 400 };
+  const discountCents = Math.min(Math.round(checked.discountAmount * 100), subtotalCents);
+  if (discountCents <= 0) return { ok: false, error: "This code doesn't give a discount on this order", status: 400 };
+  const finalCents = subtotalCents - discountCents;
+  if (finalCents < MIN_CHARGE_CENTS) {
+    return { ok: false, error: `This code would bring the total below $${(MIN_CHARGE_CENTS / 100).toFixed(2)}, the least we can charge by card`, status: 400 };
+  }
+  return { ok: true, promoId: promo.id, code: promo.code, discountCents, finalCents };
+}
+
+/** What the customer pays for in-shop items, in cents (the same sum the payment amounts use). */
+export const subtotalCentsOf = (items: { price: number; quantity: number }[]) =>
+  items.reduce((sum, i) => sum + Math.round(i.price * 100) * i.quantity, 0);

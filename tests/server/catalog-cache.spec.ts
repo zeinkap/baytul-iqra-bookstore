@@ -15,7 +15,7 @@ test.describe('Catalog cache', () => {
     await disconnect();
   });
 
-  test('a book page serves cached data until an admin edit clears it', async ({ request }) => {
+  test('TC-016, TC-163: a book page serves cached data until an admin edit clears it', async ({ request }) => {
     const book = await fx.book({ stock: 4, price: 9.5 });
     const original = book.title;
     const html = async (path: string) => (await request.get(path)).text();

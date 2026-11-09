@@ -81,8 +81,43 @@ export default function ChatWidget() {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, open]);
 
+  // On a phone the keyboard must not pop up by itself the moment the chat opens (it covers the panel and the page
+  // jumps behind it): the customer taps the field when they want to type. With a mouse, focus it straight away.
   useEffect(() => {
-    if (open) inputRef.current?.focus();
+    if (open && window.matchMedia('(pointer: fine)').matches) inputRef.current?.focus();
+  }, [open]);
+
+  // On a phone the chat is a full-screen sheet that follows the *visible* area. iPhones keep the page layout
+  // behind the keyboard instead of shrinking it, so a plain fixed box ends up half off-screen when the keyboard opens.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const phone = window.matchMedia('(max-width: 639px)');
+    const viewport = window.visualViewport;
+    const fit = () => {
+      const panel = panelRef.current;
+      if (!panel) return;
+      if (!phone.matches || !viewport) {
+        panel.style.removeProperty('top');
+        panel.style.removeProperty('height');
+        return;
+      }
+      panel.style.top = `${viewport.offsetTop}px`;
+      panel.style.height = `${viewport.height}px`;
+    };
+    fit();
+    viewport?.addEventListener('resize', fit);
+    viewport?.addEventListener('scroll', fit);
+    phone.addEventListener('change', fit);
+    // Keep the page behind from scrolling while the chat is open on a phone
+    const previousOverflow = document.body.style.overflow;
+    if (phone.matches) document.body.style.overflow = 'hidden';
+    return () => {
+      viewport?.removeEventListener('resize', fit);
+      viewport?.removeEventListener('scroll', fit);
+      phone.removeEventListener('change', fit);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [open]);
 
   async function send(text: string) {
@@ -143,10 +178,11 @@ export default function ChatWidget() {
 
       {open && (
         <div
+          ref={panelRef}
           role="dialog"
           aria-label="Bookstore assistant"
           data-testid="chat-panel"
-          className="fixed inset-x-3 bottom-3 z-[60] flex h-[min(70dvh,560px)] flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:inset-x-auto sm:bottom-4 sm:right-4 sm:h-[560px] sm:w-[380px]"
+          className="fixed inset-x-0 top-0 z-[60] flex h-dvh flex-col overflow-hidden bg-white sm:inset-x-auto sm:bottom-4 sm:right-4 sm:top-auto sm:h-[560px] sm:w-[380px] sm:rounded-2xl sm:border sm:border-gray-200 sm:shadow-2xl"
         >
           <div className="flex items-center justify-between bg-emerald-600 px-4 py-3 text-white">
             <div>

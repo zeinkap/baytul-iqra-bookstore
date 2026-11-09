@@ -1,5 +1,6 @@
 import { unstable_cache } from 'next/cache';
 import { prisma } from './prisma';
+import { withoutPrivateFields } from './publicBook';
 
 // Storefront pages read the catalog straight from the database (no HTTP hop to our own API) and keep the result
 // in the Next.js data cache. The 'books' / 'categories' tags are the ones the admin routes already revalidate.
@@ -12,7 +13,7 @@ const findBook = (id: string) => prisma.book.findUnique({ where: { id }, include
 /** Same shape the /api/books endpoints return: category names instead of rows, dates as ISO strings. */
 function toCatalogBook(book: BookRow) {
   return {
-    ...book,
+    ...withoutPrivateFields(book),
     // Pages treat a missing format as undefined (JSON drops it, so cached and fresh results look the same)
     format: book.format ?? undefined,
     categories: book.categories.map((c) => c.name),
@@ -81,7 +82,7 @@ export const getScanBook = cached(
       where: isbn ? { OR: [{ isbn }, { id: code }] } : { id: code },
       include: { categories: { select: { id: true, name: true } } },
     });
-    return book && { ...book, createdAt: book.createdAt.toISOString(), updatedAt: book.updatedAt.toISOString() };
+    return book && { ...withoutPrivateFields(book), createdAt: book.createdAt.toISOString(), updatedAt: book.updatedAt.toISOString() };
   },
   'scan-book',
   'books',

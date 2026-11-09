@@ -1,6 +1,6 @@
 # In-shop basket and Apple Pay / Google Pay on the scan page
 
-Customers who scan a book's QR sticker can pay right on the page with Apple Pay, Google Pay or Link (one tap, no
+Customers who scan a book's QR sticker can pay right on the page with Apple Pay or Google Pay (one tap, no
 redirect), or by card through Stripe Checkout. They can also add several books to a basket and pay once.
 
 ## How it works
@@ -20,6 +20,14 @@ redirect), or by card through Stripe Checkout. They can also add several books t
 6. Refunds: `charge.refunded` finds the order from the PaymentIntent's metadata, so refunds of wallet payments are
    recorded and the customer gets the refund email like any other.
 
+7. Promo codes (`src/components/PromoCodeBox.tsx`): the scan page (single book) and the basket have a "Have a promo
+   code?" field. One code at a time (remove it to try another). `POST /api/in-shop/promo` prices the items at in-person
+   prices and returns the discount in cents (`resolveInShopPromo` in `src/lib/pricing.ts`: same rules as the online
+   cart, plus a $0.50 minimum charge). The browser only ever sends the code: `/api/in-shop/buy` and
+   `/api/in-shop/payment-intent` work the discount out again, store it on the order (`promoCodeId`, `discountAmount`),
+   and charge the discounted amount (a one-off Stripe coupon for the Checkout session, the PaymentIntent amount for
+   wallets). The code's use count goes up once, when the order is marked paid (`finalizePaidOrder`).
+
 Without `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, or on a phone/browser with no wallet set up, the pay area is just the
 card button.
 
@@ -28,7 +36,7 @@ card button.
 - Set `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (the `pk_live_…` key) in the Vercel project, and redeploy.
 - **Apple Pay:** register the site's domain in Stripe Dashboard → Settings → Payment method domains
   (`www.baytuliqra.com`, and `baytuliqra.com` if it serves pages). Apple Pay does not show on unregistered domains,
-  so it will not appear on Vercel preview URLs. Google Pay and Link do not need this.
+  so it will not appear on Vercel preview URLs. Google Pay does not need this.
 - **Webhook:** the endpoint for `/api/stripe/webhook` must receive `payment_intent.succeeded` (besides
   `checkout.session.completed` and `charge.refunded`). If it doesn't, an order is only finished when the customer's
   phone reaches the receipt page.

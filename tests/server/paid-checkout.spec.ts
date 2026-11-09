@@ -49,7 +49,7 @@ test.describe('Paid checkout (Stripe CLI)', () => {
   const stockOf = async (bookId: string) => (await db.book.findUniqueOrThrow({ where: { id: bookId } })).stock;
   const orderOf = (id: string) => db.order.findUniqueOrThrow({ where: { id } });
 
-  test('from-session finalizes a paid order and sends one sale alert and one receipt; calling it again sends nothing', async ({ request }) => {
+  test('TC-067: from-session finalizes a paid order and sends one sale alert and one receipt; calling it again sends nothing', async ({ request }) => {
     const { orderId, session } = await paidOrder(request);
 
     const first = await fromSession(request, session.id);
@@ -80,7 +80,7 @@ test.describe('Paid checkout (Stripe CLI)', () => {
     expect(await db.order.count({ where: { id: orderId } })).toBe(1);
   });
 
-  test('the webhook after from-session takes stock once and sends no second sale alert or receipt', async ({ request }) => {
+  test('TC-090: the webhook after from-session takes stock once and sends no second sale alert or receipt', async ({ request }) => {
     const { book, orderId, session } = await paidOrder(request);
 
     expect((await fromSession(request, session.id)).status()).toBe(200);
@@ -101,7 +101,7 @@ test.describe('Paid checkout (Stripe CLI)', () => {
     expect(emails.emails).toEqual([]);
   });
 
-  test('the webhook first: it pays the order, takes stock once and sends one sale alert and one receipt; from-session then sends nothing', async ({ request }) => {
+  test('TC-089: the webhook first: it pays the order, takes stock once and sends one sale alert and one receipt; from-session then sends nothing', async ({ request }) => {
     const { book, orderId, session } = await paidOrder(request);
 
     expect((await webhook(request, 'checkout.session.completed', session)).status()).toBe(200);
@@ -120,7 +120,7 @@ test.describe('Paid checkout (Stripe CLI)', () => {
     expect(await stockOf(book.id)).toBe(4);
   });
 
-  test('refunds: recorded from the charge.refunded webhook, one email per refund, then restock puts the book back once', async ({ request }) => {
+  test('TC-105: refunds: recorded from the charge.refunded webhook, one email per refund, then restock puts the book back once', async ({ request }) => {
     const { book, orderId, session } = await paidOrder(request);
     expect((await webhook(request, 'checkout.session.completed', session)).status()).toBe(200);
     expect(await stockOf(book.id)).toBe(4);

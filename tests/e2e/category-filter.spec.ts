@@ -12,7 +12,7 @@ const HADITH = 'Hadith & Sunnah';
 const BIOGRAPHY = 'Biography & Seerah';
 
 test.describe('Category Filtering', () => {
-  test('should show only books from the selected category', async ({ homePage }) => {
+  test('TC-004: selecting a category shows only books from that category, fewer than the full list', async ({ homePage }) => {
     await homePage.navigate();
     await homePage.waitForBooksToLoad();
     const totalBooks = await homePage.getVisibleBooksCount();
@@ -29,7 +29,7 @@ test.describe('Category Filtering', () => {
     }
   });
 
-  test('should restore all books after clearing multiple selected categories', async ({ homePage }) => {
+  test('TC-005: Clear All after selecting several categories restores the full book list', async ({ homePage }) => {
     await homePage.navigate();
     await homePage.waitForBooksToLoad();
     const totalBooks = await homePage.getVisibleBooksCount();

@@ -56,7 +56,10 @@ export async function POST(req: NextRequest) {
       if (isEmbeddedShipping) {
         // For embedded shipping, we need to extract the original product price
         // The shipping cost is embedded proportionally, so we need to reverse-calculate
-        const embeddedShippingCost = 500; // $5.00 in cents
+        // Sessions record what shipping they charged ($0 when the order reached the free-shipping line);
+        // sessions from before that was recorded were always the flat $5
+        const recorded = session.metadata?.shippingCostCents;
+        const embeddedShippingCost = recorded !== undefined && recorded !== '' ? Number(recorded) : 500;
         const originalUnitPrice = unit - Math.round(embeddedShippingCost / lineItems.data.length / qty);
         const originalPrice = Math.max(originalUnitPrice, unit * 0.8); // Prevent going below 80% of current price
         

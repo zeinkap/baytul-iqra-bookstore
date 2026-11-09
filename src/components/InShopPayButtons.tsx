@@ -22,6 +22,8 @@ type Props = {
   /** Total in cents, as shown to the customer: the wallet sheet displays it, the server re-prices everything. */
   amountCents: number;
   location?: string;
+  /** The one promo code applied to these items, if any. `amountCents` must already include its discount (the server re-checks both). */
+  promoCode?: string;
   /** Where Stripe's card page sends the customer back to if they cancel */
   cancelPath: string;
   /** Label for scan analytics when a payment attempt breaks */
@@ -32,7 +34,7 @@ type Props = {
 };
 
 /**
- * Pay for in-shop items: Apple Pay / Google Pay / Link right on the page when the phone has them (no redirect,
+ * Pay for in-shop items: Apple Pay / Google Pay right on the page when the phone has them (no redirect,
  * one Face ID), plus a card button that goes through Stripe Checkout. Without Stripe's public key or a wallet on
  * the device it is just the card button.
  */
@@ -72,25 +74,15 @@ export default function InShopPayButtons(props: Props) {
           <WalletButtons {...props} onAvailable={(available) => setWallet(available ? "ready" : "none")} />
         </Elements>
       )}
-      <CardButton {...props} label={wallet === "none" ? `Buy now · ${total}` : `Pay with card · ${total}`} secondary={wallet !== "none"} />
+      <CardButton {...props} label={`Pay with card · ${total}`} secondary={wallet !== "none"} />
     </div>
   );
 }
 
-function WalletButtons({ items, location, reportCode, onConflict, disabled, onAvailable }: Props & { onAvailable: (available: boolean) => void }) {
+function WalletButtons({ items, location, promoCode, reportCode, onConflict, disabled, onAvailable }: Props & { onAvailable: (available: boolean) => void }) {
   const stripe = useStripe();
   const elements = useElements();
   const router = useRouter();
-  // Link is only worth showing when the phone has no Apple Pay / Google Pay: three buttons is too many
-  // iPhones tell us up front whether Apple Pay works, so we can skip Link without building the element twice
-  const [hideLink, setHideLink] = useState(() => {
-    try {
-      return typeof window !== "undefined" && !!(window as { ApplePaySession?: { canMakePayments(): boolean } }).ApplePaySession?.canMakePayments();
-    } catch {
-      return false;
-    }
-  });
-
   const handleConfirm = async (event: StripeExpressCheckoutElementConfirmEvent) => {
     if (!stripe || !elements) return;
     const fail = (message: string, detail: string) => {
@@ -109,6 +101,7 @@ function WalletButtons({ items, location, reportCode, onConflict, disabled, onAv
         body: JSON.stringify({
           items,
           location,
+          promoCode,
           email: event.billingDetails?.email,
           name: event.billingDetails?.name,
         }),
@@ -138,21 +131,14 @@ function WalletButtons({ items, location, reportCode, onConflict, disabled, onAv
   return (
     <div className={disabled ? "pointer-events-none opacity-60" : undefined} data-testid="wallet-buttons">
       <ExpressCheckoutElement
-        // Stripe can't change which wallets a mounted element offers, so hiding Link remounts it
-        key={hideLink ? "no-link" : "all"}
         options={{
           buttonHeight: 48,
-          buttonType: { applePay: "buy", googlePay: "buy" },
+          buttonType: { applePay: "plain", googlePay: "plain" },
           emailRequired: true,
-          paymentMethods: { applePay: "auto", googlePay: "auto", link: hideLink ? "never" : "auto", amazonPay: "never", paypal: "never" },
+          paymentMethods: { applePay: "auto", googlePay: "auto", link: "never", amazonPay: "never", paypal: "never" },
           layout: { maxColumns: 1, maxRows: 2 },
         }}
         onReady={({ availablePaymentMethods }) => {
-          if (!hideLink && (availablePaymentMethods?.applePay || availablePaymentMethods?.googlePay)) {
-            // Stay in the loading state until the remounted element (without Link) is ready
-            setHideLink(true);
-            return;
-          }
           onAvailable(!!availablePaymentMethods);
         }}
         onLoadError={() => onAvailable(false)}
@@ -162,7 +148,7 @@ function WalletButtons({ items, location, reportCode, onConflict, disabled, onAv
   );
 }
 
-function CardButton({ items, location, cancelPath, reportCode, onConflict, disabled, label, secondary }: Props & { label: string; secondary: boolean }) {
+function CardButton({ items, location, promoCode, cancelPath, reportCode, onConflict, disabled, label, secondary }: Props & { label: string; secondary: boolean }) {
   const [busy, setBusy] = useState(false);
 
   const handleClick = async () => {
@@ -175,7 +161,7 @@ function CardButton({ items, location, cancelPath, reportCode, onConflict, disab
       const res = await fetch("/api/in-shop/buy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items, location, cancelPath }),
+        body: JSON.stringify({ items, location, cancelPath, promoCode }),
       });
       const data = await res.json();
       if (res.status === 409) {
