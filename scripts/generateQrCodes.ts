@@ -17,6 +17,9 @@
  * (see npm run qr:venue-signs). LOCATION=cafe-a is only for a set of books that stays at one venue: it adds
  * ?loc=cafe-a to every link and writes to qr-labels/cafe-a/.
  *
+ * CATEGORY: only print labels for one category, e.g. CATEGORY="Allah's Names" for the paintings (they have no
+ * ISBN, so each QR uses the piece's id). Output goes to qr-labels/<category-slug>/.
+ *
  * Each QR encodes {BASE_URL}/b/<isbn>, falling back to the book id when a book
  * has no ISBN. Books with stock 0 are skipped unless INCLUDE_OUT_OF_STOCK=1.
  */
@@ -29,7 +32,10 @@ import { normalizeLocation } from '../src/lib/location';
 
 const baseUrl = (process.env.BASE_URL ?? process.env.NEXT_PUBLIC_BASE_URL ?? '').replace(/\/$/, '');
 const location = process.env.LOCATION ? normalizeLocation(process.env.LOCATION) : null;
-const outDir = path.resolve('qr-labels', location ?? '');
+// CATEGORY="Allah's Names" prints stickers for just that category (the paintings), into qr-labels/allahs-names/
+const category = process.env.CATEGORY?.trim() || null;
+const categoryDir = category ? category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : '';
+const outDir = path.resolve('qr-labels', categoryDir, location ?? '');
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
@@ -44,9 +50,16 @@ async function main() {
   }
 
   const books = await prisma.book.findMany({
-    where: process.env.INCLUDE_OUT_OF_STOCK ? {} : { stock: { gt: 0 } },
+    where: {
+      ...(process.env.INCLUDE_OUT_OF_STOCK ? {} : { stock: { gt: 0 } }),
+      ...(category ? { categories: { some: { name: category } } } : {}),
+    },
     orderBy: { title: 'asc' },
   });
+  if (category && books.length === 0) {
+    console.error(`No ${process.env.INCLUDE_OUT_OF_STOCK ? '' : 'in-stock '}items in category "${category}". Check the spelling or add pieces in the admin first.`);
+    process.exit(1);
+  }
   fs.mkdirSync(outDir, { recursive: true });
 
   const labels: string[] = [];

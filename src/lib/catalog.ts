@@ -79,7 +79,7 @@ export const getScanBook = cached(
   async (isbn: string | null, code: string) => {
     const book = await prisma.book.findFirst({
       where: isbn ? { OR: [{ isbn }, { id: code }] } : { id: code },
-      include: { categories: { select: { id: true } } },
+      include: { categories: { select: { id: true, name: true } } },
     });
     return book && { ...book, createdAt: book.createdAt.toISOString(), updatedAt: book.updatedAt.toISOString() };
   },

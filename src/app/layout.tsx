@@ -6,6 +6,7 @@ import { WishlistProvider } from '@/components/WishlistProvider';
 import ConditionalLayout from '@/components/ConditionalLayout';
 import { Toaster } from 'react-hot-toast';
 import { getCatalogCategories } from '@/lib/catalog';
+import { isArtCategory } from '@/lib/artCollection';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -21,8 +22,9 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const categories: string[] = await getCatalogCategories();
-  
+  // The art series has its own nav link, so it isn't listed under Books
+  const categories: string[] = (await getCatalogCategories()).filter((c) => !isArtCategory(c));
+
   return (
     <html lang="en" className={`${inter.variable} ${merriweather.variable} bg-white`}>
       <head>
