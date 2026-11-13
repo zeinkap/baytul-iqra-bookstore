@@ -3,7 +3,7 @@ export const SHIPPING_FLAT_CENTS = 500;
 export const FREE_SHIPPING_MIN_CENTS = 6000;
 
 /** Shown on book pages, so it always matches what checkout charges. */
-export const SHIPPING_PROMISE = 'Orders are dispatched within 1-2 days. Free standard shipping on orders over $60';
+export const SHIPPING_PROMISE = 'Orders are dispatched within 1-2 days. Free standard shipping on orders over $60 (USA only)';
 
 /**
  * Shipping for an order, in cents. `merchandiseCents` is the value of the books before any promo code, so a code
