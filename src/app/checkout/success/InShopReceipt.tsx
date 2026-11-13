@@ -50,6 +50,12 @@ export default function InShopReceipt({ order, footer, status }: { order: InShop
     ? new Date(paidWhen).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
     : null;
   const shortRef = order.id.slice(-8).toUpperCase();
+  // "Text me this receipt": opens the customer's own Messages app with a link to this receipt, so no phone number is
+  // collected and nothing is sent from the shop. (This screen only renders in the browser, after the order loads.)
+  const receiptLink = `${typeof window === "undefined" ? "" : window.location.origin}/receipt?orderId=${encodeURIComponent(order.id)}`;
+  const smsBody = `Your Baytul Iqra receipt (${money(order.finalTotal)}, order #${shortRef}): ${receiptLink}`;
+  // "?&body=" is the form that opens a prefilled message on both iPhone and Android
+  const smsHref = `sms:?&body=${encodeURIComponent(smsBody)}`;
   const [wish, setWish] = useState("");
   const [wishState, setWishState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const sendWish = async () => {
@@ -178,6 +184,17 @@ export default function InShopReceipt({ order, footer, status }: { order: InShop
       <p className="text-center text-xs text-gray-500 mb-6" data-testid="receipt-email-hint">
         {order.email ? "Your receipt was emailed. Check your spam folder if you don't see it." : "Your receipt email is being prepared…"}
       </p>
+
+      <div className="text-center mb-6" data-testid="receipt-text">
+        <a
+          href={smsHref}
+          data-testid="receipt-text-link"
+          className="inline-block px-5 py-2.5 rounded-xl font-semibold text-emerald-800 border border-emerald-300 bg-emerald-50"
+        >
+          💬 Text me this receipt
+        </a>
+        <p className="mt-1 text-xs text-gray-500">Opens your Messages app with a link to this receipt. Choose yourself and tap send.</p>
+      </div>
 
       <div className="bg-white rounded-2xl shadow border border-gray-100 p-5 mb-6" data-testid="receipt-wish">
         {wishState === "sent" ? (

@@ -25,9 +25,14 @@ async function createInShopOrder(apiHelper: APIHelper) {
 async function openPaidReceipt(page: Page, orderId: string) {
   await page.route(`**/api/orders/${orderId}`, async (route) => {
     if (route.request().method() !== 'GET') return route.fallback();
-    const response = await route.fetch();
-    const order = await response.json();
-    await route.fulfill({ response, json: { ...order, paidAt: new Date().toISOString(), email: 'p***@example.com' } });
+    try {
+      const response = await route.fetch();
+      const order = await response.json();
+      await route.fulfill({ response, json: { ...order, paidAt: new Date().toISOString(), email: 'p***@example.com' } });
+    } catch {
+      // The receipt re-checks the order every few seconds; a test that ends while one of those is in flight closes
+      // the page under it, which is not a failure of the test
+    }
   });
   await page.goto(`/receipt?orderId=${orderId}&session_id=cs_test_paid_view`);
 }
@@ -60,6 +65,7 @@ test.describe('In-shop receipt', () => {
     // Post-payment actions are not offered before payment is confirmed
     await expect(page.getByTestId('receipt-email-hint')).toHaveCount(0);
     await expect(page.getByTestId('receipt-wish')).toHaveCount(0);
+    await expect(page.getByTestId('receipt-text')).toHaveCount(0);
   });
 
   test('TC-144: an unpaid order opened without a Stripe session is shown as processing, not paid', async ({ page }) => {
@@ -131,5 +137,20 @@ test.describe('In-shop receipt', () => {
 
     await expect(page.getByTestId('scan-suggestions')).toBeVisible();
     await expect(page.getByText('You might also like')).toBeVisible();
+  });
+
+  test('TC-260: a paid receipt offers "Text me this receipt", a link that opens Messages with the receipt link prefilled', async ({ page }) => {
+    const { book, order } = await createInShopOrder(initializeAPIHelper(page));
+
+    await openPaidReceipt(page, order.id);
+
+    const link = page.getByTestId('receipt-text-link');
+    await expect(link).toBeVisible();
+    const href = (await link.getAttribute('href')) ?? '';
+    expect(href.startsWith('sms:?&body=')).toBe(true);
+    const body = decodeURIComponent(href.slice('sms:?&body='.length));
+    expect(body).toContain(`$${book.price.toFixed(2)}`);
+    expect(body).toContain(`#${order.id.slice(-8).toUpperCase()}`);
+    expect(body).toContain(`/receipt?orderId=${order.id}`);
   });
 });
