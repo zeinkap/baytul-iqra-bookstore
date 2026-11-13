@@ -258,3 +258,4 @@ TC-256,Orders,Customer details,A missing or empty name field gives no name so it
 TC-257,In-shop,Painting series scan page,"A photo-less painting-series item sells from its scan page: title, $35, no photo, quantity reads in paintings",UI,Automated,tests/e2e/art-series-scan.spec.ts,Local DB,,
 TC-258,Storefront,Art Canvases,The gallery lists paintings with a photo and leaves out the photo-less series item,UI,Automated,tests/e2e/art-series-scan.spec.ts,Local DB,,
 TC-259,Storefront,Art Canvases,Only paintings that have a photo are gallery cards,Unit,Automated,tests/unit/art-collection.test.ts,,,
+TC-260,In-shop,Receipt,Paid receipt has a 'Text me this receipt' link that opens Messages with the receipt link prefilled,UI,Automated,tests/e2e/in-shop-receipt.spec.ts,,,
