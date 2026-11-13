@@ -1,11 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { preconnect, preinit } from "react-dom";
 import { toast } from "react-hot-toast";
 import { loadStripe, type Stripe as StripeJs, type StripeExpressCheckoutElementConfirmEvent } from "@stripe/stripe-js";
 import { Elements, ExpressCheckoutElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { reportScanFailure } from "@/lib/reportScanFailure";
 
+// Must match the URL @stripe/stripe-js injects, so `loadStripe` finds the early script tag instead of adding a second one
+const STRIPE_JS_URL = "https://js.stripe.com/v3";
 const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 let stripePromise: Promise<StripeJs | null> | null = null;
 // Stripe.js is only fetched on pages that show a pay button, and only once
@@ -39,6 +42,15 @@ type Props = {
  * the device it is just the card button.
  */
 export default function InShopPayButtons(props: Props) {
+  // Called while rendering so React puts these in the server-rendered HTML <head>: the phone starts fetching Stripe.js
+  // (and opens the connections the wallet button talks to) while the page is still arriving, instead of waiting for
+  // the app's JavaScript to download and hydrate first. `loadStripe` reuses this same script tag.
+  if (publishableKey) {
+    preconnect("https://api.stripe.com");
+    preconnect("https://js.stripe.com");
+    preconnect("https://m.stripe.network");
+    preinit(STRIPE_JS_URL, { as: "script" });
+  }
   const stripe = getStripe();
   const walletPossible = !!stripe && props.amountCents > 0;
   // "loading" until Stripe tells us whether this phone has a wallet, so the card button doesn't flash orange then turn grey

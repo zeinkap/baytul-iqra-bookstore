@@ -69,9 +69,9 @@ export default function ScanBook({
   return (
     // Extra bottom padding on phones so the pinned Buy now bar never covers content
     <main className="max-w-md mx-auto px-4 pt-3 pb-52 sm:pb-8" data-testid="scan-book-card">
-      {/* Open the connection to Stripe while the customer reads, so Buy now lands on checkout faster */}
+      {/* Open the connection to Stripe Checkout while the customer reads, so the card button lands faster.
+          (Stripe.js and the wallet connections are started earlier, in InShopPayButtons.) */}
       <link rel="preconnect" href="https://checkout.stripe.com" />
-      <link rel="preconnect" href="https://js.stripe.com" />
       <div className="flex items-center gap-2 mb-3">
         <Image src="/logo-baytul-iqra.png" alt="Baytul Iqra Bookstore" width={28} height={28} className="w-7 h-7 object-contain" priority />
         <p className="text-xs font-semibold text-emerald-800">Baytul Iqra Bookstore</p>
