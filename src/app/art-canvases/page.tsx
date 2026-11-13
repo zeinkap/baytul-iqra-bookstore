@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { getArtPieces } from '@/lib/artPages';
-import { ART_CATEGORY } from '@/lib/artCollection';
+import { ART_CATEGORY, hasPhoto } from '@/lib/artCollection';
 
 export const metadata: Metadata = {
   title: `${ART_CATEGORY} | Baytul Iqra`,
@@ -11,7 +11,8 @@ export const metadata: Metadata = {
 
 /** The art series: each painting is a catalog item in the ART_CATEGORY category (see src/lib/artCollection.ts). */
 export default async function NamesOfAllahPage() {
-  const pieces = await getArtPieces();
+  // Only paintings with a photo are gallery cards (a photo-less entry, like the shared-sticker series item, is scan-only)
+  const pieces = (await getArtPieces()).filter(({ piece }) => hasPhoto(piece));
   // Available pieces first, then sold ones (kept visible so visitors see the whole series)
   const sorted = [...pieces].sort((a, b) => Number(b.piece.stock > 0) - Number(a.piece.stock > 0));
 

@@ -137,7 +137,7 @@ export default function ScanBook({
               −
             </button>
             <span className="min-w-[5rem] text-center text-gray-900 font-semibold" data-testid="scan-qty-value" aria-live="polite">
-              {quantity} {quantity === 1 ? "copy" : "copies"}
+              {quantity} {isArt ? (quantity === 1 ? "painting" : "paintings") : quantity === 1 ? "copy" : "copies"}
             </span>
             <button
               type="button"
@@ -171,7 +171,7 @@ export default function ScanBook({
 
         {inBasket > 0 && (
           <p className="text-sm font-medium text-emerald-700 mb-2" data-testid="scan-in-basket">
-            {inBasket} {inBasket === 1 ? "copy" : "copies"} already in your basket
+            {inBasket} {isArt ? (inBasket === 1 ? "painting" : "paintings") : inBasket === 1 ? "copy" : "copies"} already in your basket
           </p>
         )}
 
