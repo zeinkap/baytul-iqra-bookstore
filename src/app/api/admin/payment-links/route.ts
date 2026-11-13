@@ -1,23 +1,9 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { requireAdmin } from '@/lib/adminAuth';
 import Stripe from 'stripe';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { getHiddenPaymentLinks } from '@/lib/hiddenPaymentLinks';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-const HIDDEN_LINKS_FILE = path.join(process.cwd(), 'data', 'hidden-payment-links.json');
-
-// Read hidden payment link IDs
-async function readHiddenLinks(): Promise<string[]> {
-  try {
-    const data = await fs.readFile(HIDDEN_LINKS_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    // File doesn't exist or is invalid, return empty array
-    return [];
-  }
-}
-
 export async function GET(req: NextRequest) {
   const denied = await requireAdmin(req);
   if (denied) return denied;
@@ -49,7 +35,7 @@ export async function GET(req: NextRequest) {
     })));
 
     // Get hidden payment link IDs
-    const hiddenLinks = await readHiddenLinks();
+    const hiddenLinks = await getHiddenPaymentLinks();
 
     // Transform the data to match our interface and filter out hidden links
     const transformedLinks = paymentLinks.data
