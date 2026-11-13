@@ -60,3 +60,15 @@ describe('art page addresses', () => {
     expect(slugs.get('c')).toBe('al-noor');
   });
 });
+
+describe('Gallery listing', () => {
+  it('TC-259: lists only paintings that have a photo', async () => {
+    const { hasPhoto } = await import('@/lib/artCollection');
+    expect(hasPhoto({ images: ['/book-images/as-salaam.webp'] })).toBe(true);
+    expect(hasPhoto({ images: ['', '/book-images/as-salaam.webp'] })).toBe(true);
+    expect(hasPhoto({ images: [] })).toBe(false);
+    expect(hasPhoto({ images: ['  '] })).toBe(false);
+    expect(hasPhoto({ images: null })).toBe(false);
+    expect(hasPhoto({})).toBe(false);
+  });
+});

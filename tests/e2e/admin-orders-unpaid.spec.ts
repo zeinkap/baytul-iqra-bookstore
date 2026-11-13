@@ -19,13 +19,17 @@ test.describe('Admin orders: unpaid orders', () => {
     await context.addCookies([{ name: ADMIN_COOKIE, value: (await createSessionToken())!, url: baseURL! }]);
 
     await page.goto('/admin/orders');
+    // Abandoned (never paid) orders are hidden until "Show unpaid" is ticked
     await page.getByPlaceholder(/Search by email/).fill(unpaid.id);
+    await expect(page.getByText('No orders found')).toBeVisible();
+    await page.getByTestId('show-unpaid-toggle').check();
     const unpaidRow = page.locator('tr', { hasText: 'View Details' }).first();
     await expect(unpaidRow.getByTestId('unpaid-badge')).toBeVisible();
     await unpaidRow.getByText('View Details').click();
     await expect(page.getByText('Not paid (the customer never finished paying')).toBeVisible();
     await page.getByRole('button', { name: /close/i }).first().click().catch(() => page.keyboard.press('Escape'));
 
+    await page.getByTestId('show-unpaid-toggle').uncheck();
     await page.getByPlaceholder(/Search by email/).fill(paid.id);
     const paidRow = page.locator('tr', { hasText: 'View Details' }).first();
     await expect(paidRow).toBeVisible();

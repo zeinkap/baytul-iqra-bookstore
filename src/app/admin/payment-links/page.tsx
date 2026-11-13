@@ -902,7 +902,7 @@ export default function AdminPaymentLinksPage() {
                     if (res.ok) {
                       const hiddenLinks = await res.json();
                       if (hiddenLinks.length > 0) {
-                        alert(`You have ${hiddenLinks.length} hidden payment link(s).\n\nTo restore them, you can manually edit the data/hidden-payment-links.json file or contact support.`);
+                        alert(`You have ${hiddenLinks.length} hidden payment link(s).\n\nThey are hidden from this list only and still exist in your Stripe dashboard.`);
                       } else {
                         alert('No hidden payment links found.');
                       }
@@ -930,9 +930,6 @@ export default function AdminPaymentLinksPage() {
           <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
             <p className="text-sm text-gray-600 mb-2">
               Hidden payment links are removed from this list but still exist in your Stripe dashboard.
-            </p>
-            <p className="text-sm text-gray-600">
-              To restore hidden links, you can manually edit the <code className="bg-gray-200 px-1 rounded">data/hidden-payment-links.json</code> file.
             </p>
           </div>
         </div>

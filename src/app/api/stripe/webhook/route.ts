@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { flagNonUsShippingAddress } from '@/lib/shipping';
 import { updateBookStock, extractBookItems, hasStockBeenUpdated } from '@/lib/stockManager';
 import { sendOrderConfirmationEmail } from '@/lib/sendEmail';
-import { finalizePaidOrder, finalizeInShopIntent, IN_SHOP_WALLET_FLOW, notifySalesOfPaidOrder, checkoutPaymentMethodInfo, recordRefund } from '@/lib/finalizeOrder';
+import { shippingAddressFromSession, finalizePaidOrder, finalizeInShopIntent, IN_SHOP_WALLET_FLOW, notifySalesOfPaidOrder, checkoutPaymentMethodInfo, recordRefund } from '@/lib/finalizeOrder';
 
 // Extended Stripe session type to include shipping_details which may not be in all TypeScript definitions
 interface StripeSessionWithShipping extends Stripe.Checkout.Session {
@@ -198,7 +198,12 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     // First try to get shipping address from session.shipping_details (preferred for checkout sessions)
     // Note: shipping_details is available in newer Stripe API versions but may not be in all TypeScript definitions
     const sessionWithShipping = session as StripeSessionWithShipping;
-    if (sessionWithShipping.shipping_details?.address) {
+    const collected = shippingAddressFromSession(session);
+    if (collected) {
+      shippingAddress = collected;
+      console.log('Got shipping address from session (collected_information / shipping_details)');
+    }
+    else if (sessionWithShipping.shipping_details?.address) {
       shippingAddress = {
         name: sessionWithShipping.shipping_details.name ?? undefined,
         line1: sessionWithShipping.shipping_details.address.line1 ?? undefined,
@@ -540,7 +545,7 @@ async function createOrder({
     if (existingOrder) {
       // Mark paid and save what Stripe collected (email, name, payment method). Shared with the receipt page's
       // fallback so whichever runs first does the work and the receipt email goes out exactly once.
-      const finalized = await finalizePaidOrder(existingOrder.id, { email, customerName, paymentMethod, paymentMethodDetail });
+      const finalized = await finalizePaidOrder(existingOrder.id, { email, customerName, shippingAddress, paymentMethod, paymentMethodDetail });
       console.log(`Order ${orderId} already exists, ensuring stock updated and skipping duplicate creation`);
       // Still deduct inventory: order was created before payment, so stock wasn't updated yet
       try {

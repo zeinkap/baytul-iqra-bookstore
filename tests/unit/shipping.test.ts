@@ -23,7 +23,7 @@ describe('Shipping', () => {
     expect(centsToFreeShipping(9000)).toBe(0);
   });
 
-  it('TC-257: only US shipping addresses are accepted', () => {
+  it('TC-261: only US shipping addresses are accepted', () => {
     expect(isUsShippingCountry('US')).toBe(true);
     expect(isUsShippingCountry(' us ')).toBe(true);
     expect(isUsShippingCountry('CA')).toBe(false);

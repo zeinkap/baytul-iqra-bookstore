@@ -21,7 +21,7 @@ test.describe('Shipping', () => {
     return (await (await request.get(`/api/orders/${id}`)).json()).finalTotal as number;
   }
 
-  test('TC-258: a shipping order to a non-US address is rejected, a US one is accepted', async ({ request }) => {
+  test('TC-262: a shipping order to a non-US address is rejected, a US one is accepted', async ({ request }) => {
     const book = await fx.book({ price: 20, stock: 10 });
     for (const country of ['CA', undefined]) {
       const res = await request.post('/api/orders', {
@@ -32,7 +32,7 @@ test.describe('Shipping', () => {
     }
   });
 
-  test('TC-259: pickup orders are unaffected by the US-only rule', async ({ request }) => {
+  test('TC-263: pickup orders are unaffected by the US-only rule', async ({ request }) => {
     const book = await fx.book({ price: 20, stock: 10 });
     const res = await request.post('/api/orders', { data: { items: [{ id: book.id, quantity: 1 }], fulfillmentType: 'pickup' } });
     expect(res.status()).toBe(201);
