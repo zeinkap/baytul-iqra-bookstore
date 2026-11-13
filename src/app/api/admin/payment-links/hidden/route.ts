@@ -1,44 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/adminAuth';
-import { promises as fs } from 'fs';
-import path from 'path';
-
-const HIDDEN_LINKS_FILE = path.join(process.cwd(), 'data', 'hidden-payment-links.json');
-
-// Ensure data directory exists
-async function ensureDataDir() {
-  const dataDir = path.dirname(HIDDEN_LINKS_FILE);
-  try {
-    await fs.access(dataDir);
-  } catch {
-    await fs.mkdir(dataDir, { recursive: true });
-  }
-}
-
-// Read hidden payment link IDs
-async function readHiddenLinks(): Promise<string[]> {
-  try {
-    await ensureDataDir();
-    const data = await fs.readFile(HIDDEN_LINKS_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    // File doesn't exist or is invalid, return empty array
-    return [];
-  }
-}
-
-// Write hidden payment link IDs
-async function writeHiddenLinks(ids: string[]): Promise<void> {
-  await ensureDataDir();
-  await fs.writeFile(HIDDEN_LINKS_FILE, JSON.stringify(ids, null, 2));
-}
+import { getHiddenPaymentLinks, hidePaymentLink, unhidePaymentLink } from '@/lib/hiddenPaymentLinks';
 
 export async function GET(req: NextRequest) {
   const denied = await requireAdmin(req);
   if (denied) return denied;
 
   try {
-    const hiddenLinks = await readHiddenLinks();
+    const hiddenLinks = await getHiddenPaymentLinks();
     return NextResponse.json(hiddenLinks);
   } catch (error) {
     console.error('Error reading hidden payment links:', error);
@@ -63,12 +32,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const hiddenLinks = await readHiddenLinks();
-    
-    if (!hiddenLinks.includes(paymentLinkId)) {
-      hiddenLinks.push(paymentLinkId);
-      await writeHiddenLinks(hiddenLinks);
-    }
+    await hidePaymentLink(paymentLinkId);
+    const hiddenLinks = await getHiddenPaymentLinks();
 
     return NextResponse.json({
       success: true,
@@ -98,10 +63,8 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
-    const hiddenLinks = await readHiddenLinks();
-    const updatedHiddenLinks = hiddenLinks.filter(id => id !== paymentLinkId);
-    
-    await writeHiddenLinks(updatedHiddenLinks);
+    await unhidePaymentLink(paymentLinkId);
+    const updatedHiddenLinks = await getHiddenPaymentLinks();
 
     return NextResponse.json({
       success: true,
