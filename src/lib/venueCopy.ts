@@ -12,6 +12,10 @@ export const VENUE_STEPS = [
 
 export const VENUE_STORE_NAME = 'Baytul Iqra Bookstore';
 
+/** The generic venue sign (no venue name on it), for any stall: `npm run qr:venue-signs -- --generic` */
+export const GENERIC_SIGN_TITLE = 'Welcome to Baytul Iqra Bookstall!';
+export const GENERIC_SIGN_TAGLINE = 'Read, Reflect, Relay';
+
 /** "cafe-a" -> "Cafe A" */
 export const prettyVenue = (slug: string) =>
   slug.split('-').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');

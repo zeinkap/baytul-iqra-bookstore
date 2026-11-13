@@ -84,7 +84,7 @@ See [.env.example](.env.example). Never commit `.env` files.
 | `npm run qr:generate` | QR labels for every book (SVG, printable HTML, 2×2 in PDF, CSV) in `qr-labels/` |
 | `npm run qr:books` | 2×2 in QR stickers for the books only (no paintings), read from the live database (`.env.production`), in `qr-labels/` |
 | `npm run qr:paintings` | 2×2 in QR stickers for the paintings only, read from the live database (`.env.production`), in `qr-labels/names-of-allah-x-scenes-of-nature/` |
-| `npm run qr:venue-signs -- <venue> ...` | Printable venue signs: writes `qr-labels/venue-signs.pdf` (print this) and `.html`. The PDF needs Chromium once: `npx playwright install chromium` |
+| `npm run qr:venue-signs -- [--generic] [<venue> ...]` | Printable venue signs: writes `qr-labels/venue-signs.pdf` (print this) and `.html`. `--generic` adds one sign for any stall ("Welcome to Baytul Iqra Bookstall!" with "Read, Reflect, Relay"); venue names add one sign each. The PDF needs Chromium once: `npx playwright install chromium` |
 | `npm test`, `test:headed`, `test:ui`, `test:debug`, `test:report`, `test:server` | Playwright (see [Testing](#testing)) |
 
 Other one-off scripts live in `scripts/` and run with `npx tsx scripts/<name>.ts` (header comments explain usage), e.g. `suggestAgeRanges` / `applyAgeRanges` and `suggestDescriptions` / `applyDescriptions` (Claude writes suggestions to a CSV for you to review; `apply` is a dry run unless you pass `--apply`; run `npm run db:backup` first). For prices, see [Pricing](#pricing).

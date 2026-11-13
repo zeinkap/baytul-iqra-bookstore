@@ -2,9 +2,11 @@
  * Prints a sign for each venue (no database needed).
  *
  *   npm run qr:venue-signs -- cafe-a bazaar-oct
+ *   npm run qr:venue-signs -- --generic              (one sign for any stall: "Welcome to Baytul Iqra Bookstall!")
+ *   npm run qr:venue-signs -- --generic cafe-a       (the generic sign first, then one per venue)
  *
  * Writes qr-labels/venue-signs.html and qr-labels/venue-signs.pdf (print the PDF: colours and page size are already right).
- * One letter-size page per venue, styled like the venue welcome page
+ * One letter-size page per sign, styled like the venue welcome page
  * (/venue/welcome) and using the same steps (src/lib/venueCopy.ts). Book stickers stay the same.
  */
 import fs from 'fs';
@@ -14,7 +16,7 @@ import { normalizeLocation } from '../src/lib/location';
 import QRCode from 'qrcode';
 import { chromium } from '@playwright/test';
 import { BRAND_ICONS } from './brandIcons';
-import { VENUE_STEPS, VENUE_STORE_NAME, boldSegments, prettyVenue } from '../src/lib/venueCopy';
+import { GENERIC_SIGN_TAGLINE, GENERIC_SIGN_TITLE, VENUE_STEPS, VENUE_STORE_NAME, boldSegments, prettyVenue } from '../src/lib/venueCopy';
 
 const escapeHtml = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
@@ -25,9 +27,11 @@ const INSTAGRAM_URL = 'https://www.instagram.com/baytul_iqra/';
 const headingPt = (text: string) => Math.min(42, Math.floor(1000 / text.length));
 
 async function main() {
-  const venues = process.argv.slice(2);
-  if (venues.length === 0) {
-    console.error('Usage: npm run qr:venue-signs -- <venue> [<venue> ...]   (e.g. cafe-a bazaar-oct)');
+  const args = process.argv.slice(2);
+  const generic = args.includes('--generic');
+  const venues = args.filter((a) => a !== '--generic');
+  if (venues.length === 0 && !generic) {
+    console.error('Usage: npm run qr:venue-signs -- [--generic] [<venue> ...]   (e.g. --generic cafe-a bazaar-oct)');
     process.exit(1);
   }
 
@@ -74,18 +78,12 @@ async function main() {
   const qr = (url: string) => QRCode.toString(url, { type: 'svg', errorCorrectionLevel: 'M', margin: 0, color: { dark: '#111827', light: '#0000' } });
   const [siteQr, instagramQr] = await Promise.all([qr(SITE_URL), qr(INSTAGRAM_URL)]);
 
-  const pages: string[] = [];
-  for (const raw of venues) {
-    const venue = normalizeLocation(raw);
-    if (!venue) {
-      console.error(`Skipping "${raw}": use lowercase letters, numbers and dashes (e.g. cafe-a)`);
-      continue;
-    }
-    pages.push(`<section class="page">
+  // One sign: heading and the line under it change, everything else is the same
+  const signPage = (title: string, subtitle: string) => `<section class="page">
   <header class="band">${leaves}
     <img class="logo" src="${logo}" alt="${escapeHtml(VENUE_STORE_NAME)}">
-    <h1 style="font-size:${headingPt(`Welcome to ${prettyVenue(venue)}!`)}pt">Welcome to ${escapeHtml(prettyVenue(venue))}!</h1>
-    <p class="store">${escapeHtml(VENUE_STORE_NAME)}</p>
+    <h1 style="font-size:${headingPt(title)}pt">${escapeHtml(title)}</h1>
+    <p class="store">${escapeHtml(subtitle)}</p>
   </header>
   <ol>
       ${steps}
@@ -95,7 +93,17 @@ async function main() {
     <div class="link"><div class="qr">${siteQr}</div><div class="who">${GLOBE}<b>baytuliqra.com</b><small>Scan to visit our website</small></div></div>
     <div class="link"><div class="qr">${instagramQr}</div><div class="who">${brand(BRAND_ICONS.instagram)}<b>@baytul_iqra</b><small>Scan to follow us</small></div></div>
   </div>
-</section>`);
+</section>`;
+
+  const pages: string[] = [];
+  if (generic) pages.push(signPage(GENERIC_SIGN_TITLE, GENERIC_SIGN_TAGLINE));
+  for (const raw of venues) {
+    const venue = normalizeLocation(raw);
+    if (!venue) {
+      console.error(`Skipping "${raw}": use lowercase letters, numbers and dashes (e.g. cafe-a)`);
+      continue;
+    }
+    pages.push(signPage(`Welcome to ${prettyVenue(venue)}!`, VENUE_STORE_NAME));
   }
   if (pages.length === 0) process.exit(1);
 
