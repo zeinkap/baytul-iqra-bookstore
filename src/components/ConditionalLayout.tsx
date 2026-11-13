@@ -1,13 +1,9 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import dynamic from 'next/dynamic';
-
-// Loaded as separate chunks: the QR scan, basket and receipt screens never show them, so a customer's phone
-// shouldn't download their code. Pages that do show them still render them on the server, so nothing pops in.
-const Header = dynamic(() => import('./Header'));
-const Footer = dynamic(() => import('./Footer'));
-const ChatWidget = dynamic(() => import('./ChatWidget'));
+import Header from './Header';
+import Footer from './Footer';
+import ChatWidget from './ChatWidget';
 
 export default function ConditionalLayout({ 
   categories,
