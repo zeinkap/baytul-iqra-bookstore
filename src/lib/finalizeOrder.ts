@@ -6,6 +6,28 @@ import { extractBookItems, updateBookStock } from './stockManager';
 
 const CARD_BRANDS: Record<string, string> = { visa: 'Visa', mastercard: 'Mastercard', amex: 'American Express', discover: 'Discover', diners: 'Diners Club', jcb: 'JCB', unionpay: 'UnionPay' };
 
+export type ShippingAddress = { name?: string; line1?: string; line2?: string; city?: string; state?: string; postal_code?: string; country?: string };
+
+/**
+ * The shipping address the customer typed at Checkout. Newer Stripe API versions put it in
+ * collected_information.shipping_details; older ones in shipping_details (and the oldest in shipping).
+ */
+export function shippingAddressFromSession(session: Stripe.Checkout.Session): ShippingAddress | undefined {
+  const legacy = session as unknown as { shipping_details?: Stripe.Checkout.Session.CollectedInformation.ShippingDetails | null; shipping?: Stripe.Checkout.Session.CollectedInformation.ShippingDetails | null };
+  const ship = session.collected_information?.shipping_details ?? legacy.shipping_details ?? legacy.shipping;
+  const a = ship?.address;
+  if (!a) return undefined;
+  return {
+    name: ship.name ?? undefined,
+    line1: a.line1 ?? undefined,
+    line2: a.line2 ?? undefined,
+    city: a.city ?? undefined,
+    state: a.state ?? undefined,
+    postal_code: a.postal_code ?? undefined,
+    country: a.country ?? undefined,
+  };
+}
+
 /** How a Stripe payment method reads to a customer: "Visa ending 4242", or "Apple Pay (Visa ending 4242)". Null for non-card methods. */
 export function describePaymentMethod(method: Stripe.PaymentMethod): string | null {
   const card = method.card;
@@ -60,7 +82,7 @@ export async function checkoutPaymentMethodInfo(stripe: Stripe, session: Stripe.
  */
 export async function finalizePaidOrder(
   orderId: string,
-  details: { email?: string | null; customerName?: string | null; paymentMethod?: string | null; paymentMethodDetail?: string | null },
+  details: { email?: string | null; customerName?: string | null; shippingAddress?: ShippingAddress | null; paymentMethod?: string | null; paymentMethodDetail?: string | null },
   // Pass `after` (next/server) to send the sale alert and receipt email once the response has gone out
   runLater?: (task: () => Promise<void>) => void
 ): Promise<Order | null> {
@@ -84,6 +106,9 @@ export async function finalizePaidOrder(
   }
   if (details.customerName) {
     await prisma.order.updateMany({ where: { id: orderId, customerName: null }, data: { customerName: details.customerName } });
+  }
+  if (details.shippingAddress && existing.fulfillmentType === 'shipping' && !existing.shippingAddress) {
+    await prisma.order.update({ where: { id: orderId }, data: { shippingAddress: details.shippingAddress } });
   }
   let savedEmail = false;
   if (details.email) {
