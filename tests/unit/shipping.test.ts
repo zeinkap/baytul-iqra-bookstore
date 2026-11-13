@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FREE_SHIPPING_MIN_CENTS, SHIPPING_FLAT_CENTS, centsToFreeShipping, shippingCentsFor } from '@/lib/shipping';
+import { FREE_SHIPPING_MIN_CENTS, SHIPPING_FLAT_CENTS, centsToFreeShipping, shippingCentsFor, isUsShippingCountry } from '@/lib/shipping';
 
 describe('Shipping', () => {
   it('is a flat $5 under $60', () => {
@@ -21,5 +21,13 @@ describe('Shipping', () => {
     expect(centsToFreeShipping(4550)).toBe(1450);
     expect(centsToFreeShipping(6000)).toBe(0);
     expect(centsToFreeShipping(9000)).toBe(0);
+  });
+
+  it('TC-257: only US shipping addresses are accepted', () => {
+    expect(isUsShippingCountry('US')).toBe(true);
+    expect(isUsShippingCountry(' us ')).toBe(true);
+    expect(isUsShippingCountry('CA')).toBe(false);
+    expect(isUsShippingCountry('')).toBe(false);
+    expect(isUsShippingCountry(undefined)).toBe(false);
   });
 });

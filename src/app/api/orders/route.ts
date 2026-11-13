@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import Stripe from 'stripe';
 import type { Prisma } from '@prisma/client';
 import { findStockProblems, stockProblemMessage } from '@/lib/stockManager';
-import { shippingCentsFor } from '@/lib/shipping';
+import { shippingCentsFor, isUsShippingCountry, flagNonUsShippingAddress, US_ONLY_SHIPPING_MESSAGE } from '@/lib/shipping';
 import { priceItems, discountForPromoId } from '@/lib/pricing';
 import { normalizeLocation } from '@/lib/location';
 import { toPublicOrder } from '@/lib/publicOrder';
@@ -121,6 +121,9 @@ export async function POST(req: NextRequest) {
     }
     if (source !== undefined && source !== 'online' && source !== 'in-shop') {
       return NextResponse.json({ error: 'Invalid source' }, { status: 400 });
+    }
+    if (fulfillmentType === 'shipping' && shippingAddress && !isUsShippingCountry(shippingAddress.country)) {
+      return NextResponse.json({ error: US_ONLY_SHIPPING_MESSAGE }, { status: 400 });
     }
     // Prices, total and discount come from the database; the browser only supplies ids and quantities
     const priced = await priceItems(rawItems, source === 'in-shop' ? 'in-shop' : 'online');
@@ -277,6 +280,8 @@ export async function PUT(req: NextRequest) {
       }
     }
     
+    flagNonUsShippingAddress(orderId, shippingAddress?.country, 'orders PUT');
+
     // Calculate totals
     const subtotal = productItems.reduce((s, it) => s + it.price * it.quantity, 0);
     const finalTotal = subtotal + (shippingCostCents / 100) - ((discountAmountCents || 0) / 100);

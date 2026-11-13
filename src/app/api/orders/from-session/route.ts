@@ -1,6 +1,7 @@
 import { nameFromCustomFields } from '@/lib/checkoutName';
 import { NextRequest, NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { flagNonUsShippingAddress } from '@/lib/shipping';
 import Stripe from 'stripe';
 import { sendOrderNotificationToSales } from '@/lib/sendEmail';
 import { finalizePaidOrder, checkoutPaymentMethodInfo } from '@/lib/finalizeOrder';
@@ -179,6 +180,8 @@ export async function POST(req: NextRequest) {
         });
       }
     }
+
+    flagNonUsShippingAddress(orderId, shippingAddress?.country, 'from-session');
 
     // Determine customer name with priority fallback
     // Priority: shipping name > name typed on the payment page (in-shop) > customer details name

@@ -2,6 +2,7 @@ import { nameFromCustomFields } from '@/lib/checkoutName';
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { prisma } from '@/lib/prisma';
+import { flagNonUsShippingAddress } from '@/lib/shipping';
 import { updateBookStock, extractBookItems, hasStockBeenUpdated } from '@/lib/stockManager';
 import { sendOrderConfirmationEmail } from '@/lib/sendEmail';
 import { finalizePaidOrder, finalizeInShopIntent, IN_SHOP_WALLET_FLOW, notifySalesOfPaidOrder, checkoutPaymentMethodInfo, recordRefund } from '@/lib/finalizeOrder';
@@ -270,6 +271,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
     if (!shippingAddress) {
       console.warn('No shipping address found for shipping order:', session.id);
     }
+    flagNonUsShippingAddress(orderId, shippingAddress?.country, 'stripe webhook');
   }
 
   // Try multiple sources for customer name
