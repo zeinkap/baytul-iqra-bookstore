@@ -306,7 +306,7 @@ export async function POST(req: NextRequest) {
         payment_method_types: ['card', 'link'],
         // Add shipping address collection if needed
         ...(fulfillmentType === 'shipping' && {
-          shipping_address_collection: { allowed_countries: ['US', 'CA'] }
+          shipping_address_collection: { allowed_countries: ['US'] }
         }),
         // Use 'auto' instead of 'required' to allow mobile wallets to pre-fill address
         // This makes Apple Pay/Google Pay faster (one tap to pay)
@@ -376,7 +376,7 @@ export async function POST(req: NextRequest) {
       cancel_url: `${req.nextUrl.origin}${inShop ? safeInShopCancelPath(cancelPath) : '/cart'}`,
       // Only collect shipping address if fulfillment type is shipping
       ...(fulfillmentType === 'shipping' && {
-        shipping_address_collection: { allowed_countries: ['US', 'CA'] }
+        shipping_address_collection: { allowed_countries: ['US'] }
       }),
       // Optional: when the cart has no email Stripe asks for it on its payment page (the webhook saves it from there)
       customer_email: email || undefined,

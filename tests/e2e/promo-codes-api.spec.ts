@@ -114,7 +114,7 @@ test.describe('Promo codes', () => {
       const book = await fx.book({ price: 25, stock: 10 });
       const promo = await fx.promo({ discountType: 'percentage', discountValue: 20 });
       const res = await request.post('/api/orders', {
-        data: { items: [{ id: book.id, quantity: 2 }], fulfillmentType: 'shipping', promoCodeId: promo.id, shippingAddress: { line1: '1 Test St' } },
+        data: { items: [{ id: book.id, quantity: 2 }], fulfillmentType: 'shipping', promoCodeId: promo.id, shippingAddress: { line1: '1 Test St', country: 'US' } },
       });
       const { id } = await res.json();
       fx.trackOrder(id);

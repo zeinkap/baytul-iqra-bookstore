@@ -273,6 +273,10 @@ export default function ContactPage() {
                     <p className="text-gray-600">Orders are dispatched within 1-2 days, and standard shipping within the United States typically takes 4-5 business days after that. The shipping fee is a flat $5 per order, free on orders of $60 or more, and is shown at checkout. Local pickup in Alpharetta, GA is free.</p>
                   </div>
                   <div>
+                    <h3 className="font-semibold text-gray-900 mb-2">Do you ship outside the USA?</h3>
+                    <p className="text-gray-600">No, we only ship within the United States. If you live elsewhere, you are welcome to pick up in Alpharetta, GA.</p>
+                  </div>
+                  <div>
                     <h3 className="font-semibold text-gray-900 mb-2">What payment methods do you accept?</h3>
                     <p className="text-gray-600">We accept all major credit cards, Apple Pay and Google Pay, processed securely through Stripe.</p>
                   </div>

@@ -224,7 +224,7 @@ export default function CartPage({
                     className="accent-emerald-600"
                     data-testid="fulfillment-type-shipping"
                   />
-                  <span className="text-gray-900 font-semibold">Ship to my address</span>
+                  <span className="text-gray-900 font-semibold">Ship to my address <span className="text-xs font-normal text-gray-600" data-testid="us-only-shipping-note">(USA only)</span></span>
                   {isInPersonSale && <span className="text-xs text-gray-500">(disabled in-person mode)</span>}
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -620,6 +620,9 @@ export default function CartPage({
                           <span>$5 (flat rate)</span>
                         )}
                       </div>
+                      {fulfillmentType === 'shipping' && (
+                        <p className="text-sm text-gray-600" data-testid="cart-us-only-note">We currently ship within the USA only.</p>
+                      )}
                       {fulfillmentType === 'shipping' && awayFromFreeShipping > 0 && (
                         <p className="text-sm text-emerald-700" data-testid="cart-free-shipping-hint">
                           Add ${awayFromFreeShipping.toFixed(2)} more for free shipping

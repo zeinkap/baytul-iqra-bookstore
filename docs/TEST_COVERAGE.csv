@@ -259,3 +259,6 @@ TC-257,In-shop,Painting series scan page,"A photo-less painting-series item sell
 TC-258,Storefront,Art Canvases,The gallery lists paintings with a photo and leaves out the photo-less series item,UI,Automated,tests/e2e/art-series-scan.spec.ts,Local DB,,
 TC-259,Storefront,Art Canvases,Only paintings that have a photo are gallery cards,Unit,Automated,tests/unit/art-collection.test.ts,,,
 TC-260,In-shop,Receipt,Paid receipt has a 'Text me this receipt' link that opens Messages with the receipt link prefilled,UI,Automated,tests/e2e/in-shop-receipt.spec.ts,,,
+TC-261,Orders,Shipping,Only US shipping addresses count as supported,Unit,Automated,tests/unit/shipping.test.ts,,,
+TC-262,Orders,Shipping,A shipping order with a non-US or missing country is rejected with a US-only message,API,Automated,tests/e2e/shipping.spec.ts,Local DB,,
+TC-263,Orders,Shipping,Pickup orders are unaffected by the US-only shipping rule,API,Automated,tests/e2e/shipping.spec.ts,Local DB,,
