@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidateTag } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/adminAuth';
 import { normalizeLocation } from '@/lib/location';
-import { CURRENT_VENUE_KEY, getCurrentVenue } from '@/lib/venue';
+import { CURRENT_VENUE_KEY, VENUE_CACHE_TAG, getCurrentVenue } from '@/lib/venue';
 
 // GET /api/admin/venue - the venue the books are at today, plus venues seen before (for the picker)
 export async function GET(req: NextRequest) {
@@ -27,6 +28,7 @@ export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (body?.venue === null || body?.venue === '') {
     await prisma.appSetting.deleteMany({ where: { key: CURRENT_VENUE_KEY } });
+    revalidateTag(VENUE_CACHE_TAG, { expire: 0 });
     return NextResponse.json({ current: null });
   }
   const venue = normalizeLocation(body?.venue);
@@ -38,5 +40,6 @@ export async function PUT(req: NextRequest) {
     create: { key: CURRENT_VENUE_KEY, value: venue },
     update: { value: venue },
   });
+  revalidateTag(VENUE_CACHE_TAG, { expire: 0 });
   return NextResponse.json({ current: venue });
 }
