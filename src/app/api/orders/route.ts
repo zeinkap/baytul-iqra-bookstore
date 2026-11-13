@@ -10,6 +10,7 @@ import { normalizeLocation } from '@/lib/location';
 import { toPublicOrder } from '@/lib/publicOrder';
 import { deviceFromUserAgent } from '@/lib/device';
 import { findReusableInShopOrder } from '@/lib/inShopOrders';
+import { PAID_TRACKING_SINCE } from '@/lib/paidTracking';
 
 // Extended Stripe session type to include shipping_details which may not be in all TypeScript definitions
 interface StripeSessionWithShipping extends Stripe.Response<Stripe.Checkout.Session> {
@@ -48,6 +49,7 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get('search') || '';
     const fulfillmentType = searchParams.get('fulfillmentType') || '';
     const source = searchParams.get('source') || '';
+    const includeUnpaid = searchParams.get('includeUnpaid') === '1';
     
     const skip = (page - 1) * limit;
     
@@ -60,7 +62,13 @@ export async function GET(req: NextRequest) {
       }>;
       fulfillmentType?: string;
       source?: string;
+      NOT?: { paidAt: null; createdAt: { gte: Date } };
     } = {};
+
+    // Abandoned checkouts (order created, never paid) are hidden unless asked for
+    if (!includeUnpaid) {
+      where.NOT = { paidAt: null, createdAt: { gte: PAID_TRACKING_SINCE } };
+    }
     
     if (search) {
       where.OR = [

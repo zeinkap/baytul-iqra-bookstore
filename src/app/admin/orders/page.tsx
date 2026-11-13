@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
+import { PAID_TRACKING_SINCE } from "@/lib/paidTracking";
 
 // Order types
 interface OrderItem {
@@ -51,9 +52,6 @@ interface Order {
   updatedAt: string;
 }
 
-// Orders are created before the customer pays, so one that was never paid has no name or email. paidAt only exists
-// from this date, so older orders (paid, but without it) are not called unpaid.
-const PAID_TRACKING_SINCE = new Date('2026-10-15T00:00:00Z');
 const isUnpaid = (order: { paidAt?: string | null; createdAt: string }) => !order.paidAt && new Date(order.createdAt) >= PAID_TRACKING_SINCE;
 
 interface Pagination {
@@ -83,6 +81,7 @@ export default function AdminOrdersPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [fulfillmentFilter, setFulfillmentFilter] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
+  const [showUnpaid, setShowUnpaid] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [sortField, setSortField] = useState<string>('createdAt');
@@ -104,6 +103,7 @@ export default function AdminOrdersPage() {
         search: debouncedSearch,
         fulfillmentType: fulfillmentFilter,
         source: sourceFilter,
+        ...(showUnpaid ? { includeUnpaid: '1' } : {}),
       });
       
       const res = await fetch(`/api/orders?${params}`);
@@ -130,7 +130,7 @@ export default function AdminOrdersPage() {
     } finally {
       setLoading(false);
     }
-  }, [pagination.page, pagination.limit, debouncedSearch, fulfillmentFilter, sourceFilter]);
+  }, [pagination.page, pagination.limit, debouncedSearch, fulfillmentFilter, sourceFilter, showUnpaid]);
 
   // Fetch orders
   useEffect(() => {
@@ -399,6 +399,15 @@ export default function AdminOrdersPage() {
           <option value="online">Online</option>
           <option value="in-shop">In shop (QR)</option>
         </select>
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={showUnpaid}
+            onChange={(e) => { setShowUnpaid(e.target.checked); setPagination((p) => ({ ...p, page: 1 })); }}
+            data-testid="show-unpaid-toggle"
+          />
+          Show unpaid / abandoned
+        </label>
       </div>
 
       {loading && (

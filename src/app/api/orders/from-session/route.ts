@@ -3,7 +3,7 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import Stripe from 'stripe';
 import { sendOrderNotificationToSales } from '@/lib/sendEmail';
-import { finalizePaidOrder, checkoutPaymentMethodInfo } from '@/lib/finalizeOrder';
+import { finalizePaidOrder, checkoutPaymentMethodInfo, shippingAddressFromSession } from '@/lib/finalizeOrder';
 import { toPublicOrder } from '@/lib/publicOrder';
 
 export async function POST(req: NextRequest) {
@@ -113,7 +113,10 @@ export async function POST(req: NextRequest) {
     
     if (fulfillmentType === 'shipping') {
       // First try to get shipping info from session.shipping_details (Stripe's dedicated shipping field)
-      if (sessionWithShipping.shipping_details?.address) {
+      const collected = shippingAddressFromSession(session);
+      if (collected) {
+        shippingAddress = collected;
+      } else if (sessionWithShipping.shipping_details?.address) {
         const shipDetails = sessionWithShipping.shipping_details;
         const address = shipDetails.address!;
         shippingAddress = {
@@ -208,6 +211,7 @@ export async function POST(req: NextRequest) {
       existing = (await finalizePaidOrder(orderId, {
         email: email || paymentInfo.billingEmail,
         customerName: customerName || paymentInfo.billingName,
+        shippingAddress,
         ...paymentInfo,
       }, after)) ?? existing;
 
