@@ -45,6 +45,15 @@ export function categoryWrites(names: string[]) {
   };
 }
 
+/**
+ * True when the painting has at least one photo. The collection page only lists paintings with a photo: an entry
+ * without one (for example the generic "Names of Allah Painting Series" item that the shared QR sticker on every
+ * painting opens, at $35) can still be bought by scanning, but isn't a gallery card.
+ */
+export function hasPhoto(piece: { images?: string[] | null }): boolean {
+  return (piece.images ?? []).some((src) => src.trim().length > 0);
+}
+
 /** The books-only catalog (home page, hero, category menu): the art has its own page. */
 export function withoutArt<T extends { categories: string[] }>(books: T[]): T[] {
   return books.filter((b) => !isArtPiece(b.categories));

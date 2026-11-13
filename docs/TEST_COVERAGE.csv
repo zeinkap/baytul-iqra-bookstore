@@ -255,3 +255,6 @@ TC-253,Admin,Orders,Unpaid orders are marked Unpaid in the orders list and say s
 TC-254,In-shop,Buy API,The Stripe payment page asks for the customer name and it is required,API,Automated,tests/e2e/in-shop-buy-api.spec.ts,Local DB + Stripe test key,,
 TC-255,Orders,Customer details,The name typed on the in-shop payment page is read from the session and trimmed,Unit,Automated,tests/unit/checkout-name.test.ts,,,
 TC-256,Orders,Customer details,A missing or empty name field gives no name so it cannot overwrite one from elsewhere,Unit,Automated,tests/unit/checkout-name.test.ts,,,
+TC-257,In-shop,Painting series scan page,"A photo-less painting-series item sells from its scan page: title, $35, no photo, quantity reads in paintings",UI,Automated,tests/e2e/art-series-scan.spec.ts,Local DB,,
+TC-258,Storefront,Art Canvases,The gallery lists paintings with a photo and leaves out the photo-less series item,UI,Automated,tests/e2e/art-series-scan.spec.ts,Local DB,,
+TC-259,Storefront,Art Canvases,Only paintings that have a photo are gallery cards,Unit,Automated,tests/unit/art-collection.test.ts,,,
