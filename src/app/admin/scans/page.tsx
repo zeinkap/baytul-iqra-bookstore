@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface Row {
   bookId: string;
@@ -18,6 +19,13 @@ interface Venue {
   paidOrders: number;
   revenue: number;
   abandoned: number;
+}
+/** A venue on record, with how much history it carries (from GET /api/admin/venue) */
+interface VenueRecord {
+  venue: string;
+  scans: number;
+  orders: number;
+  paidOrders: number;
 }
 interface Stats {
   days: number;
@@ -51,19 +59,66 @@ export default function AdminScansPage() {
   // Where the books are today (applies to scans that arrive without a venue sign or tagged link)
   const [currentVenue, setCurrentVenue] = useState<string | null>(null);
   const [knownVenues, setKnownVenues] = useState<string[]>([]);
+  const [venueRecords, setVenueRecords] = useState<VenueRecord[]>([]);
   const [venueInput, setVenueInput] = useState("");
   const [savingVenue, setSavingVenue] = useState(false);
 
+  // Removing a venue: which one, what happens to its history, and whether the request is running
+  const [removeTarget, setRemoveTarget] = useState<VenueRecord | null>(null);
+  const [scanChoice, setScanChoice] = useState<"untag" | "delete">("untag");
+  const [orderChoice, setOrderChoice] = useState<"untag" | "keep">("untag");
+  const [removing, setRemoving] = useState(false);
+  // Bumped after a removal so the stats below are read again
+  const [statsVersion, setStatsVersion] = useState(0);
+
+  const readVenues = () => fetch("/api/admin/venue").then((r) => (r.ok ? r.json() : Promise.reject(new Error("Failed to load venue"))));
+  function applyVenues(d: { current: string | null; known: string[]; venues?: VenueRecord[] }, firstLoad = false) {
+    setCurrentVenue(d.current);
+    setKnownVenues(d.known);
+    setVenueRecords(d.venues ?? []);
+    if (firstLoad) setVenueInput(d.current ?? "");
+  }
+
   useEffect(() => {
-    fetch("/api/admin/venue")
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Failed to load venue"))))
-      .then((d) => {
-        setCurrentVenue(d.current);
-        setKnownVenues(d.known);
-        setVenueInput(d.current ?? "");
-      })
+    readVenues()
+      .then((d) => applyVenues(d, true))
       .catch(() => {});
   }, []);
+
+  function askToRemove(record: VenueRecord) {
+    setScanChoice("untag");
+    setOrderChoice("untag");
+    setRemoveTarget(record);
+  }
+
+  async function removeVenue() {
+    if (!removeTarget) return;
+    const name = removeTarget.venue;
+    setRemoving(true);
+    try {
+      const res = await fetch("/api/admin/venue", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          venue: name,
+          scans: removeTarget.scans > 0 ? scanChoice : "untag",
+          orders: removeTarget.orders > 0 ? orderChoice : "keep",
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Failed to remove venue");
+      if (data.clearedCurrent) setVenueInput("");
+      if (venue === name) setVenue("");
+      setRemoveTarget(null);
+      await readVenues().then((d) => applyVenues(d)).catch(() => {});
+      setStatsVersion((v) => v + 1);
+      toast.success(`Removed ${name}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to remove venue");
+    } finally {
+      setRemoving(false);
+    }
+  }
 
   async function saveVenue(venueValue: string | null) {
     setSavingVenue(true);
@@ -102,7 +157,7 @@ export default function AdminScansPage() {
     return () => {
       cancelled = true;
     };
-  }, [days, venue]);
+  }, [days, venue, statsVersion]);
 
   const venueValue = (name: string) => (name === NO_VENUE ? "none" : name);
 
@@ -168,7 +223,82 @@ export default function AdminScansPage() {
             </button>
           )}
         </div>
+
+        {venueRecords.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-gray-100" data-testid="past-venues">
+            <p className="text-sm font-semibold text-gray-900">Venues on record</p>
+            <p className="text-xs text-gray-500 mb-1">Remove a venue to take it out of the lists. You choose what happens to its scans and sales.</p>
+            <ul className="divide-y divide-gray-100">
+              {venueRecords.map((v) => (
+                <li key={v.venue} className="flex items-center justify-between gap-3 py-2" data-testid={`venue-row-${v.venue}`}>
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900 break-all">
+                      {v.venue}
+                      {v.venue === currentVenue && <span className="ml-2 text-xs font-semibold text-emerald-700 bg-emerald-50 rounded-full px-2 py-0.5">books are here</span>}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {v.scans} {v.scans === 1 ? "scan" : "scans"} · {v.paidOrders} paid {v.paidOrders === 1 ? "sale" : "sales"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => askToRemove(v)}
+                    className="shrink-0 border border-red-200 text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg text-sm font-semibold"
+                    data-testid={`venue-remove-${v.venue}`}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
+
+      <ConfirmDialog
+        isOpen={removeTarget !== null}
+        onClose={() => !removing && setRemoveTarget(null)}
+        onConfirm={removeVenue}
+        title={`Remove venue "${removeTarget?.venue ?? ""}"?`}
+        message="This takes the venue out of the lists and reports. Choose what happens to its history. Sales are never deleted."
+        confirmText="Remove venue"
+        loading={removing}
+      >
+        {removeTarget && (
+          <div className="space-y-4 text-sm text-gray-800" data-testid="remove-venue-options">
+            {removeTarget.scans > 0 && (
+              <fieldset>
+                <legend className="font-semibold text-gray-900 mb-1">Its {removeTarget.scans} {removeTarget.scans === 1 ? "scan" : "scans"}</legend>
+                <label className="flex items-start gap-2 mb-1">
+                  <input type="radio" name="scan-choice" checked={scanChoice === "untag"} onChange={() => setScanChoice("untag")} className="mt-1" data-testid="remove-scans-untag" />
+                  <span>Keep them, without a venue name (listed under &ldquo;{NO_VENUE}&rdquo;)</span>
+                </label>
+                <label className="flex items-start gap-2">
+                  <input type="radio" name="scan-choice" checked={scanChoice === "delete"} onChange={() => setScanChoice("delete")} className="mt-1" data-testid="remove-scans-delete" />
+                  <span>Delete them (the scan counts are lost)</span>
+                </label>
+              </fieldset>
+            )}
+            {removeTarget.orders > 0 && (
+              <fieldset>
+                <legend className="font-semibold text-gray-900 mb-1">
+                  Its {removeTarget.orders} {removeTarget.orders === 1 ? "order" : "orders"} ({removeTarget.paidOrders} paid)
+                </legend>
+                <label className="flex items-start gap-2 mb-1">
+                  <input type="radio" name="order-choice" checked={orderChoice === "untag"} onChange={() => setOrderChoice("untag")} className="mt-1" data-testid="remove-orders-untag" />
+                  <span>Remove the venue name from them (listed under &ldquo;{NO_VENUE}&rdquo;; this venue&apos;s sales numbers and flat fee are lost)</span>
+                </label>
+                <label className="flex items-start gap-2">
+                  <input type="radio" name="order-choice" checked={orderChoice === "keep"} onChange={() => setOrderChoice("keep")} className="mt-1" data-testid="remove-orders-keep" />
+                  <span>Keep the venue name on them (the venue stays in the lists while it has sales)</span>
+                </label>
+              </fieldset>
+            )}
+            {removeTarget.venue === currentVenue && (
+              <p className="text-xs text-gray-600">This is where the books are today, so that setting will be cleared too.</p>
+            )}
+          </div>
+        )}
+      </ConfirmDialog>
 
       {error && <p className="text-red-600 mb-4">{error}</p>}
       {!stats && !error && <p className="text-gray-600">Loading…</p>}
