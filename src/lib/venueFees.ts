@@ -4,6 +4,9 @@ import { normalizeLocation } from './location';
 const PREFIX = 'venue_fee:';
 const MAX_FEE = 100_000;
 
+/** The AppSetting key a venue's flat fee is stored under (also used when a venue is removed). */
+export const venueFeeKey = (venue: string) => `${PREFIX}${venue}`;
+
 /** Flat fees the shop pays to sell at a venue (e.g. a $50 bazaar stall), keyed by venue name. Set in Admin → Insights. */
 export async function getVenueFees(): Promise<Record<string, number>> {
   const rows = await prisma.appSetting.findMany({ where: { key: { startsWith: PREFIX } } });
@@ -19,7 +22,7 @@ export async function getVenueFees(): Promise<Record<string, number>> {
 export async function setVenueFee(venueInput: unknown, feeInput: unknown): Promise<boolean> {
   const venue = normalizeLocation(venueInput);
   if (!venue) return false;
-  const key = `${PREFIX}${venue}`;
+  const key = venueFeeKey(venue);
   const clearing = feeInput === null || feeInput === '' || Number(feeInput) === 0;
   if (clearing) {
     await prisma.appSetting.deleteMany({ where: { key } });
