@@ -48,7 +48,7 @@ interface StockRow {
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 const hourLabel = (h: number) => `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? "a" : "p"}`;
-const methodLabel: Record<string, string> = { apple_pay: "Apple Pay", google_pay: "Google Pay", card: "Card", link: "Link", cash: "Cash", zelle: "Zelle", other: "Other (not Stripe)", unknown: "Not recorded" };
+const methodLabel: Record<string, string> = { apple_pay: "Apple Pay", google_pay: "Google Pay", card: "Card", link: "Link", cash: "Cash", zelle: "Zelle", venmo: "Venmo", cash_app: "Cash App", other: "Other (not Stripe)", unknown: "Not recorded" };
 const deviceLabel: Record<string, string> = { ios: "iPhone / iPad", android: "Android", desktop: "Computer", other: "Other", unknown: "Not recorded" };
 
 export default function AdminInsightsPage() {

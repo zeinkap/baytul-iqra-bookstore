@@ -6,7 +6,7 @@ import { priceItems } from '@/lib/pricing';
 import { findStockProblems, stockProblemMessage, updateBookStock } from '@/lib/stockManager';
 import { normalizeLocation } from '@/lib/location';
 import { getCurrentVenue } from '@/lib/venue';
-import { MANUAL_PAYMENT_METHODS, isManualMethod, type ManualPaymentMethod } from '@/lib/manualSales';
+import { MANUAL_PAYMENT_METHODS, MAX_MANUAL_DISCOUNT_PERCENT, applyManualDiscount, isManualMethod, type ManualPaymentMethod } from '@/lib/manualSales';
 
 // GET /api/admin/manual-sales - the most recent hand-recorded sales (cash, Zelle, ...), newest first
 export async function GET(req: NextRequest) {
@@ -22,8 +22,9 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ sales: orders });
 }
 
-// POST /api/admin/manual-sales { items: [{ id, quantity }], method: "cash" | "zelle" | "other", venue?: string }
-// Records a sale that didn't go through Stripe: a paid in-shop order at the in-person price, and takes the stock.
+// POST /api/admin/manual-sales { items: [{ id, quantity }], method: "cash" | "zelle" | "venmo" | "cash_app" | "other", venue?: string, discountPercent?: number }
+// Records a sale that didn't go through Stripe: a paid in-shop order at the in-person price (less the optional
+// percentage discount, e.g. a cash discount), and takes the stock.
 // The venue defaults to "where the books are today". No emails are sent.
 export async function POST(req: NextRequest) {
   const denied = await requireAdmin(req);
@@ -31,12 +32,17 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null);
   if (!isManualMethod(body?.method)) {
-    return NextResponse.json({ error: 'method must be cash, zelle or other' }, { status: 400 });
+    return NextResponse.json({ error: 'method must be cash, zelle, venmo, cash_app or other' }, { status: 400 });
   }
   const method: ManualPaymentMethod = body.method;
 
   const priced = await priceItems(body?.items, 'in-shop');
   if (!priced.ok) return NextResponse.json({ error: priced.error }, { status: priced.status });
+
+  const discounted = applyManualDiscount(priced.subtotal, body?.discountPercent);
+  if (!discounted) {
+    return NextResponse.json({ error: `discountPercent must be a number from 0 to ${MAX_MANUAL_DISCOUNT_PERCENT}` }, { status: 400 });
+  }
 
   const stockProblems = await findStockProblems(priced.items, priced.stockById);
   if (stockProblems.length > 0) {
@@ -52,8 +58,8 @@ export async function POST(req: NextRequest) {
     data: {
       items: priced.items as unknown as import('@prisma/client').Prisma.InputJsonValue,
       total: priced.subtotal,
-      discountAmount: 0,
-      finalTotal: priced.subtotal,
+      discountAmount: discounted.discountAmount,
+      finalTotal: discounted.finalTotal,
       fulfillmentType: 'pickup',
       pickupLocation: 'In shop',
       source: 'in-shop',

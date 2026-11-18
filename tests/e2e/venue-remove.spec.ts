@@ -37,7 +37,7 @@ test.describe('Remove venue: admin', () => {
     await disconnect();
   });
 
-  test('TC-264: removing a venue needs an admin session and a valid venue and choices', async ({ request }) => {
+  test('TC-267: removing a venue needs an admin session and a valid venue and choices', async ({ request }) => {
     const { venue } = await seedVenue({ scans: 1 });
     expect((await request.delete('/api/admin/venue', { data: { venue } })).status()).toBe(401);
 
@@ -48,7 +48,7 @@ test.describe('Remove venue: admin', () => {
     expect(await db.scan.count({ where: { location: venue } })).toBe(1);
   });
 
-  test('TC-265: removing a venue untags its scans and sales, drops its fee, and keeps the sales', async ({ request }) => {
+  test('TC-268: removing a venue untags its scans and sales, drops its fee, and keeps the sales', async ({ request }) => {
     const { venue, order } = await seedVenue({ scans: 2, order: true, fee: 50 });
 
     const res = await request.delete('/api/admin/venue', { headers: await headers(), data: { venue, scans: 'untag', orders: 'untag' } });
@@ -66,7 +66,7 @@ test.describe('Remove venue: admin', () => {
     expect(list.known).not.toContain(venue);
   });
 
-  test('TC-266: deleting a venue\'s scans while keeping its sales leaves the venue (and its fee) on those sales', async ({ request }) => {
+  test('TC-269: deleting a venue\'s scans while keeping its sales leaves the venue (and its fee) on those sales', async ({ request }) => {
     const { venue, order } = await seedVenue({ scans: 2, order: true, fee: 50 });
 
     const res = await request.delete('/api/admin/venue', { headers: await headers(), data: { venue, scans: 'delete', orders: 'keep' } });
@@ -80,7 +80,7 @@ test.describe('Remove venue: admin', () => {
     expect(list.venues.find((v: { venue: string }) => v.venue === venue)).toMatchObject({ scans: 0, orders: 1, paidOrders: 1 });
   });
 
-  test('TC-267: removing the venue the books are at today also clears that setting', async ({ request }) => {
+  test('TC-270: removing the venue the books are at today also clears that setting', async ({ request }) => {
     const { venue } = await seedVenue({ scans: 1 });
     const before = await db.appSetting.findUnique({ where: { key: CURRENT_VENUE_KEY } });
     try {
@@ -96,13 +96,13 @@ test.describe('Remove venue: admin', () => {
     }
   });
 
-  test('TC-268: removing a different venue leaves the current-venue setting alone', async ({ request }) => {
+  test('TC-271: removing a different venue leaves the current-venue setting alone', async ({ request }) => {
     const { venue } = await seedVenue({ scans: 1 });
     const res = await request.delete('/api/admin/venue', { headers: await headers(), data: { venue } });
     expect((await res.json()).clearedCurrent).toBe(false);
   });
 
-  test('TC-269: the QR Scans page lists venues with their history, and Remove venue asks what to do with it first', async ({ page, context, baseURL }) => {
+  test('TC-272: the QR Scans page lists venues with their history, and Remove venue asks what to do with it first', async ({ page, context, baseURL }) => {
     const { venue, order } = await seedVenue({ scans: 2, order: true });
     await context.addCookies([{ name: ADMIN_COOKIE, value: (await createSessionToken())!, url: baseURL! }]);
 
