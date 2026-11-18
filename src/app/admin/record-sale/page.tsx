@@ -24,8 +24,13 @@ interface Sale {
 const METHODS = [
   { value: "cash", label: "Cash" },
   { value: "zelle", label: "Zelle" },
+  { value: "venmo", label: "Venmo" },
+  { value: "cash_app", label: "Cash App" },
   { value: "other", label: "Other" },
 ] as const;
+
+const DISCOUNT_PRESETS = [0, 5, 10] as const;
+const MAX_DISCOUNT = 50; // same cap as the server
 
 const money = (n: number) => `$${n.toFixed(2)}`;
 /** Same rule the server uses for in-person sales */
@@ -37,6 +42,7 @@ export default function RecordSalePage() {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [method, setMethod] = useState<(typeof METHODS)[number]["value"]>("cash");
   const [venue, setVenue] = useState("");
+  const [discount, setDiscount] = useState(""); // percent off, as typed
   const [sales, setSales] = useState<Sale[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -66,7 +72,11 @@ export default function RecordSalePage() {
   const lines = Object.entries(cart)
     .map(([id, quantity]) => ({ book: books.find((b) => b.id === id), quantity }))
     .filter((l): l is { book: Book; quantity: number } => !!l.book);
-  const total = lines.reduce((sum, l) => sum + inPersonPrice(l.book) * l.quantity, 0);
+  const subtotal = lines.reduce((sum, l) => sum + inPersonPrice(l.book) * l.quantity, 0);
+  const discountPct = discount === "" ? 0 : Number(discount);
+  const discountValid = Number.isFinite(discountPct) && discountPct >= 0 && discountPct <= MAX_DISCOUNT;
+  const discountCents = discountValid ? Math.round((Math.round(subtotal * 100) * discountPct) / 100) : 0;
+  const total = (Math.round(subtotal * 100) - discountCents) / 100;
 
   function change(book: Book, delta: number) {
     setCart((c) => {
@@ -82,12 +92,13 @@ export default function RecordSalePage() {
       const res = await fetch("/api/admin/manual-sales", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items: lines.map((l) => ({ id: l.book.id, quantity: l.quantity })), method, venue: venue.trim() || undefined }),
+        body: JSON.stringify({ items: lines.map((l) => ({ id: l.book.id, quantity: l.quantity })), method, venue: venue.trim() || undefined, discountPercent: discountPct || undefined }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Could not record the sale");
-      toast.success(`Recorded ${money(data.total)} (${method})`);
+      toast.success(`Recorded ${money(data.total)} (${METHODS.find((m) => m.value === method)?.label ?? method})`);
       setCart({});
+      setDiscount("");
       setSearch("");
       await Promise.all([loadBooks(), loadSales()]);
     } catch (e) {
@@ -112,7 +123,7 @@ export default function RecordSalePage() {
   return (
     <div className="max-w-xl mx-auto px-4 py-6 text-gray-900">
       <h1 className="text-2xl font-bold mb-1">Record a sale</h1>
-      <p className="text-sm text-gray-600 mb-4">For cash, Zelle and other sales that don&apos;t go through Stripe. Uses the in-person price and takes the books out of stock.</p>
+      <p className="text-sm text-gray-600 mb-4">For cash, Zelle, Venmo, Cash App and other sales that don&apos;t go through Stripe. Uses the in-person price (less any discount you add) and takes the books out of stock.</p>
 
       <label className="block text-xs text-gray-500 mb-1" htmlFor="sale-venue">Venue</label>
       <input
@@ -168,11 +179,31 @@ export default function RecordSalePage() {
         ))}
       </div>
 
+      <div className="mt-4">
+        <label className="block text-xs text-gray-500 mb-1" htmlFor="sale-discount">Discount (% off, e.g. a cash discount)</label>
+        <div className="flex gap-2 items-center">
+          {DISCOUNT_PRESETS.map((p) => (
+            <button
+              key={p} type="button" onClick={() => setDiscount(p === 0 ? "" : String(p))} data-testid={`sale-discount-${p}`}
+              className={`px-4 py-2 rounded border font-medium ${(discount === "" ? 0 : Number(discount)) === p ? "bg-emerald-600 text-white border-emerald-600" : "bg-white border-gray-300"}`}
+            >
+              {p === 0 ? "None" : `${p}%`}
+            </button>
+          ))}
+          <input
+            id="sale-discount" type="number" inputMode="decimal" min={0} max={MAX_DISCOUNT} step="any" value={discount} onChange={(e) => setDiscount(e.target.value)} placeholder="Other %"
+            className="w-24 border border-gray-300 rounded px-3 py-2 bg-white text-gray-900" data-testid="sale-discount"
+          />
+        </div>
+        {!discountValid && <p className="text-xs text-red-600 mt-1">Enter a discount from 0 to {MAX_DISCOUNT}%.</p>}
+        {discountValid && discountCents > 0 && <p className="text-xs text-gray-600 mt-1" data-testid="sale-discount-note">{money(subtotal)} − {money(discountCents / 100)} = {money(total)}</p>}
+      </div>
+
       <button
-        type="button" onClick={record} disabled={lines.length === 0 || saving} data-testid="sale-record"
+        type="button" onClick={record} disabled={lines.length === 0 || saving || !discountValid} data-testid="sale-record"
         className="w-full mt-4 py-4 rounded-xl bg-emerald-600 text-white text-lg font-semibold disabled:opacity-50"
       >
-        {saving ? "Recording…" : lines.length ? `Record ${money(total)} ${method}` : "Add a book to record a sale"}
+        {saving ? "Recording…" : lines.length ? `Record ${money(total)} ${METHODS.find((m) => m.value === method)?.label ?? method}` : "Add a book to record a sale"}
       </button>
 
       <h2 className="text-lg font-semibold mt-8 mb-2">Recent hand-recorded sales</h2>

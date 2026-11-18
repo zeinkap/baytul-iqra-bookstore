@@ -63,6 +63,30 @@ test.describe('Hand-recorded sales: admin API and page', () => {
     expect(insights.payments.methods[0]).toMatchObject({ method: 'cash', orders: 1 });
   });
 
+  test('TC-266: a Venmo sale with a 10% cash discount is saved at the discounted total, and a bad discount is refused', async ({ request }) => {
+    const venue = `e2e-venmo-${randomUUID().slice(0, 8)}`;
+    const book = await fx.book({ price: 20, inShopPrice: 20, stock: 5 });
+    const bad = await record(request, { items: [{ id: book.id, quantity: 1 }], method: 'venmo', venue, discountPercent: 90 });
+    expect(bad.status()).toBe(400);
+    expect(await stockOf(book.id)).toBe(5);
+
+    const res = await record(request, { items: [{ id: book.id, quantity: 2 }], method: 'venmo', venue, discountPercent: 10 });
+    expect(res.status()).toBe(201);
+    const { id, total } = await res.json();
+    fx.trackOrder(id);
+    expect(total).toBeCloseTo(36, 2);
+    const order = await db.order.findUniqueOrThrow({ where: { id } });
+    expect(order).toMatchObject({ paymentMethod: 'venmo', paymentMethodDetail: 'Venmo', source: 'in-shop' });
+    expect(order.total).toBeCloseTo(40, 2);
+    expect(order.discountAmount).toBeCloseTo(4, 2);
+    expect(order.finalTotal).toBeCloseTo(36, 2);
+    expect(await stockOf(book.id)).toBe(3);
+
+    const insights = await (await request.get(`/api/admin/insights?days=30&source=in-shop&loc=${venue}`, { headers: await headers() })).json();
+    expect(insights.profit.revenue).toBe(36);
+    expect(insights.profit.estimatedStripeFees).toBe(0);
+  });
+
   test('TC-174: a sale entered by mistake can be undone once, putting the books back', async ({ request }) => {
     const book = await fx.book({ price: 20, stock: 4 });
     const { id } = await (await record(request, { items: [{ id: book.id, quantity: 3 }], method: 'zelle' })).json();
@@ -102,7 +126,7 @@ test.describe('Hand-recorded sales: admin API and page', () => {
     await page.getByRole('button', { name: /More E2E CASH BOOK/ }).click();
     await expect(page.getByTestId('sale-qty')).toHaveText('2');
     await page.getByTestId('sale-method-cash').click();
-    await expect(page.getByTestId('sale-record')).toContainText('$24.00 cash');
+    await expect(page.getByTestId('sale-record')).toContainText('$24.00 Cash');
     await page.getByTestId('sale-record').click();
 
     await expect(page.getByTestId('sale-recent')).toContainText('$24.00 · cash · 2× E2E CASH BOOK');

@@ -39,6 +39,9 @@ const reasonLabel: Record<string, string> = {
   "order-failed": "Could not create the order",
   "checkout-failed": "Could not open Stripe checkout",
   network: "Connection problem (no signal / Wi-Fi)",
+  "wallet-submit": "Apple/Google Pay sheet rejected the details",
+  "wallet-intent": "Could not start the wallet payment",
+  "wallet-confirm": "Wallet payment didn't go through (Stripe)",
   other: "Other",
 };
 

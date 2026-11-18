@@ -262,3 +262,6 @@ TC-260,In-shop,Receipt,Paid receipt has a 'Text me this receipt' link that opens
 TC-261,Orders,Shipping,Only US shipping addresses count as supported,Unit,Automated,tests/unit/shipping.test.ts,,,
 TC-262,Orders,Shipping,A shipping order with a non-US or missing country is rejected with a US-only message,API,Automated,tests/e2e/shipping.spec.ts,Local DB,,
 TC-263,Orders,Shipping,Pickup orders are unaffected by the US-only shipping rule,API,Automated,tests/e2e/shipping.spec.ts,Local DB,,
+TC-264,Admin,Manual sales,"Percentage discount comes off in whole cents; bad percent refused",Unit,Automated,tests/unit/manual-sales-reports.test.ts,,,
+TC-265,Admin,Manual sales,"Venmo and Cash App are manual methods; Stripe's cashapp type is not",Unit,Automated,tests/unit/manual-sales-reports.test.ts,,,
+TC-266,Admin,Manual sales,"Venmo sale with a 10% discount saves the discounted total; bad discount refused",API,Automated,tests/e2e/manual-sales.spec.ts,Local DB + ADMIN_PASSWORD,,
