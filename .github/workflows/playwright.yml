@@ -20,6 +20,8 @@ env:
   # codes can't interfere with each other across machines. These are not secrets.
   DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bookstore_test
   ADMIN_PASSWORD: ci-admin-password
+  # Required by the production build (it never signs sessions with the password); not a real secret
+  ADMIN_SESSION_SECRET: ci-admin-session-secret
   # The webhook tests sign their own events, so any value works as long as the server and the tests agree
   STRIPE_WEBHOOK_SECRET: whsec_ci_test_secret
   # Emails are never sent from CI
