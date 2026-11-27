@@ -3,10 +3,12 @@ import { revalidateTag } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/adminAuth';
 import { priceItems } from '@/lib/pricing';
-import { findStockProblems, stockProblemMessage, updateBookStock } from '@/lib/stockManager';
+import { findStockProblems, stockProblemMessage } from '@/lib/stockManager';
 import { normalizeLocation } from '@/lib/location';
 import { getCurrentVenue } from '@/lib/venue';
 import { MANUAL_PAYMENT_METHODS, MAX_MANUAL_DISCOUNT_PERCENT, applyManualDiscount, isManualMethod, type ManualPaymentMethod } from '@/lib/manualSales';
+
+class SoldOutError extends Error {}
 
 // GET /api/admin/manual-sales - the most recent hand-recorded sales (cash, Zelle, ...), newest first
 export async function GET(req: NextRequest) {
@@ -54,22 +56,47 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Use a short venue name with letters, numbers and dashes, e.g. bazaar-oct' }, { status: 400 });
   }
 
-  const order = await prisma.order.create({
-    data: {
-      items: priced.items as unknown as import('@prisma/client').Prisma.InputJsonValue,
-      total: priced.subtotal,
-      discountAmount: discounted.discountAmount,
-      finalTotal: discounted.finalTotal,
-      fulfillmentType: 'pickup',
-      pickupLocation: 'In shop',
-      source: 'in-shop',
-      location: venue,
-      paidAt: new Date(),
-      paymentMethod: method,
-      paymentMethodDetail: MANUAL_PAYMENT_METHODS[method],
-    },
-  });
-  await updateBookStock(priced.items, order.id);
+  // One transaction: record the order and take the stock. Each book is decremented only if enough is still
+  // on the shelf, so two sales of the last copy can't both succeed, and a failure leaves no order behind.
+  const wanted = new Map<string, number>();
+  for (const item of priced.items) {
+    if (item.id) wanted.set(item.id, (wanted.get(item.id) ?? 0) + item.quantity);
+  }
+  let order;
+  try {
+    order = await prisma.$transaction(async (tx) => {
+      const created = await tx.order.create({
+        data: {
+          items: priced.items as unknown as import('@prisma/client').Prisma.InputJsonValue,
+          total: priced.subtotal,
+          discountAmount: discounted.discountAmount,
+          finalTotal: discounted.finalTotal,
+          fulfillmentType: 'pickup',
+          pickupLocation: 'In shop',
+          source: 'in-shop',
+          location: venue,
+          paidAt: new Date(),
+          paymentMethod: method,
+          paymentMethodDetail: MANUAL_PAYMENT_METHODS[method],
+          stockUpdatedAt: new Date(), // stock is taken below; stops other paths from taking it again
+        },
+      });
+      for (const [bookId, quantity] of wanted) {
+        const taken = await tx.book.updateMany({ where: { id: bookId, stock: { gte: quantity } }, data: { stock: { decrement: quantity } } });
+        if (taken.count !== 1) throw new SoldOutError();
+      }
+      return created;
+    });
+  } catch (e) {
+    if (e instanceof SoldOutError) {
+      const problems = await findStockProblems(priced.items);
+      return NextResponse.json(
+        { error: problems.length ? stockProblemMessage(problems) : 'Not enough stock for this sale', stockProblems: problems },
+        { status: 409 }
+      );
+    }
+    throw e;
+  }
   revalidateTag('books', { expire: 0 });
   return NextResponse.json({ id: order.id, total: order.finalTotal, venue }, { status: 201 });
 }

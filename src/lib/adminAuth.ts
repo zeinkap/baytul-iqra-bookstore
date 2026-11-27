@@ -4,7 +4,9 @@ import { NextRequest, NextResponse } from 'next/server';
  * Admin sessions: a signed, expiring cookie (HMAC-SHA256 via Web Crypto, so it works in both
  * route handlers and src/proxy.ts). The cookie can't be forged without the server secret.
  *
- * Secret: ADMIN_SESSION_SECRET (recommended, long random string); falls back to ADMIN_PASSWORD.
+ * Secret: ADMIN_SESSION_SECRET (long random string). Required in production: signing with the password
+ * would let anyone holding a cookie crack the password offline. Outside production (local dev, tests) it
+ * falls back to ADMIN_PASSWORD for convenience.
  */
 export const ADMIN_COOKIE = 'admin_session';
 export const SESSION_TTL_SECONDS = 60 * 60 * 12; // 12 hours
@@ -12,7 +14,9 @@ export const SESSION_TTL_SECONDS = 60 * 60 * 12; // 12 hours
 const encoder = new TextEncoder();
 
 function getSecret(): string | null {
-  return process.env.ADMIN_SESSION_SECRET || process.env.ADMIN_PASSWORD || null;
+  if (process.env.ADMIN_SESSION_SECRET) return process.env.ADMIN_SESSION_SECRET;
+  if (process.env.NODE_ENV === 'production') return null;
+  return process.env.ADMIN_PASSWORD || null;
 }
 
 const toHex = (buf: ArrayBuffer) =>
@@ -53,6 +57,15 @@ export async function verifyPassword(input: string): Promise<boolean> {
   if (!expected) return false;
   const digest = async (s: string) => toHex(await crypto.subtle.digest('SHA-256', encoder.encode(s)));
   return safeEqual(await digest(input), await digest(expected));
+}
+
+/** Best available client IP. Prefers headers set by the platform edge over the client-controllable first
+ *  x-forwarded-for entry (clients can prepend their own values; proxies append the real one last). */
+export function getClientIp(req: NextRequest): string {
+  const trusted = req.headers.get('x-real-ip') || req.headers.get('x-vercel-forwarded-for');
+  if (trusted) return trusted.split(',')[0].trim();
+  const forwarded = req.headers.get('x-forwarded-for')?.split(',').map((s) => s.trim()).filter(Boolean);
+  return forwarded?.[forwarded.length - 1] || 'unknown';
 }
 
 export async function isAdminRequest(req: NextRequest): Promise<boolean> {

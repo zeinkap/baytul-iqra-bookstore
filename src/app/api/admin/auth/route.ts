@@ -3,6 +3,7 @@ import {
   ADMIN_COOKIE,
   SESSION_TTL_SECONDS,
   createSessionToken,
+  getClientIp,
   isAdminRequest,
   verifyPassword,
 } from '@/lib/adminAuth';
@@ -11,13 +12,13 @@ import { isRateLimited } from '@/lib/chat/rateLimit';
 export async function POST(req: NextRequest) {
   try {
     // Best-effort brute-force protection (per instance): 5 attempts per 15 minutes per IP
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const ip = getClientIp(req);
     if (isRateLimited(`admin-login:${ip}`, 5, 15 * 60_000)) {
       return NextResponse.json({ error: 'Too many attempts. Try again later.' }, { status: 429 });
     }
 
     const { password } = await req.json();
-    if (!process.env.ADMIN_PASSWORD) {
+    if (!process.env.ADMIN_PASSWORD || (process.env.NODE_ENV === 'production' && !process.env.ADMIN_SESSION_SECRET)) {
       return NextResponse.json({ error: 'Admin password not configured' }, { status: 500 });
     }
     if (typeof password !== 'string' || !(await verifyPassword(password))) {

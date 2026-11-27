@@ -162,7 +162,7 @@ TC-160,Admin,Auth,Login brute-force / rate limiting,API,Not covered,,,Medium,
 TC-161,Admin,Auth,Every /admin/* page redirects to login when signed out,UI,Partial,tests/e2e/admin-auth.spec.ts,,Medium,Only a forged-cookie check on one page
 TC-162,Admin,Books,"Create, edit, delete a book (admin books page and /api/books mutations)",UI/API,Not covered,,,High,Only the unauthenticated 401 is covered
 TC-163,Admin,Books,Edit price/stock invalidates catalog cache,Server,Automated,tests/server/catalog-cache.spec.ts,Local DB + ADMIN_PASSWORD + prod build,,
-TC-164,Admin,Books,Bulk image update (/api/admin/update-book-images) and CSV import helpers,API/Script,Not covered,,,Low,imageCsv / isbnCsv / suggestions scripts
+TC-164,Admin,Books,CSV import helpers (the one-off /api/admin/update-book-images route was removed),API/Script,Not covered,,,Low,imageCsv / isbnCsv / suggestions scripts
 TC-165,Admin,Books,ISBN validation helper (src/lib/isbn.ts),Unit,Partial,tests/e2e/qr-scan-to-cart.spec.ts,,Low,Only indirectly via scan URL
 TC-166,Admin,Orders,"Admin orders page lists, filters and searches orders",UI,Partial,tests/e2e/manual-sales.spec.ts,,Medium,Page loaded but list/filter not asserted
 TC-167,Admin,Orders,"Order detail, status update, shipping fulfilment",UI/API,Not covered,,,High,

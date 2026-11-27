@@ -45,6 +45,7 @@ export default defineConfig({
       STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY ?? '',
       STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET ?? '',
       ADMIN_PASSWORD: process.env.ADMIN_PASSWORD ?? '',
+      ADMIN_SESSION_SECRET: process.env.ADMIN_SESSION_SECRET ?? '',
       // Emails go to a stub server run by the tests, never to Resend
       RESEND_API_KEY: 're_dummy_for_tests',
       RESEND_BASE_URL: `http://localhost:${EMAIL_STUB_PORT}`,
