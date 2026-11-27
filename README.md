@@ -31,7 +31,7 @@ Password protected. Sign in at `/admin/login`; sessions last 12 hours.
 | `/admin/feedback` | "What book do you wish we had?" requests: mark each new, in progress or fulfilled, filter by status, delete |
 | `/admin/profit-margins` | Margin analysis |
 
-**How auth works:** `POST /api/admin/auth` checks `ADMIN_PASSWORD` and sets a signed, httpOnly, `SameSite=Strict` cookie (HMAC-SHA256, 12h expiry, key from `ADMIN_SESSION_SECRET`, falling back to `ADMIN_PASSWORD`). `src/proxy.ts` blocks every `/admin/*` page without a valid session, and admin API routes call `requireAdmin`. Login attempts are rate limited (5 per 15 minutes per IP, in memory per instance).
+**How auth works:** `POST /api/admin/auth` checks `ADMIN_PASSWORD` and sets a signed, httpOnly, `SameSite=Strict` cookie (HMAC-SHA256, 12h expiry, key from `ADMIN_SESSION_SECRET`, which is required in production; outside production it falls back to `ADMIN_PASSWORD`). `src/proxy.ts` blocks every `/admin/*` page without a valid session, and admin API routes call `requireAdmin`. Login attempts are rate limited (5 per 15 minutes per IP, in memory per instance).
 
 ## Getting started
 
@@ -58,7 +58,7 @@ To get real data locally, run `npm run db:sync-from-prod` (see [Database](#datab
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | for wallets | Apple Pay / Google Pay buttons on scan and basket pages |
 | `NEXT_PUBLIC_BASE_URL` | yes | Public site URL, used in emails, redirects and QR links |
 | `ADMIN_PASSWORD` | yes | Admin login password |
-| `ADMIN_SESSION_SECRET` | recommended | Signs admin session cookies (`openssl rand -hex 32`) |
+| `ADMIN_SESSION_SECRET` | yes (production) | Signs admin session cookies (`openssl rand -hex 32`) |
 | `RESEND_API_KEY` | yes | Sending emails |
 | `ANTHROPIC_API_KEY` | for chat | Chat assistant and the description / age-range / price research scripts |
 | `CHAT_MODEL` | no | Overrides the chat assistant's model |

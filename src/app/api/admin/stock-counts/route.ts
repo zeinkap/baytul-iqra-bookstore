@@ -43,20 +43,23 @@ export async function POST(req: NextRequest) {
   const adjust = body?.adjust === true;
   const location = normalizeLocation(body?.location);
 
-  const books = await prisma.book.findMany({
-    where: { id: { in: counts.map((c) => c.bookId) } },
-    select: { id: true, title: true, stock: true, costPrice: true },
-  });
-  const bookById = new Map(books.map((b) => [b.id, b]));
-  const unknown = counts.filter((c) => !bookById.has(c.bookId));
-  if (unknown.length > 0) {
-    return NextResponse.json({ error: `${unknown.length} book(s) not found` }, { status: 404 });
-  }
+  // Everything happens in one transaction against the stock as it is right now, so a sale that landed while
+  // the counts were being typed in isn't overwritten with a stale number, and the recorded difference is true.
+  const outcome = await prisma.$transaction(async (tx) => {
+    const books = await tx.book.findMany({
+      where: { id: { in: counts.map((c) => c.bookId) } },
+      select: { id: true, title: true, stock: true, costPrice: true },
+    });
+    const bookById = new Map(books.map((b) => [b.id, b]));
+    const unknown = counts.filter((c) => !bookById.has(c.bookId));
+    if (unknown.length > 0) return { unknown: unknown.length };
 
-  await prisma.$transaction([
-    ...counts.map((c) => {
+    let differences = 0;
+    for (const c of counts) {
       const book = bookById.get(c.bookId)!;
-      return prisma.stockCount.create({
+      const changed = c.counted !== book.stock;
+      if (changed) differences++;
+      await tx.stockCount.create({
         data: {
           bookId: book.id,
           bookTitle: book.title,
@@ -64,19 +67,19 @@ export async function POST(req: NextRequest) {
           systemStock: book.stock,
           countedStock: c.counted,
           difference: c.counted - book.stock,
-          adjusted: adjust && c.counted !== book.stock,
+          adjusted: adjust && changed,
           location,
         },
       });
-    }),
-    ...(adjust
-      ? counts
-          .filter((c) => c.counted !== bookById.get(c.bookId)!.stock)
-          .map((c) => prisma.book.update({ where: { id: c.bookId }, data: { stock: c.counted } }))
-      : []),
-  ]);
+      if (adjust && changed) await tx.book.update({ where: { id: book.id }, data: { stock: c.counted } });
+    }
+    return { differences };
+  }, { timeout: 20_000 });
+
+  if ('unknown' in outcome) {
+    return NextResponse.json({ error: `${outcome.unknown} book(s) not found` }, { status: 404 });
+  }
   if (adjust) revalidateTag('books', { expire: 0 });
 
-  const differences = counts.filter((c) => c.counted !== bookById.get(c.bookId)!.stock).length;
-  return NextResponse.json({ saved: counts.length, differences, adjusted: adjust });
+  return NextResponse.json({ saved: counts.length, differences: outcome.differences, adjusted: adjust });
 }
